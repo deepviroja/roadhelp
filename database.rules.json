@@ -1,0 +1,13 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "tracking": {
+      "$requestId": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}
+

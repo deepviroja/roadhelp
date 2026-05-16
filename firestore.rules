@@ -1,0 +1,91 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function roleOf(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+        ? get(/databases/$(database)/documents/users/$(uid)).data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && roleOf(request.auth.uid) == 'admin';
+    }
+
+    function isProvider() {
+      return isSignedIn() && roleOf(request.auth.uid) == 'provider';
+    }
+
+    function isCustomer() {
+      return isSignedIn() && roleOf(request.auth.uid) == 'customer';
+    }
+
+    // Public reads for marketing pages
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /system/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Profiles
+    match /users/{uid} {
+      // Read:
+      // - admin can read all
+      // - users can read their own profile
+      // - signed-in users can list/get provider docs (maps/nearby)
+      allow get: if isAdmin()
+        || (isSignedIn() && request.auth.uid == uid)
+        || (resource.data.role == 'provider');
+      allow list: if isAdmin()
+        || (resource.data.role == 'provider');
+
+      // Write:
+      // - admin can manage all
+      // - users can create/update/delete their own profile
+      allow create, update, delete: if isAdmin()
+        || (isSignedIn() && request.auth.uid == uid);
+    }
+
+    match /serviceRequests/{requestId} {
+      // Customers create their own requests (including anonymous auth guests)
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+
+      // Customer/provider/admin can read a specific request, and unauthenticated public can view if they have tracking link ID
+      allow get: if true;
+
+      // List / queries are evaluated per-document (resource is each doc returned).
+      allow list: if isAdmin()
+        || (isSignedIn() && resource.data.customerId == request.auth.uid)
+        || (isSignedIn() && resource.data.providerId == request.auth.uid)
+        // Allow any authenticated user to list pending requests (global queue)
+        || (isSignedIn() && resource.data.status == 'pending');
+
+      // Updates:
+      // - customer can cancel + mark paid + rate
+      // - provider can accept + update status + set finalPrice
+      // - admin can update anything
+      allow update: if isAdmin()
+        || (isSignedIn() && resource.data.customerId == request.auth.uid)
+        // Provider updating an already-assigned request
+        || (isSignedIn() && resource.data.providerId == request.auth.uid)
+        // Provider accepting a pending request
+        || (
+          isProvider()
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.providerId == request.auth.uid
+          // Prevent changing ownership/service type while accepting
+          && request.resource.data.customerId == resource.data.customerId
+          && request.resource.data.serviceType == resource.data.serviceType
+        );
+    }
+  }
+}
