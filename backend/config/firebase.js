@@ -1,36 +1,38 @@
 const admin = require('firebase-admin');
-let serviceAccount;
-try {
-  serviceAccount = require('../serviceAccountKey.json');
-} catch (e) {
-  // Fallback to environment variable for production (Render/Firebase Hosting)
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+
+// Only initialize once
+if (!admin.apps.length) {
+  let credential;
+
+  if (process.env.FIREBASE_PRIVATE_KEY) {
+    // Use individual environment variables (preferred for Render)
+    const serviceAccount = {
+      type: 'service_account',
+      project_id: process.env.FIREBASE_PROJECT_ID,
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+      // Render stores env vars with literal \n — replace them with real newlines
+      private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      client_id: process.env.FIREBASE_CLIENT_ID,
+      auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+      token_uri: 'https://oauth2.googleapis.com/token',
+    };
+    credential = admin.credential.cert(serviceAccount);
+    console.log('✅ Firebase Admin initialized from individual env vars');
+
+  } else {
+    // Fallback: load from local file (local development only)
     try {
-      let rawData = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
-      
-      // Check if it's Base64 (doesn't start with {)
-      if (!rawData.startsWith('{')) {
-        rawData = Buffer.from(rawData, 'base64').toString('utf8');
-      }
-      
-      serviceAccount = JSON.parse(rawData);
-      
-      // Final fallback to fix mangled newlines if they still exist
-      if (serviceAccount.private_key) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-      }
-    } catch (parseError) {
-      console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', parseError.message);
+      const serviceAccount = require('../serviceAccountKey.json');
+      credential = admin.credential.cert(serviceAccount);
+      console.log('✅ Firebase Admin initialized from serviceAccountKey.json');
+    } catch (e) {
+      console.error('❌ No Firebase credentials found. Set FIREBASE_PRIVATE_KEY or provide serviceAccountKey.json');
       process.exit(1);
     }
-  } else {
-    console.error('FIREBASE_SERVICE_ACCOUNT environment variable is missing!');
-    process.exit(1);
   }
-}
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+  admin.initializeApp({ credential });
+}
 
 module.exports = admin;
