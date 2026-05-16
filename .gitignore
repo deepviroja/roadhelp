@@ -7,6 +7,14 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+node_modules/
+.env
+.env.local
+.env.production
+backend/.env
+backend/serviceAccountKey.json
+dist/
+
 node_modules
 dist
 dist-ssr
