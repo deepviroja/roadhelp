@@ -6,6 +6,7 @@ exports.createRequest = async (req, res) => {
     const result = await requestService.saveRequest(data);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
+    console.error('Create Request Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -93,6 +94,7 @@ exports.getCustomerRequests = async (req, res) => {
     const data = await requestService.getCustomerRequests(customerId);
     res.status(200).json({ success: true, data });
   } catch (error) {
+    console.error('Get Customer Requests Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -103,6 +105,7 @@ exports.getProviderRequests = async (req, res) => {
     const data = await requestService.getProviderRequests(providerId);
     res.status(200).json({ success: true, data });
   } catch (error) {
+    console.error('Get Provider Requests Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -112,6 +115,7 @@ exports.getPendingRequests = async (req, res) => {
     const data = await requestService.getPendingRequests();
     res.status(200).json({ success: true, data });
   } catch (error) {
+    console.error('Get Pending Requests Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
