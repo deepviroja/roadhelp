@@ -6,13 +6,21 @@ try {
   // Fallback to environment variable for production (Render/Firebase Hosting)
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
-      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      // Fix for private key newlines that often get mangled in environment variables
+      let rawData = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+      
+      // Check if it's Base64 (doesn't start with {)
+      if (!rawData.startsWith('{')) {
+        rawData = Buffer.from(rawData, 'base64').toString('utf8');
+      }
+      
+      serviceAccount = JSON.parse(rawData);
+      
+      // Final fallback to fix mangled newlines if they still exist
       if (serviceAccount.private_key) {
         serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
       }
     } catch (parseError) {
-      console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:', parseError.message);
+      console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', parseError.message);
       process.exit(1);
     }
   } else {
