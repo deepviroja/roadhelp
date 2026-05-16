@@ -1,14 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-
 const app = express();
+
+// Initialize Firebase
+require('./config/firebase');
 
 app.use(cors());
 app.use(express.json());
 
 const requestRoutes = require('./routes/requestRoutes');
-
 app.use('/api/requests', requestRoutes);
 
 app.get('/', (req, res) => {
