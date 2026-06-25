@@ -13,6 +13,10 @@ async function sendEmail({ to, subject, text, html }) {
     throw new Error('SendGrid is not configured. Set SENDGRID_API_KEY and SENDGRID_FROM_EMAIL.');
   }
 
+  if (typeof fetch !== 'function') {
+    throw new Error('Email delivery requires a Node.js version with global fetch support.');
+  }
+
   const response = await fetch(SENDGRID_API_URL, {
     method: 'POST',
     headers: {
@@ -34,6 +38,8 @@ async function sendEmail({ to, subject, text, html }) {
     const errorText = await response.text();
     throw new Error(`SendGrid request failed: ${response.status} ${errorText}`);
   }
+
+  return true;
 }
 
 async function sendPasswordResetEmail({ to, resetLink, fullName }) {

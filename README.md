@@ -56,6 +56,13 @@ Create `roadhelp/.env` (the repo includes an example). Required:
 - `VITE_FIREBASE_APP_ID`
 - `VITE_FIREBASE_DATABASE_URL` (Realtime Database URL; important for live tracking)
 
+For the backend email flow, also set these in `roadhelp/backend/.env` or in Render:
+
+- `SENDGRID_API_KEY`
+- `SENDGRID_FROM_EMAIL`
+- `SENDGRID_FROM_NAME` (optional, defaults to `RoadHelp`)
+- `APP_PUBLIC_URL` or `FRONTEND_URL`
+
 ---
 
 ## Running Locally
@@ -131,6 +138,8 @@ You can deploy the `/backend` folder independently to platforms like Render, Rai
 - Connect your GitHub repository to Render or Railway.
 - Create a new Web Service and set the Root Directory to `backend`.
 - **Environment Variables**: Since `serviceAccountKey.json` shouldn't be committed to version control, it's recommended to parse it from an environment variable (e.g., set `FIREBASE_SERVICE_ACCOUNT` as a JSON string or Base64). You'll need to adapt `config/firebase.js` to parse it.
+- **Email delivery**: `SENDGRID_FROM_EMAIL` must be a verified sender in SendGrid. A random Gmail address usually will not deliver reliably unless it is verified as a sender inside SendGrid.
+- **Runtime**: Use Node.js 18 or newer so the backend can use the built-in `fetch` API for SendGrid requests.
 - **Start Command**: `npm start`
 - **Build Command**: `npm install`
 
@@ -278,6 +287,7 @@ If you change caching behavior, **unregister the SW** in DevTools to avoid stale
 
 - **Firestore permissions**: if users can sign up but can’t update profile or `isOnline`, deploy the current `firestore.rules`.
 - **QUIC / HTTP3 network issues**: this repo forces Firestore long polling in `src/config/firebase.ts` to avoid `ERR_QUIC_PROTOCOL_ERROR` on some networks.
+- **Firestore client warnings**: `net::ERR_BLOCKED_BY_CLIENT` on `firestore.googleapis.com/.../Listen/channel` usually comes from an ad blocker, privacy extension, or browser network filter rather than the app itself.
 - **Legacy folders**: a root `@/` folder and `public/index.html` may exist as legacy scaffolding; the app uses the Vite root `index.html` and `src/*` as the source of truth.
 
 ---

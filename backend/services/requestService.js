@@ -27,6 +27,7 @@ async function syncGuestCustomerAccount(data) {
       customerId: data.customerId,
       guestAccountCreated: false,
       customerEmail: data.customerEmail,
+      welcomeEmailSent: false,
     };
   }
 
@@ -70,28 +71,41 @@ async function syncGuestCustomerAccount(data) {
         ...(guestAccountCreated
           ? { createdAt: admin.firestore.FieldValue.serverTimestamp() }
           : {}),
-      },
+        },
       { merge: true }
     );
 
+    let welcomeEmailSent = false;
+    let welcomeEmailError = null;
     if (guestAccountCreated) {
       const loginLink = `${getFrontendUrl()}/login`;
-      const resetLink = await auth.generatePasswordResetLink(email, {
-        url: loginLink,
-      });
+      try {
+        const resetLink = await auth.generatePasswordResetLink(email, {
+          url: loginLink,
+        });
 
-      await sendWelcomeEmail({
-        to: email,
-        fullName,
-        loginLink,
-        resetLink,
-      });
+        await sendWelcomeEmail({
+          to: email,
+          fullName,
+          loginLink,
+          resetLink,
+        });
+        welcomeEmailSent = true;
+      } catch (emailError) {
+        welcomeEmailError = emailError;
+        console.error('Failed to send guest welcome email:', {
+          email,
+          message: emailError?.message || emailError,
+        });
+      }
     }
 
     return {
       customerId: userRecord.uid,
       guestAccountCreated,
       customerEmail: email,
+      welcomeEmailSent,
+      ...(welcomeEmailError ? { welcomeEmailError: welcomeEmailError.message || String(welcomeEmailError) } : {}),
     };
   } catch (error) {
     console.warn('Guest account sync failed, continuing with booking:', error.message || error);
@@ -99,6 +113,7 @@ async function syncGuestCustomerAccount(data) {
       customerId: data.customerId,
       guestAccountCreated: false,
       customerEmail: data.customerEmail,
+      welcomeEmailSent: false,
     };
   }
 }
@@ -110,13 +125,23 @@ exports.saveRequest = async (data) => {
     customerId: guestSync?.customerId || data.customerId,
     customerEmail: guestSync?.customerEmail || data.customerEmail,
     guestAccountCreated: guestSync?.guestAccountCreated || false,
+    welcomeEmailSent: guestSync?.welcomeEmailSent || false,
+    ...(guestSync?.welcomeEmailError ? { welcomeEmailError: guestSync.welcomeEmailError } : {}),
     status: 'pending',
     isPaid: false,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
   const docRef = await db.collection('serviceRequests').add(requestData);
-  return { id: docRef.id, ...data, customerId: requestData.customerId, customerEmail: requestData.customerEmail };
+  return {
+    id: docRef.id,
+    ...data,
+    customerId: requestData.customerId,
+    customerEmail: requestData.customerEmail,
+    guestAccountCreated: requestData.guestAccountCreated,
+    welcomeEmailSent: requestData.welcomeEmailSent,
+    ...(requestData.welcomeEmailError ? { welcomeEmailError: requestData.welcomeEmailError } : {}),
+  };
 };
 
 exports.submitProposal = async (requestId, proposal) => {
