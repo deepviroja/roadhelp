@@ -1,16 +1,122 @@
-const admin = require('../config/firebase');
+﻿const admin = require('../config/firebase');
+const crypto = require('crypto');
+const { getFrontendUrl, sendWelcomeEmail } = require('./emailService');
 
 const db = admin.firestore();
+const auth = admin.auth();
+
+function normalizeDigits(value) {
+  return String(value || '').replace(/\D+/g, '');
+}
+
+function serializeDoc(doc) {
+  const data = doc.data();
+  if (data.createdAt?.toDate) data.createdAt = data.createdAt.toDate().toISOString();
+  if (data.acceptedAt?.toDate) data.acceptedAt = data.acceptedAt.toDate().toISOString();
+  if (data.arrivingAt?.toDate) data.arrivingAt = data.arrivingAt.toDate().toISOString();
+  if (data.inProgressAt?.toDate) data.inProgressAt = data.inProgressAt.toDate().toISOString();
+  if (data.completedAt?.toDate) data.completedAt = data.completedAt.toDate().toISOString();
+  if (data.cancelledAt?.toDate) data.cancelledAt = data.cancelledAt.toDate().toISOString();
+  return { id: doc.id, ...data };
+}
+
+async function syncGuestCustomerAccount(data) {
+  const email = String(data.customerEmail || '').trim().toLowerCase();
+  if (!email) {
+    return {
+      customerId: data.customerId,
+      guestAccountCreated: false,
+      customerEmail: data.customerEmail,
+    };
+  }
+
+  const fullName = String(data.customerName || '').trim() || email;
+  const phone = String(data.customerPhone || '').trim();
+  const phoneDigits = normalizeDigits(phone);
+  const phoneE164 = phone.startsWith('+') ? phone : (phoneDigits ? `+${phoneDigits}` : phone);
+
+  try {
+    let userRecord = null;
+    try {
+      userRecord = await auth.getUserByEmail(email);
+    } catch (error) {
+      if (error.code !== 'auth/user-not-found') throw error;
+    }
+
+    let guestAccountCreated = false;
+    if (!userRecord) {
+      const tempPassword = crypto.randomBytes(12).toString('base64url');
+      userRecord = await auth.createUser({
+        email,
+        password: tempPassword,
+        displayName: fullName,
+      });
+      guestAccountCreated = true;
+    }
+
+    const profileRef = db.collection('users').doc(userRecord.uid);
+    await profileRef.set(
+      {
+        uid: userRecord.uid,
+        fullName,
+        email,
+        phone,
+        phoneDigits,
+        phoneE164,
+        role: 'customer',
+        isGuest: true,
+        guestSessionId: data.guestSessionId || null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        ...(guestAccountCreated
+          ? { createdAt: admin.firestore.FieldValue.serverTimestamp() }
+          : {}),
+      },
+      { merge: true }
+    );
+
+    if (guestAccountCreated) {
+      const loginLink = `${getFrontendUrl()}/login`;
+      const resetLink = await auth.generatePasswordResetLink(email, {
+        url: loginLink,
+      });
+
+      await sendWelcomeEmail({
+        to: email,
+        fullName,
+        loginLink,
+        resetLink,
+      });
+    }
+
+    return {
+      customerId: userRecord.uid,
+      guestAccountCreated,
+      customerEmail: email,
+    };
+  } catch (error) {
+    console.warn('Guest account sync failed, continuing with booking:', error.message || error);
+    return {
+      customerId: data.customerId,
+      guestAccountCreated: false,
+      customerEmail: data.customerEmail,
+    };
+  }
+}
 
 exports.saveRequest = async (data) => {
+  const guestSync = data.isGuest && data.customerEmail ? await syncGuestCustomerAccount(data) : null;
   const requestData = {
     ...data,
+    customerId: guestSync?.customerId || data.customerId,
+    customerEmail: guestSync?.customerEmail || data.customerEmail,
+    guestAccountCreated: guestSync?.guestAccountCreated || false,
     status: 'pending',
     isPaid: false,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+
   const docRef = await db.collection('serviceRequests').add(requestData);
-  return { id: docRef.id, ...data };
+  return { id: docRef.id, ...data, customerId: requestData.customerId, customerEmail: requestData.customerEmail };
 };
 
 exports.submitProposal = async (requestId, proposal) => {
@@ -109,11 +215,7 @@ exports.getCustomerRequests = async (customerId) => {
     .where('customerId', '==', customerId)
     .orderBy('createdAt', 'desc')
     .get();
-  return snap.docs.map(d => {
-    const data = d.data();
-    if (data.createdAt) data.createdAt = data.createdAt.toDate().toISOString();
-    return { id: d.id, ...data };
-  });
+  return snap.docs.map(serializeDoc);
 };
 
 exports.getProviderRequests = async (providerId) => {
@@ -121,11 +223,7 @@ exports.getProviderRequests = async (providerId) => {
     .where('providerId', '==', providerId)
     .orderBy('createdAt', 'desc')
     .get();
-  return snap.docs.map(d => {
-    const data = d.data();
-    if (data.createdAt) data.createdAt = data.createdAt.toDate().toISOString();
-    return { id: d.id, ...data };
-  });
+  return snap.docs.map(serializeDoc);
 };
 
 exports.getPendingRequests = async () => {
@@ -133,17 +231,11 @@ exports.getPendingRequests = async () => {
     .where('status', '==', 'pending')
     .orderBy('createdAt', 'desc')
     .get();
-  return snap.docs.map(d => {
-    const data = d.data();
-    if (data.createdAt) data.createdAt = data.createdAt.toDate().toISOString();
-    return { id: d.id, ...data };
-  });
+  return snap.docs.map(serializeDoc);
 };
 
 exports.getRequestById = async (requestId) => {
   const snap = await db.collection('serviceRequests').doc(requestId).get();
   if (!snap.exists) return null;
-  const data = snap.data();
-  if (data.createdAt) data.createdAt = data.createdAt.toDate().toISOString();
-  return { id: snap.id, ...data };
+  return serializeDoc(snap);
 };

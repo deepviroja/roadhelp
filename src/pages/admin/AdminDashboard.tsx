@@ -149,7 +149,51 @@ export default function AdminDashboard() {
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
+            <div className="grid grid-cols-1 gap-8 mb-16">
+               {/* Health Monitor */}
+               <div className="lg:col-span-4">
+                  <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-xl h-full relative overflow-hidden group">
+                     <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/20 rounded-full blur-2xl -mr-12 -mt-12 group-hover:scale-125 transition-all duration-700" />
+                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8 border-b border-white/10 pb-3 relative z-10">System Overview</h3>
+                     <div className="space-y-6 relative z-10">
+                        <div className="flex items-center justify-between">
+                           <div>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Customers</p>
+                              <p className="text-base font-bold tracking-tight">{stats.customers}</p>
+                           </div>
+                           <div className="w-10 h-10 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center justify-center text-green-500">
+                              <Users className="w-4 h-4" />
+                           </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                           <div>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Providers</p>
+                              <p className="text-base font-bold tracking-tight">{stats.providers}</p>
+                           </div>
+                           <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-500">
+                              <Truck className="w-4 h-4" />
+                           </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                           <div>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Revenue</p>
+                              <p className="text-base font-bold tracking-tight">{formatCurrency(stats.revenue)}</p>
+                           </div>
+                           <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-amber-500">
+                              <IndianRupee className="w-4 h-4" />
+                           </div>
+                        </div>
+                     </div>
+                     <div className="mt-8 pt-6 border-t border-white/10 relative z-10">
+                        <Button 
+                          onClick={handleRefresh}
+                          className="w-full h-12 rounded-xl bg-white text-slate-900 hover:bg-blue-600 hover:text-white font-bold text-[9px] uppercase tracking-widest transition-all"
+                        >
+                           Refresh Statistics
+                        </Button>
+                     </div>
+                  </div>
+               </div>
                {/* Live Feed */}
                <div className="lg:col-span-8">
                   <div className="glass-card rounded-3xl overflow-hidden">
@@ -202,50 +246,7 @@ export default function AdminDashboard() {
                   </div>
                </div>
 
-               {/* Health Monitor */}
-               <div className="lg:col-span-4">
-                  <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-xl h-full relative overflow-hidden group">
-                     <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/20 rounded-full blur-2xl -mr-12 -mt-12 group-hover:scale-125 transition-all duration-700" />
-                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8 border-b border-white/10 pb-3 relative z-10">System Overview</h3>
-                     <div className="space-y-6 relative z-10">
-                        <div className="flex items-center justify-between">
-                           <div>
-                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Customers</p>
-                              <p className="text-base font-bold tracking-tight">{stats.customers}</p>
-                           </div>
-                           <div className="w-10 h-10 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center justify-center text-green-500">
-                              <Users className="w-4 h-4" />
-                           </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                           <div>
-                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Providers</p>
-                              <p className="text-base font-bold tracking-tight">{stats.providers}</p>
-                           </div>
-                           <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-500">
-                              <Truck className="w-4 h-4" />
-                           </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                           <div>
-                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Revenue</p>
-                              <p className="text-base font-bold tracking-tight">{formatCurrency(stats.revenue)}</p>
-                           </div>
-                           <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-amber-500">
-                              <IndianRupee className="w-4 h-4" />
-                           </div>
-                        </div>
-                     </div>
-                     <div className="mt-8 pt-6 border-t border-white/10 relative z-10">
-                        <Button 
-                          onClick={handleRefresh}
-                          className="w-full h-12 rounded-xl bg-white text-slate-900 hover:bg-blue-600 hover:text-white font-bold text-[9px] uppercase tracking-widest transition-all"
-                        >
-                           Refresh Statistics
-                        </Button>
-                     </div>
-                  </div>
-               </div>
+
             </div>
 
             <div className="mt-10">

@@ -108,6 +108,8 @@ export default function AdminSettings() {
     currency: "INR",
     currencySymbol: "₹",
     trackingInterval: 5,
+    heroHeadline: "Roadside help",
+    heroSubheadline: "without the stress.",
     heroSlides: [] as Slide[],
     featuredReviews: [] as FeaturedReview[],
     steps: [] as Step[],
@@ -115,6 +117,8 @@ export default function AdminSettings() {
       policeNumber: "100",
       ambulanceNumber: "108",
       helplineNumber: "1073",
+      teamContactNumber: "1090",
+      teamCount: 3,
     },
   });
 
@@ -161,6 +165,8 @@ export default function AdminSettings() {
           currency: data.currency || "INR",
           currencySymbol: data.currencySymbol || "₹",
           trackingInterval: data.trackingInterval || 5,
+          heroHeadline: data.heroHeadline || "Roadside help",
+          heroSubheadline: data.heroSubheadline || "without the stress.",
           heroSlides: data.heroSlides || [],
           featuredReviews: data.featuredReviews || [],
           steps: data.steps || [],
@@ -168,6 +174,8 @@ export default function AdminSettings() {
             policeNumber: "100",
             ambulanceNumber: "108",
             helplineNumber: "1073",
+            teamContactNumber: "1090",
+            teamCount: 3,
           },
         };
         setPlatformConfig(config);
@@ -440,6 +448,24 @@ export default function AdminSettings() {
                     }
                     className="h-14 text-xl font-black rounded-2xl bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 transition-all"
                   />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Landing hero headline</Label>
+                      <Input
+                        value={platformConfig.heroHeadline || ''}
+                        onChange={(e) => setPlatformConfig({ ...platformConfig, heroHeadline: e.target.value })}
+                        className="font-black rounded-2xl h-14 bg-slate-50 border-slate-100"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Landing hero subheadline</Label>
+                      <Input
+                        value={platformConfig.heroSubheadline || ''}
+                        onChange={(e) => setPlatformConfig({ ...platformConfig, heroSubheadline: e.target.value })}
+                        className="font-black rounded-2xl h-14 bg-slate-50 border-slate-100"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -631,7 +657,7 @@ export default function AdminSettings() {
                     />
                  </div>
                  <div className="space-y-2">
-                    <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Internal Support Hotline</Label>
+                    <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Support Hotline</Label>
                     <Input 
                       value={platformConfig.sosConfig?.helplineNumber || "1073"} 
                       onChange={(e) => setPlatformConfig({
@@ -639,6 +665,30 @@ export default function AdminSettings() {
                          sosConfig: { ...platformConfig.sosConfig, helplineNumber: e.target.value } as any
                       })}
                       className="font-black rounded-2xl h-14 bg-slate-50 border-slate-100" 
+                    />
+                 </div>
+                 <div className="space-y-2">
+                    <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Response Team Contact</Label>
+                    <Input 
+                      value={platformConfig.sosConfig?.teamContactNumber || "1090"} 
+                      onChange={(e) => setPlatformConfig({
+                         ...platformConfig,
+                         sosConfig: { ...platformConfig.sosConfig, teamContactNumber: e.target.value } as any
+                      })}
+                      className="font-black rounded-2xl h-14 bg-slate-50 border-slate-100" 
+                    />
+                 </div>
+                 <div className="space-y-2">
+                    <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Response team size</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={platformConfig.sosConfig?.teamCount || 3}
+                      onChange={(e) => setPlatformConfig({
+                        ...platformConfig,
+                        sosConfig: { ...platformConfig.sosConfig, teamCount: Number(e.target.value) || 0 } as any
+                      })}
+                      className="font-black rounded-2xl h-14 bg-slate-50 border-slate-100"
                     />
                  </div>
               </div>
@@ -983,7 +1033,7 @@ export default function AdminSettings() {
           </TabsContent>
 
           <TabsContent value="admins" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="grid grid-cols-1 lg:grid-cols-1 my-4 gap-10">
               <div className="lg:col-span-2 space-y-8">
                 <div className="bg-white rounded-[3rem] border border-slate-200 shadow-sm p-10">
                   <div className="flex items-center gap-3 mb-10 pb-8 border-b border-slate-50">

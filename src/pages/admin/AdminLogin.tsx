@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
@@ -23,12 +23,12 @@ export default function AdminLogin() {
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { role: 'admin' },
+    defaultValues: { role: 'admin', identifier: '' },
   });
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await login(data.email, data.password, 'admin');
+      await login(data.identifier, data.password, 'admin');
       toast.success(`Welcome back, Administrator`);
       navigate('/admin/dashboard');
     } catch (error: unknown) {
@@ -45,7 +45,6 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F6] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background decorations */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/20 blur-[100px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/20 blur-[100px]" />
@@ -78,18 +77,18 @@ export default function AdminLogin() {
             <input type="hidden" {...register('role')} value="admin" />
 
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-gray-400">Admin Email</Label>
+              <Label htmlFor="identifier" className="text-gray-400">Admin Email</Label>
               <Input
-                id="email"
+                id="identifier"
                 type="email"
                 placeholder='Enter Email Id'
-                {...register('email')}
-                className={`bg-gray-100 border-gray-700 text-black placeholder:text-gray-300 ${errors.email ? 'border-red-500 focus-visible:ring-red-500' : 'focus-visible:ring-blue-500'}`}
+                {...register('identifier')}
+                className={`bg-gray-100 border-gray-700 text-black placeholder:text-gray-300 ${errors.identifier ? 'border-red-500 focus-visible:ring-red-500' : 'focus-visible:ring-blue-500'}`}
               />
               <AnimatePresence>
-                {errors.email && (
+                {errors.identifier && (
                   <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-xs text-red-400 mt-1">
-                    {errors.email.message}
+                    {errors.identifier.message}
                   </motion.p>
                 )}
               </AnimatePresence>

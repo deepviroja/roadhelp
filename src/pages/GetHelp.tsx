@@ -1,30 +1,56 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, ChevronRight, ChevronLeft, Check, Info, User, Phone, Truck, ShieldCheck, MapPinned, ListTodo, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import {
+  ArrowLeft,
+  ArrowRight,
+  BadgeHelp,
+  Car,
+  Check,
+  ChevronDown,
+  Clock3,
+  MapPin,
+  Phone,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  User,
+  AlertTriangle,
+
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { PhoneInputGroup } from '@/components/ui/phone-input';
 import { LocationPicker } from '@/components/map/LocationPicker';
 import { IconRenderer } from '@/components/shared/IconRenderer';
 import { useServices } from '@/hooks/useServices';
 import { useServiceRequest } from '@/hooks/useServiceRequest';
-import { formatCurrency } from '@/lib/utils';
-import { GeoLocation, ServiceTypeConfig } from '@/types';
+import { formatCurrency, getServiceLabel } from '@/lib/utils';
+import { GeoLocation, ServiceType, ServiceTypeConfig } from '@/types';
 import { ensureGuestAuth } from '@/lib/guestAuth';
-import { PhoneInputGroup } from '@/components/ui/phone-input';
 import { guestHelpSchema, GuestHelpFormData } from '@/lib/validators';
 
-const STEPS = [
-  { id: 'service', label: 'Service Type', icon: Truck },
-  { id: 'location', label: 'Location', icon: MapPin },
-  { id: 'details', label: 'Brief Details', icon: ListTodo },
-  { id: 'confirm', label: 'Confirmation', icon: ShieldCheck }
-];
+const CONTACT_METHODS = [
+  { value: 'phone', label: 'Phone call' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'email', label: 'Email' },
+] as const;
+
+const VEHICLE_TYPES = ['Car', 'SUV', 'Bike', 'Van', 'Truck', 'Other'] as const;
+
+function estimateArrival(service: ServiceTypeConfig | null) {
+  if (!service) return '15-25 min';
+  if (service.id === 'towing') return '20-35 min';
+  if (service.id === 'fuelDelivery') return '15-25 min';
+  return '10-20 min';
+}
 
 export default function GetHelp() {
   const navigate = useNavigate();
@@ -32,459 +58,489 @@ export default function GetHelp() {
   const { services, isLoading: isServicesLoading } = useServices();
   const { createRequest, isLoading } = useServiceRequest();
 
-  const [currentStep, setCurrentStep] = useState(0);
+  const [screen, setScreen] = useState<'form' | 'confirm'>('form');
   const [selectedService, setSelectedService] = useState<ServiceTypeConfig | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<GeoLocation | null>(null);
+  const [confirmationNumber, setConfirmationNumber] = useState('');
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [serviceMenuOpen, setServiceMenuOpen] = useState(false);
+  const [serviceLabelOverride, setServiceLabelOverride] = useState('');
 
   const activeServices = useMemo(
     () => services.filter((s) => s.isActive ?? true),
-    [services]
+    [services],
   );
 
+  const filteredServices = useMemo(() => {
+    const query = serviceSearch.trim().toLowerCase();
+    if (!query) return activeServices;
+    return activeServices.filter((service) =>
+      [service.name, getServiceLabel(service.id), service.description].join(' ').toLowerCase().includes(query),
+    );
+  }, [activeServices, serviceSearch]);
+
+  const resolveServiceConfig = (serviceId: string) => activeServices.find((service) => service.id === serviceId) ?? activeServices.find((service) => service.id === 'otherService') ?? null;
+
   const form = useForm<GuestHelpFormData>({
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     resolver: zodResolver(guestHelpSchema),
     defaultValues: {
-      name: '',
+      fullName: '',
+      email: '',
       phone: '',
-      countryCode: '+1',
-      vehicleMake: '',
+      countryCode: '+91',
+      vehicleType: '',
+      vehicleBrand: '',
       vehicleModel: '',
-      vehicleColor: '',
-      vehiclePlate: '',
+      vehicleNumber: '',
+      serviceType: '',
       description: '',
+      notes: '',
+      preferredContactMethod: 'phone',
+      isEmergency: false,
     },
   });
 
-  useEffect(() => {
-    ensureGuestAuth().catch((err: unknown) => {
-      console.error('ensureGuestAuth error:', err);
-    });
+  const watchedServiceType = form.watch('serviceType');
+  const resolvedServiceType = watchedServiceType || selectedService?.id || (serviceLabelOverride ? 'otherService' : '');
+  const selectedServiceConfig = selectedService
+    ?? activeServices.find((service) => service.id === resolvedServiceType)
+    ?? activeServices.find((service) => service.id === 'otherService')
+    ?? null;
+  const selectedServiceLabel = serviceLabelOverride || (selectedServiceConfig?.id === 'otherService' ? 'Other Service' : selectedServiceConfig ? getServiceLabel(selectedServiceConfig.id) : 'No service selected yet');
 
+  useEffect(() => {
     const params = new URLSearchParams(routeLocation.search);
     const serviceParam = params.get('service');
-
     const draftRaw = sessionStorage.getItem('roadhelp:guestRequestDraft');
+
+    const applyServiceSelection = (serviceId: string, label?: string) => {
+      const serviceConfig = resolveServiceConfig(serviceId);
+      const resolvedId = serviceConfig?.id || 'otherService';
+      if (serviceConfig) {
+        setSelectedService(serviceConfig);
+      }
+      setServiceLabelOverride(label || getServiceLabel(resolvedId as ServiceType));
+      form.setValue('serviceType', resolvedId as ServiceType, { shouldValidate: true, shouldDirty: true });
+    };
+
     if (draftRaw) {
       try {
-        const draft = JSON.parse(draftRaw) as Partial<{ name: string; phone: string; serviceType: string; notes: string }>;
-        if (draft.name) form.setValue('name', draft.name);
+        const draft = JSON.parse(draftRaw) as Partial<GuestHelpFormData> & { serviceLabel?: string };
+        if (draft.fullName) form.setValue('fullName', draft.fullName);
+        if (draft.email) form.setValue('email', draft.email);
         if (draft.phone) form.setValue('phone', draft.phone);
-        if (draft.notes) form.setValue('description', draft.notes);
-        if (!serviceParam && draft.serviceType) {
-          params.set('service', draft.serviceType);
-          navigate(`/get-help?service=${encodeURIComponent(draft.serviceType)}`, { replace: true });
+        if (draft.countryCode) form.setValue('countryCode', draft.countryCode);
+        if (draft.description) form.setValue('description', draft.description);
+        if (draft.notes) form.setValue('notes', draft.notes);
+        if (draft.serviceType) {
+          applyServiceSelection(draft.serviceType, draft.serviceLabel);
+        } else if (draft.serviceLabel) {
+          setServiceLabelOverride(draft.serviceLabel);
         }
       } catch {
-        // ignore
+        // ignore draft parsing errors
       } finally {
         sessionStorage.removeItem('roadhelp:guestRequestDraft');
       }
     }
-  }, []);
 
-  useEffect(() => {
-    if (selectedService) return;
-    const params = new URLSearchParams(routeLocation.search);
-    const serviceParam = params.get('service');
-    if (!serviceParam) return;
-    const match = activeServices.find((s) => s.id === serviceParam);
-    if (match) setSelectedService(match);
-  }, [activeServices, routeLocation.search, selectedService]);
+    if (serviceParam) {
+      applyServiceSelection(serviceParam);
+    } else if (!draftRaw && activeServices.length > 0) {
+      const first = activeServices[0];
+      applyServiceSelection(first.id);
+    }
+  }, [activeServices, form, routeLocation.search]);
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentStep]);
+  const handleContinue = async () => {
+    if (resolvedServiceType && form.getValues('serviceType') !== resolvedServiceType) {
+      form.setValue('serviceType', resolvedServiceType as ServiceType, { shouldValidate: true, shouldDirty: true });
+    }
 
-  const handleNext = async () => {
-
-    if (currentStep === 0 && !selectedService) {
-      toast.warning('Please select a service type');
+    const valid = await form.trigger();
+    if (!resolvedServiceType) {
+      toast.warning('Please choose a service.');
       return;
     }
-    if (currentStep === 1 && !selectedLocation) {
-      toast.warning('Please select your location on the map');
+    if (!selectedLocation) {
+      toast.warning('Please share your location.');
       return;
     }
-    if (currentStep === 2) {
-      const ok = await form.trigger();
-      if (!ok) {
-        toast.error('Please check the details before continuing');
-        return;
-      }
+    if (!valid) {
+      return;
     }
-    setCurrentStep((s) => Math.min(s + 1, STEPS.length - 1));
+    setConfirmationNumber('RH-' + Math.random().toString(36).slice(2, 8).toUpperCase());
+    setScreen('confirm');
   };
 
-  const handleBack = () => setCurrentStep((s) => Math.max(s - 1, 0));
-
   const handleSubmit = async () => {
-    if (!selectedService || !selectedLocation) return;
-    const values = form.getValues();
-    
+    if (!selectedServiceConfig || !selectedLocation) return;
+
     try {
       const user = await ensureGuestAuth();
+      const values = form.getValues();
 
       const requestId = await createRequest({
         customerId: user.uid,
-        customerName: values.name,
+        customerName: values.fullName,
+        customerEmail: values.email || undefined,
         customerPhone: `${values.countryCode}${values.phone}`,
         isGuest: true,
         guestSessionId: user.uid,
-        serviceType: selectedService.id,
-        serviceName: selectedService.name,
-        serviceIcon: selectedService.icon,
-        serviceBasePrice: selectedService.basePrice,
-        serviceMaxPrice: selectedService.maxPrice,
+        serviceType: resolvedServiceType as ServiceType,
+        serviceName: selectedServiceLabel,
+        serviceIcon: selectedServiceConfig.icon,
+        serviceBasePrice: selectedServiceConfig.basePrice,
+        serviceMaxPrice: selectedServiceConfig.maxPrice,
+        serviceLabel: selectedServiceLabel,
+        vehicleType: values.vehicleType,
         description: values.description,
+        notes: values.notes,
+        preferredContactMethod: values.preferredContactMethod,
+        isEmergency: values.isEmergency,
         vehicleInfo: {
-          make: values.vehicleMake,
+          make: values.vehicleBrand,
           model: values.vehicleModel,
-          color: values.vehicleColor,
-          plateNumber: values.vehiclePlate,
+          plateNumber: values.vehicleNumber || 'Not shared',
         },
         customerLocation: selectedLocation,
-        estimatedPrice: selectedService.basePrice,
+        estimatedPrice: selectedServiceConfig.basePrice,
       });
 
-      toast.success('Mission Deployment Successful! Monitoring fleet...');
+      toast.success('Your request has been sent.');
       navigate(`/track/${requestId}`);
     } catch (err: unknown) {
       const anyErr = err as { message?: string };
-      toast.error(anyErr?.message || 'Dispatch failure. Please try again.');
+      toast.error(anyErr?.message || 'We could not submit your request.');
     }
   };
 
   return (
     <div className="flex-1 bg-[#F5F5F6] min-h-screen overflow-x-hidden">
-      <div className="max-w-5xl mx-auto px-6 lg:px-8 py-10 md:py-16 pb-24">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="mb-12 text-center md:text-left">
-            <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight mb-3 leading-none">Urgent Dispatch</h1>
-            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Instant Roadside Assets • Zero Subscription Protocol</p>
-          </div>
+      <div className="max-w-6xl mx-auto px-6 lg:px-8 py-10 md:py-16 pb-24 ">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-blue-600 mb-3">Book help</p>
+          <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight leading-none mb-4">Tell us what happened and we’ll take care of the rest.</h1>
+          <p className="text-slate-500 font-medium max-w-2xl leading-relaxed">Pick a service, share your location, and review the booking before you confirm.</p>
+        </motion.div>
 
-          <div className="flex items-center justify-between mb-20 relative overflow-x-auto pb-6 scrollbar-hide">
-            <div className="absolute top-7 left-0 right-0 h-1.5 bg-slate-200 rounded-full z-0" />
-            {STEPS.map((step, idx) => {
-              const Icon = step.icon;
-              return (
-                <div key={step.id} className="flex flex-col items-center flex-1 relative z-10 px-2 sm:px-4 min-w-[70px] sm:min-w-[120px]">
-                  <div
-                    className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border-4 transition-all duration-500 font-black ${
-                      idx < currentStep
-                        ? 'bg-blue-600 border-white text-white shadow-xl shadow-blue-600/40'
-                        : idx === currentStep
-                          ? 'bg-white border-blue-600 text-blue-600 shadow-2xl scale-110'
-                          : 'bg-slate-100 border-slate-100 text-slate-400'
-                    }`}
-                  >
-                    {idx < currentStep ? <Check className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={4} /> : <Icon className="w-5 h-5 sm:w-6 sm:h-6" />}
-                  </div>
-                  <p className={`text-[9px] sm:text-[11px] font-black uppercase tracking-widest mt-4 sm:mt-6 whitespace-nowrap ${idx === currentStep ? 'text-blue-600 block' : 'text-slate-400 hidden sm:block'}`}>
-                    {step.label}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-
+        <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-8 items-start">
           <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, scale: 0.98, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: -20 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="glass-card rounded-3xl p-6 md:p-12 mb-10 min-h-[500px] flex flex-col relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 rounded-full -mr-32 -mt-32 blur-3xl" />
-              
-              {currentStep === 0 && (
-                <div className="flex-1 relative z-10">
-                  <div className="mb-10">
-                    <span className="bg-blue-600/10 text-blue-600 py-2 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest mb-4 inline-block backdrop-blur-md">Initial Evaluation</span>
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Diagnostic Analysis</h2>
-                    <p className="text-slate-500 font-medium text-sm">Identify the primary system failure for immediate asset deployment</p>
+            {screen === 'form' ? (
+              <motion.div
+                key="form"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                className="glass-card rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-white/60"
+              >
+                <div className="flex items-start justify-between gap-4 mb-8">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-2">Selected service</p>
+                    <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{selectedServiceLabel}</h2>
                   </div>
-
-                  {isServicesLoading ? (
-                    <div className="flex flex-col items-center justify-center py-32 animate-pulse">
-                        <div className="w-20 h-20 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin mb-8" />
-                        <span className="font-black text-[12px] uppercase tracking-[0.5em] text-slate-400">Syncing Intelligence Library...</span>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {activeServices.map((service) => (
-                        <motion.button
-                          key={service.id}
-                          type="button"
-                          whileHover={{ y: -5, scale: 1.01 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => setSelectedService(service)}
-                          className={`p-6 md:p-8 rounded-3xl border-2 text-left transition-all relative group overflow-hidden ${
-                            selectedService?.id === service.id
-                              ? 'border-blue-600 bg-blue-600 text-white shadow-xl shadow-blue-600/30'
-                              : 'border-slate-100 bg-slate-50 hover:border-blue-300 hover:bg-white'
-                          }`}
-                        >
-                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all ${selectedService?.id === service.id ? 'bg-white/20 text-white shadow-inner' : 'bg-white shadow-md text-blue-600 group-hover:rotate-6'}`}>
-                            <IconRenderer name={service.icon} size={28} />
-                          </div>
-                          <p className={`font-black text-xl mb-1 tracking-tight ${selectedService?.id === service.id ? 'text-white' : 'text-slate-900'}`}>{service.name}</p>
-                          <p className={`text-[10px] font-bold uppercase tracking-widest ${selectedService?.id === service.id ? 'text-white/80' : 'text-slate-500'}`}>
-                             ESTIMATED: {formatCurrency(service.basePrice)}+
-                          </p>
-                        </motion.button>
-                      ))}
+                  {selectedServiceConfig && (
+                    <div className="hidden md:flex items-center gap-3 px-4 py-3 rounded-2xl bg-blue-600/5 border border-blue-100 text-blue-700">
+                      <IconRenderer name={selectedServiceConfig.icon} size={24} />
+                      <span className="font-black text-sm">{formatCurrency(selectedServiceConfig.basePrice)}+</span>
                     </div>
                   )}
                 </div>
-              )}
 
-              {currentStep === 1 && (
-                <div className="flex-1 flex flex-col relative z-10">
-                  <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-                    <div>
-                      <span className="bg-indigo-600/10 text-indigo-600 py-2 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest mb-4 inline-block backdrop-blur-md">Telemetry Hook</span>
-                      <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Geolocation Lock</h2>
-                      <p className="text-slate-500 font-medium text-sm">Coordinate synchronization for absolute precision in field deployment</p>
+                <div className="space-y-8">
+                  <div className="rounded-[1.75rem] border border-slate-100 bg-slate-50 p-5 md:p-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-blue-600 shadow-sm shrink-0">
+                          {selectedServiceConfig ? <IconRenderer name={selectedServiceConfig.icon} size={24} /> : <Sparkles className="w-6 h-6" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current selection</p>
+                          <p className="font-black text-slate-900 truncate">{selectedServiceLabel}</p>
+                        </div>
+                      </div>
+                      <Button type="button" variant="outline" className="rounded-2xl h-11 px-4 font-black uppercase text-[10px] tracking-widest" onClick={() => setServiceMenuOpen((open) => !open)}>
+                        Change service
+                        <ChevronDown className={`w-4 h-4 ml-2 transition-transform ${serviceMenuOpen ? 'rotate-180' : ''}`} />
+                      </Button>
                     </div>
-                    {selectedLocation && (
-                       <motion.div 
-                         initial={{ opacity: 0, x: 20 }}
-                         animate={{ opacity: 1, x: 0 }}
-                         className="flex items-center gap-6 bg-green-600/5 border-2 border-white p-8 rounded-[2.5rem] shadow-2xl backdrop-blur-md"
-                       >
-                          <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-green-600/30">
-                             <MapPinned className="w-8 h-8" />
+
+                    <AnimatePresence>
+                      {serviceMenuOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          className="mt-5 rounded-[1.5rem] bg-white border border-slate-200 p-4 shadow-sm"
+                        >
+                          <div className="relative mb-4">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <Input
+                              value={serviceSearch}
+                              onChange={(e) => setServiceSearch(e.target.value)}
+                              placeholder="Search services"
+                              className="h-12 rounded-2xl pl-12 bg-slate-50 border-slate-200"
+                            />
                           </div>
-                          <div className="min-w-0 max-w-[200px] md:max-w-[300px]">
-                             <p className="text-[11px] font-black text-green-700 uppercase tracking-[0.3em] leading-none mb-2">Coordinates Verified</p>
-                             <p className="text-sm font-bold text-slate-700 truncate">{selectedLocation.address}</p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                            {isServicesLoading ? (
+                              <div className="col-span-full py-10 text-center text-slate-300 font-black uppercase tracking-[0.35em] animate-pulse">Loading services...</div>
+                            ) : filteredServices.length > 0 ? filteredServices.map((service) => {
+                              const isSelected = selectedService?.id === service.id;
+                              return (
+                                <button
+                                  key={service.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedService(service);
+                                    setServiceLabelOverride(getServiceLabel(service.id));
+                                    form.setValue('serviceType', service.id, { shouldValidate: true, shouldDirty: true });
+                                    setServiceMenuOpen(false);
+                                    setServiceSearch('');
+                                  }}
+                                  className={`text-left rounded-[1.25rem] border p-4 transition-all ${isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-100 bg-slate-50 hover:bg-white hover:border-blue-200'}`}
+                                >
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${isSelected ? 'bg-white/15 text-white' : 'bg-white text-blue-600 shadow-sm'}`}>
+                                    <IconRenderer name={service.icon} size={20} />
+                                  </div>
+                                  <p className={`font-black text-sm ${isSelected ? 'text-white' : 'text-slate-900'}`}>{getServiceLabel(service.id)}</p>
+                                  <p className={`text-xs leading-relaxed mt-1 ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>{service.description}</p>
+                                </button>
+                              );
+                            }) : (
+                              <div className="col-span-full rounded-[1.25rem] border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-slate-500 text-sm">
+                                No services match your search.
+                              </div>
+                            )}
                           </div>
-                       </motion.div>
-                    )}
-                  </div>
-                  <div className="w-full h-[450px] bg-slate-100 rounded-3xl overflow-hidden border-4 border-white shadow-lg relative group">
-                    <LocationPicker onLocationSelect={setSelectedLocation} initialLocation={selectedLocation ?? undefined} />
-                    {!selectedLocation && (
-                       <div className="absolute inset-x-0 bottom-8 flex justify-center pointer-events-none z-10">
-                          <motion.div 
-                            animate={{ y: [0, -10, 0] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                            className="bg-slate-900/90 backdrop-blur-xl px-6 py-4 rounded-2xl shadow-xl flex items-center gap-4 border border-white/10"
-                          >
-                             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white">
-                               <MapPin className="w-5 h-5" />
-                             </div>
-                             <span className="font-bold text-[10px] uppercase tracking-widest text-white">ESTABLISH GPS</span>
-                          </motion.div>
-                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 2 && (
-                <div className="flex-1 relative z-10">
-                  <div className="mb-10">
-                    <span className="bg-amber-600/10 text-amber-600 py-2 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest mb-4 inline-block backdrop-blur-md">Mission Briefing</span>
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Intelligence Entry</h2>
-                    <p className="text-slate-500 font-medium text-sm">Handler credentials and subject identification profiles</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                      <div className="space-y-3 group">
-                        <Label htmlFor="name" className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 group-focus-within:text-blue-600 transition-colors">Mission Handler Name</Label>
-                        <Input
-                          id="name"
-                          placeholder="EX: JOHNATHAN WICK"
-                          {...form.register('name')}
-                          className={`h-14 rounded-2xl font-semibold text-base bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 transition-all ${form.formState.errors.name ? 'border-red-500 bg-red-50' : ''}`}
-                        />
-                        {form.formState.errors.name && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-2 tracking-widest">{form.formState.errors.name.message}</p>}
-                      </div>
-                      <div className="space-y-3 group">
-                        <Label htmlFor="phone" className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 group-focus-within:text-blue-600 transition-colors">Tactical Mobile Link</Label>
-                        <PhoneInputGroup
-                          countryCode={form.watch('countryCode')}
-                          phone={form.watch('phone')}
-                          onCountryCodeChange={(v) => form.setValue('countryCode', v)}
-                          onPhoneChange={(v) => form.setValue('phone', v)}
-                          error={!!form.formState.errors.phone}
-                        />
-                        {form.formState.errors.phone && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-2 tracking-widest">{form.formState.errors.phone.message}</p>}
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Full name</Label>
+                      <Input {...form.register('fullName')} placeholder="Alex Johnson" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.fullName ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
+                      {form.formState.errors.fullName && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.fullName.message}</p>}
                     </div>
-
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-3 group">
-                          <Label className="ml-2 text-[10px] font-bold uppercase text-slate-500 tracking-widest">Vehicle Make</Label>
-                          <Input placeholder="TESLA" {...form.register('vehicleMake')} className={`h-14 rounded-2xl bg-slate-50 border-slate-200 font-semibold text-base focus:bg-white transition-all uppercase ${form.formState.errors.vehicleMake ? 'border-red-500 bg-red-50' : ''}`} />
-                          {form.formState.errors.vehicleMake && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-2 tracking-widest">{form.formState.errors.vehicleMake.message}</p>}
-                        </div>
-                        <div className="space-y-3 group">
-                          <Label className="ml-2 text-[10px] font-bold uppercase text-slate-500 tracking-widest">Vehicle Model</Label>
-                          <Input placeholder="MODEL S" {...form.register('vehicleModel')} className={`h-14 rounded-2xl bg-slate-50 border-slate-200 font-semibold text-base focus:bg-white transition-all uppercase ${form.formState.errors.vehicleModel ? 'border-red-500 bg-red-50' : ''}`} />
-                          {form.formState.errors.vehicleModel && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-2 tracking-widest">{form.formState.errors.vehicleModel.message}</p>}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-3 group">
-                          <Label className="ml-2 text-[10px] font-bold uppercase text-slate-500 tracking-widest">Primary Color (Optional)</Label>
-                          <Input placeholder="MIDNIGHT" {...form.register('vehicleColor')} className={`h-14 rounded-2xl bg-slate-50 border-slate-200 font-semibold text-base focus:bg-white transition-all uppercase ${form.formState.errors.vehicleColor ? 'border-red-500 bg-red-50' : ''}`} />
-                          {form.formState.errors.vehicleColor && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-2 tracking-widest">{form.formState.errors.vehicleColor.message}</p>}
-                        </div>
-                        <div className="space-y-3 group">
-                          <Label className="ml-2 text-[10px] font-bold uppercase text-slate-500 tracking-widest">Plate Code</Label>
-                          <Input placeholder="ALPHA-001" {...form.register('vehiclePlate')} className={`h-14 rounded-2xl bg-slate-50 border-slate-200 font-semibold text-base focus:bg-white transition-all uppercase ${form.formState.errors.vehiclePlate ? 'border-red-500 bg-red-50' : ''}`} />
-                          {form.formState.errors.vehiclePlate && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-2 tracking-widest">{form.formState.errors.vehiclePlate.message}</p>}
-                        </div>
-                      </div>
+                    <div className="space-y-1.5">
+                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Email</Label>
+                      <Input {...form.register('email')} type="email" placeholder="you@example.com" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.email ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
+                      {form.formState.errors.email && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.email.message}</p>}
                     </div>
-
-                    <div className="md:col-span-2 space-y-3 pt-4 group">
-                      <Label className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 group-focus-within:text-blue-600">Incident Parameters / Tactical Situation</Label>
-                      <Textarea
-                        placeholder="Detail the failure parameters (e.g., Engine unresponsive, Rear-left puncture, Electronic lockout, Stranded in dark area)..."
-                        className="rounded-2xl bg-slate-50 border-slate-200 font-medium text-base p-6 min-h-[160px] resize-none focus:bg-white focus:border-blue-500 transition-all"
-                        {...form.register('description')}
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact number</Label>
+                      <PhoneInputGroup
+                        countryCode={form.watch('countryCode')}
+                        phone={form.watch('phone')}
+                        onCountryCodeChange={(v) => form.setValue('countryCode', v, { shouldValidate: true, shouldDirty: true })}
+                        onPhoneChange={(v) => form.setValue('phone', v, { shouldValidate: true, shouldDirty: true })}
+                        error={!!form.formState.errors.phone}
                       />
-                      {form.formState.errors.description && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-2 tracking-widest">{form.formState.errors.description.message}</p>}
+                      {form.formState.errors.phone && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.phone.message}</p>}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle type</Label>
+                      <Select value={form.watch('vehicleType')} onValueChange={(value) => form.setValue('vehicleType', value, { shouldValidate: true, shouldDirty: true })}>
+                        <SelectTrigger className={`h-12 rounded-2xl font-semibold bg-slate-50 border-slate-200 text-slate-900 shadow-sm focus:ring-slate-200 ${form.formState.errors.vehicleType ? 'border-red-500 bg-red-50 text-red-700' : ''}`}>
+                          <SelectValue placeholder="Select a vehicle type" />
+                        </SelectTrigger>
+                        <SelectContent className="border-slate-100 bg-white">
+                          {VEHICLE_TYPES.map((type) => (
+                            <SelectItem key={type} value={type} className="data-[state=checked]:bg-slate-300 data-[state=checked]:text-slate-700 data-[highlighted]:bg-slate-300/30 data-[highlighted]:text-slate-600">{type}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle brand</Label>
+                      <Input {...form.register('vehicleBrand')} placeholder="Toyota" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.vehicleBrand ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
+                      {form.formState.errors.vehicleBrand && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.vehicleBrand.message}</p>}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle model</Label>
+                      <Input {...form.register('vehicleModel')} placeholder="Corolla" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.vehicleModel ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
+                      {form.formState.errors.vehicleModel && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.vehicleModel.message}</p>}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle number</Label>
+                      <Input {...form.register('vehicleNumber')} placeholder="ABC-1234" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.vehicleNumber ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Describe the problem</Label>
+                      <Textarea {...form.register('description')} placeholder="What happened, what you’ve already tried, and anything the provider should know." className={`rounded-2xl min-h-[140px] bg-slate-50 border-slate-200 ${form.formState.errors.description ? 'border-red-500 bg-red-50' : ''}`} />
+                      {form.formState.errors.description && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.description.message}</p>}
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Extra notes</Label>
+                      <Textarea {...form.register('notes')} placeholder="Gate code, special instructions, nearby landmark, or anything useful." className="rounded-2xl min-h-[100px] bg-slate-50 border-slate-200" />
                     </div>
                   </div>
-                </div>
-              )}
 
-              {currentStep === 3 && selectedService && selectedLocation && (
-                <div className="flex-1 relative z-10">
-                  <div className="mb-10 text-center">
-                    <span className="bg-green-600/10 text-green-600 py-2 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest mb-4 inline-block backdrop-blur-md">Pre-Deployment Review</span>
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Final Protocol</h2>
-                    <p className="text-slate-500 font-medium text-sm">Validate mission trajectory before absolute fleet dispatch</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="p-8 bg-slate-900 rounded-3xl text-white shadow-xl relative overflow-hidden group">
-                       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-transparent opacity-50" />
-                       <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/20 rounded-full -mr-24 -mt-24 blur-2xl group-hover:scale-150 transition-all duration-1000" />
-                       
-                       <div className="flex items-center gap-6 mb-8 relative z-10">
-                          <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg transform -rotate-3">
-                             <IconRenderer name={selectedService.icon} size={28} />
-                          </div>
-                          <div>
-                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Target Capability</p>
-                             <h4 className="text-2xl font-black tracking-tight">{selectedService.name}</h4>
-                          </div>
-                       </div>
-                       
-                       <p className="text-sm text-slate-300 font-medium leading-relaxed mb-8 italic relative z-10">"{selectedService.description}"</p>
-                       
-                       <div className="flex items-baseline justify-between relative z-10 p-6 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-blue-300">Baseline Rate</span>
-                          <span className="text-3xl font-black">{formatCurrency(selectedService.basePrice)}</span>
-                       </div>
+                  <div className="grid grid-cols-1 gap-6">
+                    <div className="rounded-[1.75rem] border border-slate-100 overflow-hidden bg-white">
+                      <LocationPicker onLocationSelect={setSelectedLocation} initialLocation={selectedLocation ?? undefined} />
                     </div>
 
                     <div className="space-y-4">
-                       <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-5 hover:bg-white hover:shadow-md transition-all group">
-                          <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-blue-600 flex-shrink-0 group-hover:rotate-6 transition-transform">
-                             <MapPin className="w-6 h-6" />
+                      <div className="rounded-[1.75rem] bg-slate-50 border border-slate-100 p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preferred contact</p>
+                            <p className="text-sm text-slate-500 mt-1">Choose how we should reach you.</p>
                           </div>
-                          <div className="min-w-0">
-                             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-1">Primary Hook</p>
-                             <p className="text-sm font-semibold text-slate-700 truncate">{selectedLocation.address}</p>
-                          </div>
-                       </div>
-                       <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-5 hover:bg-white hover:shadow-md transition-all group">
-                          <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-blue-600 flex-shrink-0 group-hover:rotate-6 transition-transform">
-                             <User className="w-6 h-6" />
-                          </div>
-                          <div className="min-w-0">
-                             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-1">Subject Handler</p>
-                             <p className="text-base font-bold text-slate-900 tracking-tight">{form.getValues('name')}</p>
-                          </div>
-                       </div>
-                       <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-5 hover:bg-white hover:shadow-md transition-all group">
-                          <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-blue-600 flex-shrink-0 group-hover:rotate-6 transition-transform">
-                             <Truck className="w-6 h-6" />
-                          </div>
-                          <div className="min-w-0">
-                             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-1">Target Vehicle</p>
-                             <p className="text-sm font-semibold text-slate-700 uppercase">{form.getValues('vehicleColor')} {form.getValues('vehicleMake')} {form.getValues('vehicleModel')} | {form.getValues('vehiclePlate')}</p>
-                          </div>
-                       </div>
+                          <BadgeHelp className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mt-4">
+                          {CONTACT_METHODS.map((method) => (
+                            <button key={method.value} type="button" onClick={() => form.setValue('preferredContactMethod', method.value, { shouldValidate: true, shouldDirty: true })} className={`rounded-2xl px-3 py-3 text-xs font-black uppercase tracking-widest transition-all ${form.watch('preferredContactMethod') === method.value ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 border border-slate-200 hover:border-blue-200'}`}>
+                              {method.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-[1.75rem] bg-slate-50 border border-slate-100 p-5 flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Emergency request</p>
+                          <p className="text-sm text-slate-500 mt-1">Highlight if the situation is urgent.</p>
+                        </div>
+                        <Switch checked={form.watch('isEmergency')} onCheckedChange={(checked) => form.setValue('isEmergency', checked, { shouldValidate: true, shouldDirty: true })} />
+                      </div>
+
+                      <div className="rounded-[1.75rem] bg-slate-950 text-white p-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-36 h-36 bg-cyan-400/10 rounded-full -mr-12 -mt-12 blur-2xl" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-300 mb-2">Current location</p>
+                        <p className="text-sm text-slate-300 leading-relaxed">
+                          {selectedLocation ? selectedLocation.address : 'Use GPS or tap the map to set your location.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="confirm"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                className="glass-card rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-white/60"
+              >
+                <div className="mb-8">
+                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-green-600 mb-2">Review and confirm</p>
+                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Please check the details before we send the request.</h2>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="rounded-[1.75rem] bg-slate-950 text-white p-7 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-transparent opacity-60" />
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-cyan-300">
+                          {selectedServiceConfig ? <IconRenderer name={selectedServiceConfig.icon} size={28} /> : <Sparkles className="w-7 h-7" />}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Service</p>
+                          <h3 className="text-2xl font-black tracking-tight">{selectedServiceLabel}</h3>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 text-sm text-slate-300">
+                        <p><span className="text-slate-400 font-black uppercase tracking-widest text-[10px] mr-2">Estimated cost</span>{selectedServiceConfig ? formatCurrency(selectedServiceConfig.basePrice) : 'N/A'}+</p>
+                        <p><span className="text-slate-400 font-black uppercase tracking-widest text-[10px] mr-2">Estimated arrival</span>{selectedServiceConfig ? estimateArrival(selectedServiceConfig) : 'Estimated arrival'}</p>
+                        <p><span className="text-slate-400 font-black uppercase tracking-widest text-[10px] mr-2">Confirmation number</span>{confirmationNumber}</p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-8 flex items-center gap-6 p-6 bg-blue-600 text-white rounded-2xl shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12" />
-                    <ShieldCheck className="w-8 h-8 text-white shrink-0" strokeWidth={2.5} />
-                    <p className="text-xs font-bold uppercase tracking-wider leading-relaxed opacity-90">
-                      Operational Assurance: Platform protocols fully synchronized. Fleet assets are on high-alert status.
-                    </p>
+                  <div className="space-y-4">
+                    <div className="rounded-[1.5rem] bg-slate-50 border border-slate-100 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Customer</p>
+                      <p className="font-bold text-slate-900">{form.getValues('fullName') || 'Not provided'}</p>
+                      <p className="text-sm text-slate-500 mt-1">{form.getValues('phone') ? `${form.getValues('countryCode')}${form.getValues('phone')}` : 'No phone number yet'}</p>
+                    </div>
+                    <div className="rounded-[1.5rem] bg-slate-50 border border-slate-100 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Vehicle</p>
+                      <p className="font-bold text-slate-900">{form.getValues('vehicleBrand')} {form.getValues('vehicleModel')}</p>
+                      <p className="text-sm text-slate-500 mt-1">{form.getValues('vehicleType')} {form.getValues('vehicleNumber') ? `• ${form.getValues('vehicleNumber')}` : ''}</p>
+                    </div>
+                    <div className="rounded-[1.5rem] bg-slate-50 border border-slate-100 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Location</p>
+                      <p className="text-sm font-medium text-slate-700">{selectedLocation?.address}</p>
+                    </div>
+                    <div className="rounded-[1.5rem] bg-slate-50 border border-slate-100 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Problem summary</p>
+                      <p className="text-sm text-slate-700 leading-relaxed">{form.getValues('description')}</p>
+                    </div>
+                    {form.getValues('isEmergency') && (
+                      <div className="rounded-[1.5rem] bg-amber-50 border border-amber-200 p-5 flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                        <p className="text-sm text-amber-800 leading-relaxed">This has been marked as urgent. We’ll prioritize the request where possible.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
-
-              <div className="mt-10 pt-8 flex flex-col sm:flex-row justify-between gap-4 border-t border-slate-100 relative z-10">
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="lg"
-                  onClick={handleBack} 
-                  disabled={currentStep === 0} 
-                  className="rounded-xl font-bold text-[11px] uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-all px-8 group"
-                >
-                  <ChevronLeft className="w-5 h-5 mr-3 group-hover:-translate-x-1 transition-transform" />
-                  ABORT / RETURN
-                </Button>
-
-                {currentStep < STEPS.length - 1 ? (
-                  <Button 
-                   type="button" 
-                   size="lg"
-                   onClick={handleNext} 
-                   className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] uppercase tracking-widest shadow-md px-10 group transition-all"
-                  >
-                    ENGAGE NEXT PHASE
-                    <ChevronRight className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="lg"
-                    onClick={handleSubmit}
-                    disabled={isLoading}
-                    className="rounded-xl bg-slate-900 hover:bg-black text-white font-black text-sm uppercase tracking-widest shadow-lg group relative overflow-hidden transition-all px-12 h-14"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    {isLoading ? (
-                       <span className="flex items-center gap-4 animate-pulse"><Loader2 className="w-5 h-5 animate-spin" /> SYNCHRONIZING...</span>
-                    ) : (
-                      <span className="flex items-center gap-4">
-                         <ShieldCheck className="w-5 h-5 group-hover:rotate-12 transition-transform text-blue-400" strokeWidth={2.5} />
-                         DISPATCH ASSETS NOW
-                      </span>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </motion.div>
+              </motion.div>
+            )}
           </AnimatePresence>
-        </motion.div>
+
+          <aside className="space-y-10 xl:sticky xl:top-24 xl:self-start">
+            <div className="rounded-[2rem] bg-white border border-slate-100 shadow-sm p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <ShieldCheck className="w-5 h-5 text-blue-600" />
+                <h3 className="font-black text-slate-900">Booking summary</h3>
+              </div>
+              <div className="space-y-3 text-sm text-slate-600">
+                <div className="flex items-start gap-3"><User className="w-4 h-4 mt-0.5 text-slate-400" /><span>{form.watch('fullName') || 'Your name'}</span></div>
+                <div className="flex items-start gap-3"><Car className="w-4 h-4 mt-0.5 text-slate-400" /><span>{form.watch('vehicleBrand') || 'Vehicle brand'} {form.watch('vehicleModel') || ''}</span></div>
+                <div className="flex items-start gap-3"><MapPin className="w-4 h-4 mt-0.5 text-slate-400" /><span className="line-clamp-2">{selectedLocation?.address || 'Your current location'}</span></div>
+                <div className="flex items-start gap-3"><Clock3 className="w-4 h-4 mt-0.5 text-slate-400" /><span>{selectedServiceConfig ? estimateArrival(selectedServiceConfig) : 'Estimated arrival'}</span></div>
+                <div className="flex items-start gap-3"><Phone className="w-4 h-4 mt-0.5 text-slate-400" /><span>{form.watch('countryCode')}{form.watch('phone')}</span></div>
+              </div>
+            </div>
+
+
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => screen === 'confirm' ? setScreen('form') : navigate(-1)} className="flex-1 h-12 rounded-2xl font-black uppercase text-[10px] tracking-widest">
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back
+              </Button>
+              {screen === 'form' ? (
+                <Button type="button" onClick={handleContinue} className="flex-1 h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[10px] tracking-widest">
+                  Continue <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              ) : (
+                <Button type="button" disabled={isLoading} onClick={handleSubmit} className="flex-1 h-12 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase text-[10px] tracking-widest">
+                  {isLoading ? 'Sending...' : 'Confirm booking'} <Check className="w-4 h-4 ml-2" />
+                </Button>
+              )}
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );
 }
 
-function Badge({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black transition-all uppercase tracking-widest ${className}`}>
-      {children}
-    </div>
-  );
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

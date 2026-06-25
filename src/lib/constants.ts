@@ -7,7 +7,7 @@ export const SERVICE_TYPES: ServiceTypeConfig[] = [
     icon: 'Truck',
     basePrice: 50,
     maxPrice: 150,
-    description: 'Vehicle towing to nearest garage or location of your choice',
+    description: 'Safe towing to a garage, home, or repair stop.',
     isActive: true,
   },
   {
@@ -16,7 +16,7 @@ export const SERVICE_TYPES: ServiceTypeConfig[] = [
     icon: 'BatteryCharging',
     basePrice: 25,
     maxPrice: 50,
-    description: 'Battery jump start service to get you back on the road',
+    description: 'Battery boost help when your vehicle will not start.',
     isActive: true,
   },
   {
@@ -25,16 +25,16 @@ export const SERVICE_TYPES: ServiceTypeConfig[] = [
     icon: 'Fuel',
     basePrice: 20,
     maxPrice: 40,
-    description: 'Emergency fuel delivery when you run out of gas',
+    description: 'Fuel brought straight to your location so you can keep moving.',
     isActive: true,
   },
   {
     id: 'flatTire',
-    name: 'Flat Tire',
-    icon: 'Target',
+    name: 'Tyre puncture',
+    icon: 'CircleDot',
     basePrice: 30,
     maxPrice: 60,
-    description: 'Tire change or repair service at your location',
+    description: 'Tire change or roadside repair at your location.',
     isActive: true,
   },
   {
@@ -43,7 +43,52 @@ export const SERVICE_TYPES: ServiceTypeConfig[] = [
     icon: 'Key',
     basePrice: 35,
     maxPrice: 70,
-    description: 'Professional lockout assistance to get you back in your vehicle',
+    description: 'Quick help when your keys are locked in the vehicle.',
+    isActive: true,
+  },
+  {
+    id: 'engineIssue',
+    name: 'Engine Issue',
+    icon: 'Wrench',
+    basePrice: 45,
+    maxPrice: 120,
+    description: 'Roadside diagnostics and help for engine trouble.',
+    isActive: true,
+  },
+  {
+    id: 'accidentHelp',
+    name: 'Accident Help',
+    icon: 'CircleDot',
+    basePrice: 60,
+    maxPrice: 180,
+    description: 'Fast roadside assistance after a minor accident or breakdown.',
+    isActive: true,
+  },
+  {
+    id: 'brakeIssue',
+    name: 'Brake Issue',
+    icon: 'Wrench',
+    basePrice: 50,
+    maxPrice: 130,
+    description: 'Urgent roadside support for brake-related problems.',
+    isActive: true,
+  },
+  {
+    id: 'electricalIssue',
+    name: 'Electrical Issue',
+    icon: 'BatteryCharging',
+    basePrice: 45,
+    maxPrice: 110,
+    description: 'Help for wiring, lights, and other electrical faults.',
+    isActive: true,
+  },
+  {
+    id: 'otherService',
+    name: 'Other Service',
+    icon: 'Wrench',
+    basePrice: 20,
+    maxPrice: 100,
+    description: 'Share the issue and we will match the right help.',
     isActive: true,
   },
   {
@@ -52,8 +97,8 @@ export const SERVICE_TYPES: ServiceTypeConfig[] = [
     icon: 'Wrench',
     basePrice: 20,
     maxPrice: 100,
-    description: 'Other roadside assistance services not listed above',
-    isActive: true,
+    description: 'Legacy alias for other service requests.',
+    isActive: false,
   },
 ];
 
@@ -62,10 +107,10 @@ export const SERVICE_MAP: Record<ServiceType, ServiceTypeConfig> = Object.fromEn
 ) as Record<ServiceType, ServiceTypeConfig>;
 
 export const REQUEST_STATUSES = [
-  { value: 'pending', label: 'Pending' },
+  { value: 'pending', label: 'Waiting' },
   { value: 'accepted', label: 'Accepted' },
-  { value: 'arriving', label: 'Arriving' },
-  { value: 'inProgress', label: 'In Progress' },
+  { value: 'arriving', label: 'On the way' },
+  { value: 'inProgress', label: 'In progress' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
@@ -81,19 +126,22 @@ export const PROVIDER_SERVICE_OPTIONS = [
   { value: 'towing', label: 'Towing' },
   { value: 'jumpStart', label: 'Jump Start' },
   { value: 'fuelDelivery', label: 'Fuel Delivery' },
-  { value: 'flatTire', label: 'Flat Tire' },
+  { value: 'flatTire', label: 'Tyre puncture' },
   { value: 'lockout', label: 'Lockout' },
-  { value: 'other', label: 'Other' },
+  { value: 'engineIssue', label: 'Engine Issue' },
+  { value: 'accidentHelp', label: 'Accident Help' },
+  { value: 'brakeIssue', label: 'Brake Issue' },
+  { value: 'electricalIssue', label: 'Electrical Issue' },
+  { value: 'otherService', label: 'Other Service' },
 ];
 
-// Sample testimonials data
 export const TESTIMONIALS = [
   {
     id: 1,
     name: 'Sarah Johnson',
     role: 'Customer',
     rating: 5,
-    text: 'RoadHelp saved me when I got a flat tire on the highway at midnight. The provider arrived in under 15 minutes!',
+    text: 'RoadHelp made a stressful night much easier. A provider arrived quickly and kept me updated the whole time.',
     avatar: '👩',
   },
   {
@@ -101,7 +149,7 @@ export const TESTIMONIALS = [
     name: 'Marcus Thompson',
     role: 'Customer',
     rating: 5,
-    text: 'Dead battery on the way to an important meeting. RoadHelp connected me with a provider in 3 minutes. Amazing service!',
+    text: 'I was back on the road in minutes after a dead battery. Clear pricing and friendly service.',
     avatar: '👨',
   },
   {
@@ -109,14 +157,16 @@ export const TESTIMONIALS = [
     name: 'Elena Rodriguez',
     role: 'Customer',
     rating: 4,
-    text: 'Ran out of gas 10 miles from the nearest station. Fuel was delivered within 20 minutes. Lifesaver!',
+    text: 'The fuel delivery was simple to book and the updates were easy to follow from start to finish.',
     avatar: '👩',
   },
 ];
 
 export const STATS = [
-  { label: 'Verified Providers', value: '500+' },
-  { label: 'Rescues Completed', value: '10,000+' },
-  { label: 'Average Rating', value: '4.8' },
-  { label: 'Cities Covered', value: '50+' },
+  { label: 'Verified providers', value: '500+' },
+  { label: 'Jobs completed', value: '10,000+' },
+  { label: 'Average rating', value: '4.8' },
+  { label: 'Cities covered', value: '50+' },
 ];
+
+

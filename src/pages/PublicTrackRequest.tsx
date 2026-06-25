@@ -69,7 +69,7 @@ function StatusStepper({ status }: { status: string }) {
 export default function PublicTrackRequest() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { submitRating } = useServiceRequest();
+  const { submitRating, updateRequestStatus } = useServiceRequest();
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [showRating, setShowRating] = useState(false);
@@ -122,12 +122,14 @@ export default function PublicTrackRequest() {
 
   const handleCancel = async () => {
     if (!request) return;
-    await updateDoc(doc(db, 'serviceRequests', request.id), {
-      status: 'cancelled',
-      cancelledAt: serverTimestamp(),
-    });
-    toast.success('Request cancelled');
-    navigate('/');
+    try {
+      await updateRequestStatus(request.id, 'cancelled');
+      toast.success('Request cancelled');
+      navigate('/');
+    } catch (error) {
+      console.error('Failed to cancel request:', error);
+      toast.error('We could not cancel this request. Please try again.');
+    }
   };
 
   const handlePaymentComplete = async () => {
@@ -241,7 +243,7 @@ export default function PublicTrackRequest() {
                   onClick={() => setShowCancel(true)}
                 >
                   <XCircle className="w-4 h-4 mr-3" />
-                  ABORT MISSION
+                  Cancel Request
                 </Button>
               )}
 
@@ -280,9 +282,9 @@ export default function PublicTrackRequest() {
         <ConfirmDialog
           open={showCancel}
           onOpenChange={setShowCancel}
-          title="Abort Protocol?"
-          description="Are you sure you want to terminate this active mission trajectory? This action cannot be undone."
-          confirmText="Yes, Terminate"
+          title="Cancel Request?"
+          description="Are you sure you want to cancel this help request? This action cannot be undone."
+          confirmText="Yes, Cancel Request"
           onConfirm={handleCancel}
           isDestructive
         />

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { dbLite as db } from '@/config/firebase-lite';
 
 interface SystemState {
   appName: string;
@@ -26,15 +26,18 @@ export const useSystemStore = create<SystemState>((set) => ({
   error: null,
   initialized: false,
   initialize: () => {
-    const unsub = onSnapshot(
-      doc(db, 'system', 'config'),
-      (snap) => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'system', 'config'));
+        if (cancelled) return;
+
         if (snap.exists()) {
           const data = snap.data();
           const newAppName = data.appName || 'RoadHelp';
           const newCurrency = data.currency || 'USD';
           document.title = newAppName + ' - Roadside Assistance';
-          // Make currency accessible to formatCurrency without circular deps
           (window as unknown as Record<string, unknown>).__systemCurrency = newCurrency;
           set({
             appName: newAppName,
@@ -50,12 +53,16 @@ export const useSystemStore = create<SystemState>((set) => ({
         } else {
           set({ initialized: true, error: null });
         }
-      },
-      (err) => {
-        console.error('System config snapshot error:', err);
-        set({ initialized: true, error: err?.message || 'Unable to load system config.' });
+      } catch (err) {
+        console.error('System config load error:', err);
+        if (!cancelled) {
+          set({ initialized: true, error: (err as Error)?.message || 'Unable to load system config.' });
+        }
       }
-    );
-    return unsub;
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   },
 }));

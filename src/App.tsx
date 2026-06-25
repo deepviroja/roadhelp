@@ -1,49 +1,43 @@
-import { useEffect } from 'react';
+﻿import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { useSystemStore } from '@/stores/systemStore';
 import { Navbar } from '@/components/layout/Navbar';
 import { MaintenanceBanner } from '@/components/shared/MaintenanceBanner';
+import { SOSButton } from '@/components/shared/SOSButton';
 import { UserRole } from '@/types';
 
-// Public Pages
-import Landing from '@/pages/Landing';
-import Login from '@/pages/Login';
-import Register from '@/pages/Signup';
-import AdminLogin from '@/pages/admin/AdminLogin';
-import NotFound from '@/pages/NotFound';
-import GetHelp from '@/pages/GetHelp';
-import PublicTrackRequest from '@/pages/PublicTrackRequest';
-import HelpCenter from '@/pages/HelpCenter';
-import { SOSButton } from '@/components/shared/SOSButton';
-import Privacy from '@/pages/Privacy';
-import Terms from '@/pages/Terms';
-
-// Customer Pages
-import CustomerDashboard from '@/pages/customer/CustomerDashboard';
-import TrackRequest from '@/pages/customer/TrackRequest';
-import RequestHistory from '@/pages/customer/RequestHistory';
-import NewRequest from './pages/customer/NewRequest';
-import CustomerProfile from './pages/customer/CustomerProfile';
-import NearbyProviders from './pages/customer/NearbyProviders';
-
-// Provider Pages
-import ProviderDashboard from '@/pages/provider/ProviderDashboard';
-import JobHistory from '@/pages/provider/JobHistory';
-import Earnings from './pages/provider/Earnings';
-import ProviderProfile from './pages/provider/ProviderProfile';
-import ActiveJob from './pages/provider/ActiveJob';
-
-// Admin Pages
-import AdminDashboard from '@/pages/admin/AdminDashboard';
-import ManageProviders from '@/pages/admin/ManageProviders';
-import ManageServices from '@/pages/admin/ManageServices';
-import AdminSettings from '@/pages/admin/AdminSettings';
-import AdminRevenue from '@/pages/admin/AdminRevenue';
-import AdminPayouts from '@/pages/admin/AdminPayouts';
-import ManageUsers from './pages/admin/ManageUsers';
-import ManageRequests from './pages/admin/ManageRequests';
+const Landing = lazy(() => import('@/pages/Landing'));
+const Login = lazy(() => import('@/pages/Login'));
+const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
+const Register = lazy(() => import('@/pages/Signup'));
+const AdminLogin = lazy(() => import('@/pages/admin/AdminLogin'));
+const NotFound = lazy(() => import('@/pages/NotFound'));
+const GetHelp = lazy(() => import('@/pages/GetHelp'));
+const PublicTrackRequest = lazy(() => import('@/pages/PublicTrackRequest'));
+const HelpCenter = lazy(() => import('@/pages/HelpCenter'));
+const Privacy = lazy(() => import('@/pages/Privacy'));
+const Terms = lazy(() => import('@/pages/Terms'));
+const CustomerDashboard = lazy(() => import('@/pages/customer/CustomerDashboard'));
+const TrackRequest = lazy(() => import('@/pages/customer/TrackRequest'));
+const RequestHistory = lazy(() => import('@/pages/customer/RequestHistory'));
+const NewRequest = lazy(() => import('./pages/customer/NewRequest'));
+const CustomerProfile = lazy(() => import('./pages/customer/CustomerProfile'));
+const NearbyProviders = lazy(() => import('./pages/customer/NearbyProviders'));
+const ProviderDashboard = lazy(() => import('@/pages/provider/ProviderDashboard'));
+const JobHistory = lazy(() => import('@/pages/provider/JobHistory'));
+const Earnings = lazy(() => import('./pages/provider/Earnings'));
+const ProviderProfile = lazy(() => import('./pages/provider/ProviderProfile'));
+const ActiveJob = lazy(() => import('./pages/provider/ActiveJob'));
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+const ManageProviders = lazy(() => import('@/pages/admin/ManageProviders'));
+const ManageServices = lazy(() => import('@/pages/admin/ManageServices'));
+const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'));
+const AdminRevenue = lazy(() => import('@/pages/admin/AdminRevenue'));
+const AdminPayouts = lazy(() => import('@/pages/admin/AdminPayouts'));
+const ManageUsers = lazy(() => import('./pages/admin/ManageUsers'));
+const ManageRequests = lazy(() => import('./pages/admin/ManageRequests'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -106,7 +100,6 @@ function ProtectedRoute({ allowedRole }: { allowedRole?: 'customer' | 'provider'
     return <Navigate to={getDashboardPath(profile.role)} replace />;
   }
 
-  // Show maintenance screen to customers and providers (not admins)
   if (maintenanceMode && profile.role !== 'admin') {
     return <MaintenanceBanner />;
   }
@@ -133,134 +126,150 @@ export default function App() {
       <div className="min-h-screen bg-[#F5F5F6] flex flex-col font-sans text-[#1A1A2E]">
         <Toaster position="top-right" richColors />
         <SOSButton />
-        <Routes>
-          {/* Public Routes */}
-          <Route
-            path="/"
-            element={
-              <PublicOnlyRoute>
-                <>
-                  <Navbar />
-                  <Landing />
-                </>
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/help"
-            element={<HelpCenter />}
-          />
-          <Route
-            path="/get-help"
-            element={
-              <PublicOnlyRoute>
-                <>
-                  <Navbar />
-                  <div className="flex-1 flex flex-col">
-                    <GetHelp />
-                  </div>
-                </>
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/track/:id"
-            element={
-              <>
-                <Navbar />
-                <div className="flex-1 flex flex-col">
-                  <PublicTrackRequest />
-                </div>
-              </>
-            }
-          />
-          <Route
-            path="/privacy"
-            element={
-              <>
-                <Navbar />
-                <Privacy />
-              </>
-            }
-          />
-          <Route
-            path="/terms"
-            element={
-              <>
-                <Navbar />
-                <Terms />
-              </>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <PublicOnlyRoute>
+        <Suspense
+          fallback={
+            <div className="flex-1 min-h-[60vh] flex items-center justify-center px-6">
+              <div className="text-center">
+                <div className="w-14 h-14 border-4 border-blue-600/10 border-t-blue-600 rounded-[1.25rem] animate-spin mx-auto" />
+                <p className="mt-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.35em] italic">Loading module...</p>
+              </div>
+            </div>
+          }
+        >
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <PublicOnlyRoute>
+                  <>
+                    <Navbar />
+                    <Landing />
+                  </>
+                </PublicOnlyRoute>
+              }
+            />
+            <Route path="/help" element={<HelpCenter />} />
+            <Route
+              path="/get-help"
+              element={
+                <PublicOnlyRoute>
+                  <>
+                    <Navbar />
+                    <div className="flex-1 flex flex-col">
+                      <GetHelp />
+                    </div>
+                  </>
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/track/:id"
+              element={
                 <>
                   <Navbar />
                   <div className="flex-1 flex flex-col">
-                    <Login />
+                    <PublicTrackRequest />
                   </div>
                 </>
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              <PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/privacy"
+              element={
                 <>
                   <Navbar />
-                  <div className="flex-1 flex flex-col">
-                    <Register />
-                  </div>
+                  <Privacy />
                 </>
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <PublicOnlyRoute>
-                <AdminLogin />
-              </PublicOnlyRoute>
-            }
-          />
+              }
+            />
+            <Route
+              path="/terms"
+              element={
+                <>
+                  <Navbar />
+                  <Terms />
+                </>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <PublicOnlyRoute>
+                  <>
+                    <Navbar />
+                    <div className="flex-1 flex flex-col">
+                      <Login />
+                    </div>
+                  </>
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <PublicOnlyRoute>
+                  <>
+                    <Navbar />
+                    <div className="flex-1 flex flex-col">
+                      <ForgotPassword />
+                    </div>
+                  </>
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                <PublicOnlyRoute>
+                  <>
+                    <Navbar />
+                    <div className="flex-1 flex flex-col">
+                      <Register />
+                    </div>
+                  </>
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <PublicOnlyRoute>
+                  <AdminLogin />
+                </PublicOnlyRoute>
+              }
+            />
 
-          {/* Customer Routes */}
-          <Route element={<ProtectedRoute allowedRole="customer" />}>
-            <Route path="/customer/dashboard" element={<CustomerDashboard />} />
-            <Route path="/customer/track/:id" element={<TrackRequest />} />
-            <Route path="/customer/history" element={<RequestHistory />} />
-            <Route path="/customer/new-request" element={<NewRequest />} />
-            <Route path="/customer/profile" element={<CustomerProfile />} />
-            <Route path="/customer/nearby" element={<NearbyProviders />} />
-          </Route>
+            <Route element={<ProtectedRoute allowedRole="customer" />}>
+              <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+              <Route path="/customer/track/:id" element={<TrackRequest />} />
+              <Route path="/customer/history" element={<RequestHistory />} />
+              <Route path="/customer/new-request" element={<NewRequest />} />
+              <Route path="/customer/profile" element={<CustomerProfile />} />
+              <Route path="/customer/nearby" element={<NearbyProviders />} />
+            </Route>
 
-          {/* Provider Routes */}
-          <Route element={<ProtectedRoute allowedRole="provider" />}>
-            <Route path="/provider/dashboard" element={<ProviderDashboard />} />
-            <Route path="/provider/history" element={<JobHistory />} />
-            <Route path="/provider/earnings" element={<Earnings />} />
-            <Route path="/provider/profile" element={<ProviderProfile />} />
-            <Route path="/provider/active-job/:id" element={<ActiveJob />} />
-          </Route>
+            <Route element={<ProtectedRoute allowedRole="provider" />}>
+              <Route path="/provider/dashboard" element={<ProviderDashboard />} />
+              <Route path="/provider/history" element={<JobHistory />} />
+              <Route path="/provider/earnings" element={<Earnings />} />
+              <Route path="/provider/profile" element={<ProviderProfile />} />
+              <Route path="/provider/active-job/:id" element={<ActiveJob />} />
+            </Route>
 
-          {/* Admin Routes - never blocked by maintenance */}
-          <Route element={<ProtectedRoute allowedRole="admin" />}>
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/providers" element={<ManageProviders />} />
-            <Route path="/admin/services" element={<ManageServices />} />
-            <Route path="/admin/revenue" element={<AdminRevenue />} />
-            <Route path="/admin/payouts" element={<AdminPayouts />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
-            <Route path="/admin/users" element={<ManageUsers />} />
-            <Route path="/admin/requests" element={<ManageRequests />} />
-          </Route>
+            <Route element={<ProtectedRoute allowedRole="admin" />}>
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/providers" element={<ManageProviders />} />
+              <Route path="/admin/services" element={<ManageServices />} />
+              <Route path="/admin/revenue" element={<AdminRevenue />} />
+              <Route path="/admin/payouts" element={<AdminPayouts />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/users" element={<ManageUsers />} />
+              <Route path="/admin/requests" element={<ManageRequests />} />
+            </Route>
 
-          {/* Catch All */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </div>
     </BrowserRouter>
   );

@@ -17,6 +17,8 @@ export function SOSButton() {
   const policeNumber = settings?.sosConfig?.policeNumber || "100";
   const ambulanceNumber = settings?.sosConfig?.ambulanceNumber || "108";
   const helplineNumber = settings?.sosConfig?.helplineNumber || "1073";
+  const teamContactNumber = settings?.sosConfig?.teamContactNumber || "1090";
+  const responseTeamCount = settings?.sosConfig?.teamCount || 3;
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end gap-3">
@@ -44,6 +46,7 @@ export function SOSButton() {
             </div>
 
             <div className="space-y-4">
+                <p className="text-[10px] text-slate-500 font-medium">Response team: {responseTeamCount} members</p>
                <div className="p-3 bg-slate-50 rounded-xl flex items-start gap-3">
                   <div className="w-6 h-6 bg-blue-600/10 rounded-md flex items-center justify-center text-blue-600 flex-shrink-0">
                      <MapPin className="w-3 h-3" />
@@ -58,20 +61,33 @@ export function SOSButton() {
                   Immediate connection to RoadHelp's rapid response unit and local emergency services.
                </p>
 
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                   <Button 
                     variant="outline" 
                     className="h-10 rounded-xl border-slate-200 font-bold uppercase text-[9px] tracking-widest hover:bg-slate-50"
                     onClick={() => window.location.href = `tel:${policeNumber}`}
                   >
-                     Police
+                 <Phone className="w-2 h-2 mr-1 group-hover:rotate-12 transition-transform" />
+
+                     {policeNumber}
                   </Button>
                   <Button 
                     variant="outline" 
                     className="h-10 rounded-xl border-slate-200 font-bold uppercase text-[9px] tracking-widest hover:bg-slate-50"
                     onClick={() => window.location.href = `tel:${ambulanceNumber}`}
                   >
-                     Ambulance
+                 <Phone className="w-2 h-2 mr-1 group-hover:rotate-12 transition-transform" />
+
+                     {ambulanceNumber}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-10 rounded-xl border-slate-200 font-bold uppercase text-[9px] tracking-widest hover:bg-slate-50 sm:col-span-1"
+                    onClick={() => window.location.href = `tel:${teamContactNumber}`}
+                  >
+                 <Phone className="w-2 h-2 mr-1 group-hover:rotate-12 transition-transform" />
+
+                     {teamContactNumber}
                   </Button>
                </div>
 
@@ -80,7 +96,7 @@ export function SOSButton() {
                 className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold uppercase text-[10px] tracking-widest shadow-md shadow-red-600/20 group"
                >
                  <Phone className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform" />
-                 Deploy Support
+                 {helplineNumber}
                </Button>
             </div>
           </motion.div>

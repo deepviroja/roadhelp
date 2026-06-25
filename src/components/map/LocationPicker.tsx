@@ -1,13 +1,11 @@
-import { useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { motion } from 'framer-motion';
 import { MapPin, Navigation, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { GeoLocation } from '@/types';
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
-import { useNearbyProviders } from '@/hooks/useNearbyProviders';
 import '@/lib/leaflet-setup';
 
 interface LocationPickerProps {
@@ -20,9 +18,7 @@ function MapClickHandler({ onLocationSelect }: { onLocationSelect: (loc: GeoLoca
     click: async (e) => {
       const { lat, lng } = e.latlng;
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-        );
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
         const data = await res.json();
         onLocationSelect({
           lat,
@@ -46,20 +42,16 @@ const pickerIcon = L.divIcon({
   iconAnchor: [18, 36],
 });
 
-const providerMarkerIcon = L.divIcon({
-  html: `<div style="color: #94a3b8; transform: translateY(-50%); display:flex; justify-content:center; opacity: 0.7;">
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
-  </div>`,
-  className: '',
-  iconSize: [20, 20],
-  iconAnchor: [10, 20],
-});
-
 export function LocationPicker({ onLocationSelect, initialLocation }: LocationPickerProps) {
   const [selectedLocation, setSelectedLocation] = useState<GeoLocation | null>(initialLocation || null);
-  const { providers } = useNearbyProviders();
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
+
+  useEffect(() => {
+    if (initialLocation) {
+      setSelectedLocation(initialLocation);
+    }
+  }, [initialLocation]);
 
   const handleLocationSelect = (loc: GeoLocation) => {
     setSelectedLocation(loc);
@@ -67,16 +59,18 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
   };
 
   const handleGetCurrentLocation = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      toast.error('Your browser does not support location services.');
+      return;
+    }
+
     setIsGettingLocation(true);
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-          );
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
           const data = await res.json();
           const loc: GeoLocation = {
             lat,
@@ -93,10 +87,10 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
       },
       (err) => {
         setIsGettingLocation(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          toast.error("Location permission denied. Please enable location services in your browser settings.");
+        if (err.code === 1) {
+          toast.error('Location permission denied. Please enable location services in your browser settings.');
         } else {
-          toast.error("Unable to retrieve location. Please check your signal or select manually.");
+          toast.error('Unable to retrieve location. Please check your signal or select manually.');
         }
       },
       { enableHighAccuracy: true, timeout: 10000 }
@@ -113,11 +107,7 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
           disabled={isGettingLocation}
           className="h-10 px-6 rounded-xl border-blue-200 text-blue-600 hover:bg-blue-50 font-bold text-xs tracking-widest shadow-sm active:scale-95 transition-all w-full sm:w-auto"
         >
-          {isGettingLocation ? (
-             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-             <Navigation className="w-4 h-4 mr-2" />
-          )}
+          {isGettingLocation ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Navigation className="w-4 h-4 mr-2" />}
           {isGettingLocation ? 'SYNCING GPS...' : 'USE MY LOCATION'}
         </Button>
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -128,11 +118,7 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
 
       <div className="flex-1 min-h-[400px] md:min-h-[500px] relative z-0">
         <MapContainer
-          center={
-            initialLocation
-              ? [initialLocation.lat, initialLocation.lng]
-              : [DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng]
-          }
+          center={initialLocation ? [initialLocation.lat, initialLocation.lng] : [DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng]}
           zoom={DEFAULT_MAP_ZOOM}
           style={{ height: '100%', width: '100%' }}
           ref={mapRef}
@@ -142,11 +128,6 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapClickHandler onLocationSelect={handleLocationSelect} />
-          
-          {/* Nearby Providers */}
-          {providers.map(p => (
-            p.location && <Marker key={p.uid} position={[p.location.lat, p.location.lng]} icon={providerMarkerIcon} opacity={0.6} />
-          ))}
           {selectedLocation && (
             <Marker
               position={[selectedLocation.lat, selectedLocation.lng]}
@@ -157,9 +138,7 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
                   const marker = e.target as L.Marker;
                   const { lat, lng } = marker.getLatLng();
                   try {
-                    const res = await fetch(
-                      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-                    );
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
                     const data = await res.json();
                     handleLocationSelect({
                       lat,

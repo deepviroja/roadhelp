@@ -8,11 +8,16 @@ export type ServiceType =
   | 'fuelDelivery'
   | 'flatTire'
   | 'lockout'
+  | 'engineIssue'
+  | 'accidentHelp'
+  | 'brakeIssue'
+  | 'electricalIssue'
+  | 'otherService'
   | 'other';
 
 export type RequestStatus =
   | 'pending'
-  | 'bidding' // New status for when providers are applying
+  | 'bidding'
   | 'accepted'
   | 'arriving'
   | 'inProgress'
@@ -28,10 +33,10 @@ export interface RequestProposal {
   providerRating: number;
   providerVehicleNumber: string;
   providerLocation: { lat: number; lng: number };
-  estimatedPrice: number; // Provider can set their price within admin range
-  additionalFees: number; // NEW: Provider set additional fees
-  estimatedTime: number; // in minutes
-  distance: number; // in km
+  estimatedPrice: number;
+  additionalFees: number;
+  estimatedTime: number;
+  distance: number;
   createdAt: Timestamp | Date | FieldValue;
 }
 
@@ -50,14 +55,20 @@ export interface UserProfile {
   fullName: string;
   email: string;
   phone: string;
+  phoneDigits?: string;
+  phoneE164?: string;
   countryCode?: string;
   role: UserRole;
   createdAt?: Timestamp | Date | FieldValue;
   profileImage?: string;
-  // Customer-specific
   vehicles?: Vehicle[];
-  // Provider-specific
   companyName?: string;
+  businessAddress?: string;
+  city?: string;
+  state?: string;
+  pin?: string;
+  businessHours?: string;
+  serviceRadiusKm?: number;
   serviceTypes?: ServiceType[];
   vehicleNumber?: string;
   isVerified?: boolean;
@@ -66,7 +77,6 @@ export interface UserProfile {
   totalJobs?: number;
   totalEarnings?: number;
   location?: { lat: number; lng: number };
-  // Analytics
   stats?: {
     applied: number;
     approved: number;
@@ -85,6 +95,7 @@ export interface ServiceRequest {
   customerId: string;
   customerName: string;
   customerPhone: string;
+  customerEmail?: string;
   isGuest?: boolean;
   guestSessionId?: string;
   providerId?: string;
@@ -97,7 +108,12 @@ export interface ServiceRequest {
   serviceIcon?: string;
   serviceBasePrice?: number;
   serviceMaxPrice?: number;
+  serviceLabel?: string;
+  vehicleType?: string;
   description: string;
+  notes?: string;
+  preferredContactMethod?: 'phone' | 'email' | 'whatsapp';
+  isEmergency?: boolean;
   vehicleInfo?: {
     make: string;
     model: string;
@@ -107,24 +123,23 @@ export interface ServiceRequest {
   customerLocation: GeoLocation;
   status: RequestStatus;
   estimatedPrice: number;
-  additionalFees?: number; // NEW
-  totalPrice?: number; // NEW: additionalFees + servicePrice
-  adminCommission?: number; // Hidden from user
-  providerEarnings?: number; // Hidden from user
-  finalPrice?: number; // NEW: actual settled price
-  platformFee?: number; // NEW: actual administrative fee
+  additionalFees?: number;
+  totalPrice?: number;
+  adminCommission?: number;
+  providerEarnings?: number;
+  finalPrice?: number;
+  platformFee?: number;
   isPaid: boolean;
-
   paymentMethod?: string;
-  tipAmount?: number; // NEW
-  payoutStatus?: 'pending' | 'scheduled' | 'paid'; // NEW
-  payoutAt?: Timestamp | Date; // NEW
+  tipAmount?: number;
+  payoutStatus?: 'pending' | 'scheduled' | 'paid';
+  payoutAt?: Timestamp | Date;
   rating?: number;
   review?: string;
   createdAt: Timestamp | Date | FieldValue;
   acceptedAt?: Timestamp | Date;
-  arrivingAt?: Timestamp | Date; // NEW
-  inProgressAt?: Timestamp | Date; // NEW
+  arrivingAt?: Timestamp | Date;
+  inProgressAt?: Timestamp | Date;
   completedAt?: Timestamp | Date;
   cancelledAt?: Timestamp | Date;
 }
@@ -150,6 +165,8 @@ export interface AppSettings {
     policeNumber: string;
     ambulanceNumber: string;
     helplineNumber: string;
+    teamContactNumber?: string;
+    teamCount?: number;
   };
 }
 
@@ -188,6 +205,14 @@ export interface SignupDataProvider {
   password: string;
   confirmPassword: string;
   companyName: string;
+  businessAddress?: string;
+  city?: string;
+  state?: string;
+  pin?: string;
+  businessHours?: string;
+  serviceRadiusKm?: number;
+  latitude?: number;
+  longitude?: number;
   serviceTypes: ServiceType[];
   vehicleNumber: string;
   role: 'provider';
@@ -196,7 +221,7 @@ export interface SignupDataProvider {
 export type SignupData = SignupDataCustomer | SignupDataProvider;
 
 export interface AuthFormData {
-  email: string;
+  identifier: string;
   password: string;
   role: UserRole;
 }

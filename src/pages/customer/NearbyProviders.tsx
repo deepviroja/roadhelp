@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Star, Wifi, Phone, Navigation } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -8,7 +8,7 @@ import { IconRenderer } from '@/components/shared/IconRenderer';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { db } from '@/config/firebase';
 import { UserProfile } from '@/types';
-import { calculateDistance } from '@/lib/utils';
+import { calculateDistance, getServiceLabel } from '@/lib/utils';
 import { useGeolocation } from '@/hooks/useGeolocation';
 
 interface ProviderWithDistance extends UserProfile {
@@ -117,7 +117,7 @@ export default function NearbyProviders() {
             >
               {type === 'jumpStart' ? 'Jump Start' :
                type === 'fuelDelivery' ? 'Fuel Delivery' :
-               type === 'flatTire' ? 'Flat Tire' : type}
+               type === 'flatTire' ? 'Tyre puncture' : getServiceLabel(type as any)}
             </button>
           ))}
         </div>
@@ -188,13 +188,12 @@ export default function NearbyProviders() {
                           type === 'towing' ? 'Truck' :
                           type === 'jumpStart' ? 'BatteryCharging' :
                           type === 'fuelDelivery' ? 'Fuel' :
-                          type === 'flatTire' ? 'Target' :
+                          type === 'flatTire' ? 'CircleDot' :
                           type === 'lockout' ? 'Key' : 'Wrench'
                         } size={12} />
                         {type === 'jumpStart' ? 'Jump Start' :
                          type === 'fuelDelivery' ? 'Fuel' :
-                         type === 'flatTire' ? 'Flat Tire' :
-                         type.charAt(0).toUpperCase() + type.slice(1)}
+                         getServiceLabel(type as any)}
                       </span>
                     ))}
                   </div>
@@ -208,7 +207,7 @@ export default function NearbyProviders() {
                       ? `${(provider.distance * 1000).toFixed(0)}m away`
                       : `${provider.distance.toFixed(1)} km away`}
                     </span>
-                    <span className="text-gray-300">•</span>
+                    <span className="text-gray-300">â€¢</span>
                     <span className="text-xs text-gray-400">
                       ~{Math.ceil(provider.distance * 3)} min
                     </span>
@@ -237,3 +236,8 @@ export default function NearbyProviders() {
     </CustomerLayout>
   );
 }
+
+
+
+
+

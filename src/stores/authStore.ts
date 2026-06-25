@@ -8,8 +8,8 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { authLite as auth, dbLite as db } from '@/config/firebase-lite';
 import { UserRole, UserProfile, SignupData } from '@/types';
 
 async function sleep(ms: number) {
@@ -20,6 +20,35 @@ function getErrorCode(error: unknown): string | undefined {
   return (error as { code?: string } | null)?.code;
 }
 
+function normalizeDigits(value: string) {
+  return value.replace(/\D+/g, '');
+}
+
+function isEmailIdentifier(identifier: string) {
+  return identifier.includes('@');
+}
+
+async function findUserByPhone(identifier: string) {
+  const digits = normalizeDigits(identifier);
+  if (!digits) return null;
+
+  const searches = [
+    query(collection(db, 'users'), where('phoneDigits', '==', digits), limit(1)),
+    query(collection(db, 'users'), where('phone', '==', identifier), limit(1)),
+    query(collection(db, 'users'), where('phoneE164', '==', identifier), limit(1)),
+  ];
+
+  for (const q of searches) {
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const first = snap.docs[0];
+      return { uid: first.id, data: first.data() } as { uid: string; data: Record<string, unknown> };
+    }
+  }
+
+  return null;
+}
+
 interface AuthState {
   user: FirebaseUser | null;
   profile: UserProfile | null;
@@ -28,7 +57,7 @@ interface AuthState {
   isAuthenticated: boolean;
   initialized: boolean;
 
-  login: (email: string, password: string, role: UserRole) => Promise<void>;
+  login: (identifier: string, password: string, role: UserRole) => Promise<void>;
   signup: (data: SignupData) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: FirebaseUser | null) => void;
@@ -55,8 +84,6 @@ export const useAuthStore = create<AuthState>()(
       initialize: () => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
           if (user) {
-            // Load the profile with retries (network propagation / long-poll fallback can be slow).
-            // If the profile doc truly doesn't exist, sign out to avoid redirect loops with `profile=null`.
             for (let attempt = 1; attempt <= 5; attempt++) {
               try {
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -74,7 +101,6 @@ export const useAuthStore = create<AuthState>()(
                 }
               } catch (error) {
                 const code = getErrorCode(error);
-                // Retry on transient failures
                 if (
                   code === 'permission-denied' ||
                   code === 'unauthenticated' ||
@@ -131,22 +157,32 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      login: async (email, password, role) => {
+      login: async (identifier, password, role) => {
         set({ isLoading: true });
         try {
-          const credential = await signInWithEmailAndPassword(auth, email, password);
+          let credential;
+          if (isEmailIdentifier(identifier)) {
+            credential = await signInWithEmailAndPassword(auth, identifier, password);
+          } else {
+            const matched = await findUserByPhone(identifier);
+            if (!matched?.data?.email) {
+              throw new Error('We could not find an account with that mobile number.');
+            }
+            credential = await signInWithEmailAndPassword(auth, String(matched.data.email), password);
+          }
+
           const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
 
           if (!userDoc.exists()) {
             await signOut(auth);
-            throw new Error('User profile not found. Please sign up first.');
+            throw new Error('We could not find your profile. Please sign up first.');
           }
 
           const profileData = { uid: credential.user.uid, ...userDoc.data() } as UserProfile;
 
           if (profileData.role !== role) {
             await signOut(auth);
-            throw new Error(`Recheck information. Please Check the details and role.`);
+            throw new Error('Please switch to the correct account type and try again.');
           }
 
           set({
@@ -169,9 +205,6 @@ export const useAuthStore = create<AuthState>()(
           const credential = await createUserWithEmailAndPassword(auth, data.email, data.password);
           createdUser = credential.user;
 
-          // Ensure the auth session/token is ready before first Firestore write.
-          // Without this, some networks can intermittently fail the first write with permission errors,
-          // leaving an Auth user created but no Firestore profile document.
           await credential.user.getIdToken(true);
 
           const dataWithCountry = data as SignupData & { countryCode?: string };
@@ -179,12 +212,16 @@ export const useAuthStore = create<AuthState>()(
             typeof dataWithCountry.countryCode === 'string' && dataWithCountry.countryCode.length > 0
               ? dataWithCountry.countryCode
               : undefined;
+          const phoneDigits = normalizeDigits(data.phone);
+          const phoneE164 = countryCode ? `${countryCode}${phoneDigits}` : phoneDigits;
 
           const baseProfile = {
             uid: credential.user.uid,
             fullName: data.fullName,
             email: data.email,
             phone: data.phone,
+            phoneDigits,
+            phoneE164,
             countryCode,
             role: data.role as UserRole,
             createdAt: serverTimestamp(),
@@ -193,10 +230,32 @@ export const useAuthStore = create<AuthState>()(
           let fullProfile: Partial<UserProfile> = { ...baseProfile };
 
           if (data.role === 'provider') {
-            const providerData = data as { companyName: string; serviceTypes: string[]; vehicleNumber: string };
+            const providerData = data as {
+              companyName: string;
+              serviceTypes: string[];
+              vehicleNumber: string;
+              businessAddress?: string;
+              city?: string;
+              state?: string;
+              pin?: string;
+              businessHours?: string;
+              serviceRadiusKm?: number;
+              latitude?: number;
+              longitude?: number;
+            };
             fullProfile = {
               ...baseProfile,
               companyName: providerData.companyName,
+              businessAddress: providerData.businessAddress,
+              city: providerData.city,
+              state: providerData.state,
+              pin: providerData.pin,
+              businessHours: providerData.businessHours,
+              serviceRadiusKm: providerData.serviceRadiusKm,
+              location:
+                typeof providerData.latitude === 'number' && typeof providerData.longitude === 'number'
+                  ? { lat: providerData.latitude, lng: providerData.longitude }
+                  : undefined,
               serviceTypes: providerData.serviceTypes as UserProfile['serviceTypes'],
               vehicleNumber: providerData.vehicleNumber,
               isVerified: false,
@@ -204,10 +263,9 @@ export const useAuthStore = create<AuthState>()(
               rating: 0,
               totalJobs: 0,
               totalEarnings: 0,
-              };
+            };
           }
 
-          // Retry profile creation on transient auth propagation issues (permission/unauthenticated).
           let lastError: unknown = null;
           for (let attempt = 1; attempt <= 3; attempt++) {
             try {
@@ -237,8 +295,6 @@ export const useAuthStore = create<AuthState>()(
           });
         } catch (error) {
           set({ isLoading: false });
-          // Avoid orphaned Auth accounts (email shows in Firebase Auth but no Firestore profile).
-          // If profile creation failed after the auth user was created, roll back the auth user.
           try {
             if (createdUser) await deleteUser(createdUser);
           } catch (rollbackError) {

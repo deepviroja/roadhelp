@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Phone, Check, MapPin, XCircle } from 'lucide-react';
-import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { CustomerLayout } from '@/components/layout/CustomerLayout';
@@ -66,7 +66,7 @@ function StatusStepper({ status }: { status: string }) {
 export default function TrackRequest() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { submitRating, processPayment } = useServiceRequest();
+  const { submitRating, processPayment, updateRequestStatus } = useServiceRequest();
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [showRating, setShowRating] = useState(false);
@@ -96,12 +96,14 @@ export default function TrackRequest() {
 
   const handleCancel = async () => {
     if (!request) return;
-    await updateDoc(doc(db, 'serviceRequests', request.id), {
-      status: 'cancelled',
-      cancelledAt: serverTimestamp(),
-    });
-    toast.success('Request cancelled');
-    navigate('/customer/dashboard');
+    try {
+      await updateRequestStatus(request.id, 'cancelled');
+      toast.success('Request cancelled');
+      navigate('/customer/dashboard');
+    } catch (error) {
+      console.error('Failed to cancel request:', error);
+      toast.error('We could not cancel this request. Please try again.');
+    }
   };
 
   const handlePaymentComplete = async (tip: number) => {

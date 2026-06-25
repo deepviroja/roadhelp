@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Plus, Trash2, Car, Check } from 'lucide-react';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { toast } from 'sonner';
@@ -14,18 +14,42 @@ interface VehicleManagerProps {
   onRefresh: () => Promise<void>;
 }
 
+type VehicleDraft = Partial<Vehicle>;
+type VehicleErrors = Partial<Record<'make' | 'model' | 'year' | 'plateNumber' | 'color', string>>;
+
+function validateVehicleDraft(draft: VehicleDraft): VehicleErrors {
+  const errors: VehicleErrors = {};
+
+  if (!draft.make?.trim()) errors.make = 'Vehicle brand is required';
+  if (!draft.model?.trim()) errors.model = 'Vehicle model is required';
+  if (!draft.year?.trim()) errors.year = 'Vehicle year is required';
+  if (!draft.plateNumber?.trim()) errors.plateNumber = 'Vehicle number is required';
+  if (!draft.color?.trim()) errors.color = 'Vehicle color is required';
+
+  return errors;
+}
+
 export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
   const [isAdding, setIsAdding] = useState(false);
-  const [newVehicle, setNewVehicle] = useState<Partial<Vehicle>>({
+  const [newVehicle, setNewVehicle] = useState<VehicleDraft>({
     make: '',
     model: '',
     year: new Date().getFullYear().toString(),
     plateNumber: '',
     color: '',
   });
+  const [errors, setErrors] = useState<VehicleErrors>({});
+
+  const updateDraft = (next: VehicleDraft) => {
+    setNewVehicle(next);
+    setErrors(validateVehicleDraft(next));
+  };
 
   const handleAddVehicle = async () => {
-    if (!profile || !newVehicle.make || !newVehicle.model || !newVehicle.plateNumber) {
+    const nextErrors = validateVehicleDraft(newVehicle);
+    setErrors(nextErrors);
+
+    if (!profile || Object.keys(nextErrors).length > 0) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -46,7 +70,8 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
 
       await onRefresh();
       setIsAdding(false);
-      setNewVehicle({ make: '', model: '', year: '2024', plateNumber: '', color: '' });
+      setNewVehicle({ make: '', model: '', year: new Date().getFullYear().toString(), plateNumber: '', color: '' });
+      setErrors({});
       toast.success('Vehicle added to your garage!');
     } catch {
       toast.error('Failed to add vehicle');
@@ -69,17 +94,17 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">My Garage</h2>
-          <p className="text-sm text-gray-500">Manage your saved vehicles for quick requests</p>
+          <h2 className="text-lg font-semibold text-gray-900">Saved vehicles</h2>
+          <p className="text-sm text-gray-500">Manage the vehicles you use most often</p>
         </div>
         {!isAdding && (
-          <Button 
+          <Button
             onClick={() => setIsAdding(true)}
             variant="outline"
             className="border-blue-200 text-blue-600 hover:bg-blue-50 gap-2 h-9"
           >
             <Plus className="w-4 h-4" />
-            Add Vehicle
+            Add vehicle
           </Button>
         )}
       </div>
@@ -87,7 +112,7 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
       <div className="space-y-4">
         <AnimatePresence>
           {isAdding && (
-            <motion.div 
+            <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -95,43 +120,61 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
             >
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Make</Label>
-                  <Input 
-                    placeholder="Toyota" 
-                    value={newVehicle.make} 
-                    onChange={e => setNewVehicle({...newVehicle, make: e.target.value})}
+                  <Label>Vehicle brand</Label>
+                  <Input
+                    placeholder="Toyota"
+                    value={newVehicle.make || ''}
+                    onChange={(e) => updateDraft({ ...newVehicle, make: e.target.value })}
+                    className={errors.make ? 'border-red-500 bg-red-50' : ''}
                   />
+                  {errors.make && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.make}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Model</Label>
-                  <Input 
-                    placeholder="Camry" 
-                    value={newVehicle.model} 
-                    onChange={e => setNewVehicle({...newVehicle, model: e.target.value})}
+                  <Label>Vehicle model</Label>
+                  <Input
+                    placeholder="Camry"
+                    value={newVehicle.model || ''}
+                    onChange={(e) => updateDraft({ ...newVehicle, model: e.target.value })}
+                    className={errors.model ? 'border-red-500 bg-red-50' : ''}
                   />
+                  {errors.model && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.model}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Year</Label>
-                  <Input 
-                    placeholder="2023" 
-                    value={newVehicle.year} 
-                    onChange={e => setNewVehicle({...newVehicle, year: e.target.value})}
+                  <Label>Vehicle year</Label>
+                  <Input
+                    placeholder="2023"
+                    value={newVehicle.year || ''}
+                    onChange={(e) => updateDraft({ ...newVehicle, year: e.target.value })}
+                    className={errors.year ? 'border-red-500 bg-red-50' : ''}
                   />
+                  {errors.year && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.year}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Plate Number</Label>
-                  <Input 
-                    placeholder="ABC-1234" 
-                    value={newVehicle.plateNumber} 
-                    onChange={e => setNewVehicle({...newVehicle, plateNumber: e.target.value})}
+                  <Label>Vehicle number</Label>
+                  <Input
+                    placeholder="ABC-1234"
+                    value={newVehicle.plateNumber || ''}
+                    onChange={(e) => updateDraft({ ...newVehicle, plateNumber: e.target.value })}
+                    className={errors.plateNumber ? 'border-red-500 bg-red-50' : ''}
                   />
+                  {errors.plateNumber && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.plateNumber}</p>}
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>Vehicle color</Label>
+                  <Input
+                    placeholder="White"
+                    value={newVehicle.color || ''}
+                    onChange={(e) => updateDraft({ ...newVehicle, color: e.target.value })}
+                    className={errors.color ? 'border-red-500 bg-red-50' : ''}
+                  />
+                  {errors.color && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.color}</p>}
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
                 <Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>Cancel</Button>
                 <Button size="sm" className="bg-blue-600 text-white" onClick={handleAddVehicle}>
                   <Check className="w-4 h-4 mr-1.5" />
-                  Save Vehicle
+                  Save vehicle
                 </Button>
               </div>
             </motion.div>
@@ -141,9 +184,9 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
         {(!profile.vehicles || profile.vehicles.length === 0) && !isAdding ? (
           <div className="text-center py-12 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
             <Car className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-500 font-medium">No vehicles in your garage yet.</p>
-            <Button 
-              variant="link" 
+            <p className="text-sm text-slate-500 font-medium">No saved vehicles yet.</p>
+            <Button
+              variant="link"
               className="text-blue-600 font-bold text-xs uppercase tracking-widest mt-1"
               onClick={() => setIsAdding(true)}
             >
@@ -162,9 +205,9 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
                     <p className="font-bold text-slate-900">{vehicle.year} {vehicle.make} {vehicle.model}</p>
                     <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Plate: {vehicle.plateNumber}</p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 -mt-1 -mr-1"
                     onClick={() => handleDeleteVehicle(vehicle)}
                   >

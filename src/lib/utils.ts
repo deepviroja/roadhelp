@@ -22,7 +22,7 @@ export function formatCurrency(amount: number, currency?: string): string {
       maximumFractionDigits: 0,
     }).format(amount);
   } catch {
-    return `₹${amount}`;
+    return `â‚¹${amount}`;
   }
 }
 
@@ -72,9 +72,14 @@ export function getServiceLabel(type: ServiceType): string {
     towing: 'Towing',
     jumpStart: 'Jump Start',
     fuelDelivery: 'Fuel Delivery',
-    flatTire: 'Flat Tire',
+    flatTire: 'Tyre puncture',
     lockout: 'Lockout',
-    other: 'Other',
+    engineIssue: 'Engine Issue',
+    accidentHelp: 'Accident Help',
+    brakeIssue: 'Brake Issue',
+    electricalIssue: 'Electrical Issue',
+    otherService: 'Other Service',
+    other: 'Other Service',
   };
   return labels[type] || type;
 }
@@ -101,3 +106,4 @@ export function calculateDistance(
 export function generateId(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
+

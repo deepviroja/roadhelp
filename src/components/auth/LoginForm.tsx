@@ -1,14 +1,14 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { loginSchema, LoginFormData } from '@/lib/validators';
 import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/types';
@@ -25,6 +25,8 @@ export function LoginForm() {
     setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     resolver: zodResolver(loginSchema),
     defaultValues: { role: 'customer' },
   });
@@ -37,14 +39,14 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await login(data.email, data.password, data.role);
-      toast.success(`Logged in as ${data.role.charAt(0).toUpperCase() + data.role.slice(1)}`);
+      await login(data.identifier, data.password, data.role);
+      toast.success(`Welcome back, ${data.role}.`);
       navigate(roleRedirects[data.role]);
     } catch (error: any) {
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        toast.error('Invalid credentials. Please try again.');
+        toast.error('The email or password is incorrect.');
       } else {
-        toast.error('Login failed. Please check your credentials.');
+        toast.error(error?.message || 'We could not sign you in. Please try again.');
       }
     }
   };
@@ -52,7 +54,7 @@ export function LoginForm() {
   const handleRoleChange = (role: string) => {
     const r = role as UserRole;
     setActiveRole(r);
-    setValue('role', r);
+    setValue('role', r, { shouldValidate: true, shouldDirty: true });
   };
 
   return (
@@ -67,25 +69,25 @@ export function LoginForm() {
           <input type="hidden" {...register('role')} value={activeRole} />
 
           <div className="space-y-1">
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="identifier">Email or mobile number</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              {...register('email')}
-              className={errors.email ? 'border-red-500 ring-red-100' : ''}
+              id="identifier"
+              type="text"
+              placeholder="you@example.com or 9876543210"
+              {...register('identifier')}
+              className={errors.identifier ? 'border-red-500 ring-red-100' : ''}
             />
-            {errors.email && (
-              <p className="text-[11px] text-red-500 font-bold uppercase mt-1.5 tracking-wider">{errors.email.message}</p>
+            {errors.identifier && (
+              <p className="text-[11px] text-red-500 font-bold uppercase mt-1.5 tracking-wider">{errors.identifier.message}</p>
             )}
           </div>
 
           <div className="space-y-1">
             <div className="flex justify-between items-end mb-1">
                <Label htmlFor="password">Password</Label>
-               <button type="button" className="text-[11px] font-black text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-widest pb-2">
+               <Link to="/forgot-password" className="text-[11px] font-black text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-widest pb-2">
                  Forgot password?
-               </button>
+               </Link>
             </div>
             <div className="relative">
               <Input
@@ -122,7 +124,7 @@ export function LoginForm() {
             ) : (
               <span className="flex items-center gap-3">
                 <LogIn className="w-5 h-5" />
-                Sign In
+                Sign in
               </span>
             )}
           </Button>
@@ -131,3 +133,6 @@ export function LoginForm() {
     </div>
   );
 }
+
+
+

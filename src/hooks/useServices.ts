@@ -2,28 +2,40 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { ServiceTypeConfig } from '@/types';
-import { SERVICE_TYPES } from '@/lib/constants';
+
+const OTHER_SERVICE: ServiceTypeConfig = {
+  id: 'otherService',
+  name: 'Other Service',
+  icon: 'Wrench',
+  basePrice: 20,
+  maxPrice: 100,
+  description: 'Share the issue and we will match the right help.',
+  isActive: true,
+};
 
 export function useServices() {
   const [services, setServices] = useState<ServiceTypeConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const normalizeServices = (fetchedServices: ServiceTypeConfig[]) => {
+    const withoutLegacyOther = fetchedServices.filter((service) => service.id !== 'other');
+    const hasOtherService = withoutLegacyOther.some((service) => service.id === OTHER_SERVICE.id);
+    return hasOtherService ? withoutLegacyOther : [...withoutLegacyOther, OTHER_SERVICE];
+  };
+
   useEffect(() => {
     const servicesRef = collection(db, 'services');
-    
-    const seedServices = async () => {
+
+    const seedOtherService = async () => {
       try {
-        const promises = SERVICE_TYPES.map(service => 
-          setDoc(doc(db, 'services', service.id), {
-            ...service,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          })
-        );
-        await Promise.all(promises);
-      } catch (error) {
-        console.error('Failed to seed services:', error);
+        await setDoc(doc(db, 'services', OTHER_SERVICE.id), {
+          ...OTHER_SERVICE,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (seedError) {
+        console.error('Failed to seed other service:', seedError);
       }
     };
 
@@ -32,19 +44,18 @@ export function useServices() {
       (snapshot) => {
         setError(null);
         if (snapshot.empty) {
-          // Seed the database if empty (will fail safely if rules disallow writes)
-          seedServices();
-          setServices([]);
+          seedOtherService();
+          setServices([OTHER_SERVICE]);
         } else {
           const fetchedServices = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as ServiceTypeConfig));
-          setServices(fetchedServices);
+          setServices(normalizeServices(fetchedServices));
         }
         setIsLoading(false);
       },
       (err) => {
         console.error('Services snapshot error:', err);
         setError(err?.message || 'Unable to load services. Check Firestore security rules.');
-        setServices([]);
+        setServices([OTHER_SERVICE]);
         setIsLoading(false);
       }
     );
@@ -56,11 +67,11 @@ export function useServices() {
     try {
       await setDoc(doc(db, 'services', service.id), {
         ...service,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       }, { merge: true });
       return true;
-    } catch (error) {
-      console.error('Failed to update service:', error);
+    } catch (updateError) {
+      console.error('Failed to update service:', updateError);
       return false;
     }
   };
@@ -68,10 +79,11 @@ export function useServices() {
   const deleteService = async (serviceId: string) => {
     try {
       const { deleteDoc } = await import('firebase/firestore');
+      if (serviceId === OTHER_SERVICE.id) return false;
       await deleteDoc(doc(db, 'services', serviceId));
       return true;
-    } catch (error) {
-      console.error('Failed to delete service:', error);
+    } catch (deleteError) {
+      console.error('Failed to delete service:', deleteError);
       return false;
     }
   };

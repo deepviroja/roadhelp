@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState } from "react";
 import { Image as ImageIcon, Link as LinkIcon, Check, X, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,12 +16,6 @@ interface ImageUrlInputProps {
 export function ImageUrlInput({ currentImage, onImageChange, onRemove, className = "", variant = "default" }: ImageUrlInputProps) {
   const [url, setUrl] = useState("");
   const [isEditing, setIsEditing] = useState(!currentImage);
-
-  useEffect(() => {
-    if (currentImage) {
-      setIsEditing(false);
-    }
-  }, [currentImage]);
 
   const handleSave = () => {
     if (url.trim()) {
@@ -52,7 +46,6 @@ export function ImageUrlInput({ currentImage, onImageChange, onRemove, className
               alt="Preview" 
               className="w-full h-full object-cover"
               onError={(e) => {
-                // Fallback if image fails to load
                 (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Invalid+Image+URL';
               }}
             />

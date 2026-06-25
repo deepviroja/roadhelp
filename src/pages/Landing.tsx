@@ -1,28 +1,69 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ArrowRight, Star, 
-  Instagram, Twitter, Facebook,
-  ChevronLeft, ChevronRight, ShieldCheck, Zap, CreditCard
+import {
+  ArrowRight,
+  Search,
+  Star,
+  Instagram,
+  Twitter,
+  Facebook,
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+  Zap,
+  Clock3,
+  MessageSquareText,
+  CircleHelp,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Logo } from '@/components/shared/Logo';
 import { useServices } from '@/hooks/useServices';
 import { IconRenderer } from '@/components/shared/IconRenderer';
+import { getServiceLabel } from '@/lib/utils';
 import { db } from '@/config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 const TRUST_BADGES = [
-  { icon: Zap, label: '15-25m Avg. Response', desc: 'Industry leading speed' },
-  { icon: ShieldCheck, label: 'Verified Pros only', desc: 'Background checked providers' },
-  { icon: CreditCard, label: 'No Membership required', desc: 'Only pay for what you need' },
+  { icon: Clock3, label: 'Fast arrival', desc: 'Average response in under 30 minutes' },
+  { icon: ShieldCheck, label: 'Verified providers', desc: 'Every partner is reviewed before activation' },
+  { icon: Zap, label: 'Simple pricing', desc: 'Clear pricing before you confirm the booking' },
 ];
 
+const EXTRA_ISSUES = [
+  'Battery issue',
+  'Fuel delivery',
+  'Tyre puncture',
+  'Towing',
+  'Engine issue',
+  'Lockout',
+  'Accident help',
+  'Brake issue',
+  'Electrical issue',
+  'Other',
+];
+
+const ISSUE_SERVICE_HINTS: Record<string, string> = {
+  'Battery issue': 'jumpStart',
+  'Fuel delivery': 'fuelDelivery',
+  'Tyre puncture': 'flatTire',
+  'Towing': 'towing',
+  'Engine issue': 'engineIssue',
+  'Accident help': 'accidentHelp',
+  'Brake issue': 'brakeIssue',
+  'Electrical issue': 'electricalIssue',
+  'Lockout': 'lockout',
+};
+
 export default function Landing() {
+  const navigate = useNavigate();
   const { services, isLoading: isServicesLoading } = useServices();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [config, setConfig] = useState<any>(null);
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [customIssue, setCustomIssue] = useState('');
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -32,33 +73,76 @@ export default function Landing() {
     loadConfig();
   }, []);
 
-  const slides = config?.heroSlides?.length > 0 ? [...config.heroSlides] : [
-    {
-      id: 'default',
-      title: 'Stranded? | We\'ll get you moving.',
-      image: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=1200&auto=format&fit=crop',
-    }
-  ];
+  const slides = config?.heroSlides?.length > 0
+    ? [...config.heroSlides]
+    : [
+        {
+          id: 'default',
+          title: 'Help when the road stops being easy.',
+          image: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=1200&auto=format&fit=crop',
+        },
+      ];
 
-  const steps = config?.steps?.length > 0 ? [...config.steps] : [
-    { idx: '01', title: 'Share Location', desc: 'Tell us where you are and what’s wrong with your vehicle.' },
-    { idx: '02', title: 'Get Matched', desc: 'We instantly alert the nearest verified professionals.' },
-    { idx: '03', title: 'Track Arrival', desc: 'Watch your helper approach in real-time on our live interactive map.' },
-    { idx: '04', title: 'Resume Journey', desc: 'Pay securely after the work is done and get back on the road.' }
-  ];
+  const steps = config?.steps?.length > 0
+    ? [...config.steps]
+    : [
+        { idx: '01', title: 'Tell us what happened', desc: 'Choose a service or describe the problem in your own words.' },
+        { idx: '02', title: 'Share your location', desc: 'Use GPS or drop a pin so the nearest provider can reach you.' },
+        { idx: '03', title: 'Review the booking', desc: 'Check the details, price estimate, and contact information.' },
+        { idx: '04', title: 'Get moving again', desc: 'We send the request and keep the process simple from there.' },
+      ];
 
-  const testimonials = config?.featuredReviews?.length > 0 ? config.featuredReviews : [
-    {
-      id: 'default',
-      name: 'Emily Thompson',
-      text: 'RoadHelp arrived in just 12 minutes when I had a flat tire on the highway.',
-      rating: 5,
-      loc: 'Chicago, IL'
-    }
-  ];
+  const testimonials = config?.featuredReviews?.length > 0
+    ? config.featuredReviews
+    : [
+        {
+          id: 'default',
+          name: 'Emily Thompson',
+          text: 'I had a flat tire late at night and still got clear updates and quick help.',
+          rating: 5,
+          loc: 'Chicago, IL',
+        },
+      ];
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  const activeServices = useMemo(
+    () => services.filter((s: any) => s.isActive ?? true),
+    [services],
+  );
+
+  const filteredServices = useMemo(() => {
+    const query = serviceSearch.trim().toLowerCase();
+    if (!query) return activeServices;
+    return activeServices.filter((service: any) =>
+      [service.name, getServiceLabel(service.id as any), service.description].join(' ').toLowerCase().includes(query),
+    );
+  }, [activeServices, serviceSearch]);
+
+  const startHelp = (serviceId?: string, issue?: string, serviceLabel?: string) => {
+    const normalizedIssue = (issue || customIssue).trim().toLowerCase();
+    const resolvedService = serviceId
+      ? activeServices.find((service) => service.id === serviceId)
+      : normalizedIssue
+        ? activeServices.find((service) => {
+            const serviceName = service.name.toLowerCase();
+            const serviceLabelName = getServiceLabel(service.id as any).toLowerCase();
+            const hintedId = ISSUE_SERVICE_HINTS[issue || customIssue || ''];
+            return service.id === hintedId || serviceName === normalizedIssue || serviceLabelName === normalizedIssue;
+          })
+        : null;
+
+    const serviceType = resolvedService?.id || (issue || customIssue ? 'otherService' : '');
+    const draft = {
+      serviceType,
+      serviceLabel:
+        resolvedService?.id === 'otherService'
+          ? (serviceLabel || issue || customIssue || 'Other Service')
+          : serviceLabel || resolvedService?.name || issue || customIssue,
+      description: issue || customIssue,
+      notes: issue || customIssue,
+    };
+    sessionStorage.setItem('roadhelp:guestRequestDraft', JSON.stringify(draft));
+    navigate(serviceType ? `/get-help?service=${encodeURIComponent(serviceType)}` : '/get-help');
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -67,256 +151,287 @@ export default function Landing() {
     return () => clearInterval(timer);
   }, [slides.length]);
 
-  const activeServices = useMemo(() => services.filter((s: any) => s.isActive ?? true), [services]);
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
 
   return (
-    <div className="flex-1 bg-[#F5F5F6] text-[#1A1A2E] font-['Inter'] selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
-      
-      {/* 1. Dynamic Hero Slider */}
-      <section className="relative h-screen min-h-[600px] md:min-h-[800px] overflow-hidden bg-[#1A1A2E]">
+    <div className="flex-1 bg-[#F5F5F6] text-[#1A1A2E] selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
+      <section className="relative min-h-[88vh] overflow-hidden bg-[#0f172a] text-white">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSlide}
-            initial={{ opacity: 0, scale: 1.1 }}
+            initial={{ opacity: 0, scale: 1.06 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 1.2, ease: "easeOut" }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 1.1, ease: 'easeOut' }}
             className="absolute inset-0"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1A1A2E] via-[#1A1A2E]/80 to-transparent z-10" />
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#1A1A2E] to-transparent z-10 opacity-70" />
-            <img 
-              src={slides[currentSlide].image} 
-              alt="" 
-              className="w-full h-full object-cover opacity-50 scale-105 group-hover:scale-100 transition-transform duration-[10s]"
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0f172a] via-[#0f172a]/80 to-transparent z-10" />
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#0f172a] to-transparent z-10 opacity-80" />
+            <img
+              src={slides[currentSlide].image}
+              alt=""
+              className="w-full h-full object-cover opacity-45 scale-105"
             />
           </motion.div>
         </AnimatePresence>
 
-        <div className="relative z-20 max-w-7xl mx-auto px-6 lg:px-8 h-full flex flex-col justify-center">
+        <div className="relative z-20 max-w-7xl mx-auto px-6 lg:px-8 pt-8 pb-16 min-h-[88vh] flex flex-col justify-center">
           <motion.div
-            key={`content-${currentSlide}`}
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.8 }}
+            transition={{ duration: 0.7 }}
             className="max-w-4xl"
           >
-            <div className="inline-flex items-center gap-3 px-4 py-2 bg-blue-600/10 border border-blue-500/30 rounded-full text-blue-400 font-black text-[10px] tracking-[0.3em] mb-10 uppercase backdrop-blur-md">
-               <Zap className="w-4 h-4 fill-blue-500" strokeWidth={3} />
-               {config?.appName || 'RoadHelp'} - PREMIER ROADSIDE ASSETS
+            <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/10 border border-white/10 rounded-full text-[10px] tracking-[0.3em] mb-8 uppercase backdrop-blur-md font-black">
+              <Zap className="w-4 h-4 text-cyan-300" strokeWidth={3} />
+              RoadHelp, ready when your day changes course
             </div>
-            <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight mb-6 max-w-4xl">
-              {slides[currentSlide].title.split('|').map((part: string, i: number) => (
-                <span key={i} className={i % 2 === 1 ? "text-blue-500 block md:inline" : ""}>{part}</span>
-              ))}
-              {!slides[currentSlide].title.includes('|') && slides[currentSlide].title}
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[0.95] mb-6 max-w-4xl">
+              <span className="block">{config?.heroHeadline || 'Roadside help'}</span>
+              <span className="block text-cyan-300">{config?.heroSubheadline || 'without the stress.'}</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-300 mb-10 font-medium leading-relaxed max-w-2xl">
-              Elite roadside architecture at your fingertips. No subscriptions, absolute transparency, and 15-minute average arrival 24/7.
+              Choose the issue, share your location, and get matched with a verified provider in a few simple steps.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 h-14 px-8 text-base font-black shadow-lg shadow-blue-600/40 rounded-full group transition-all" asChild>
+              <Button size="lg" className="bg-cyan-400 hover:bg-cyan-300 text-slate-950 h-14 px-8 text-base font-black rounded-full group transition-all" asChild>
                 <Link to="/get-help">
-                  START URGENT REQUEST 
+                  Get help now
                   <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" className="h-14 px-8 text-base font-black border-white/20 text-white hover:bg-white/10 bg-transparent rounded-full backdrop-blur-md transition-all tracking-widest" asChild>
-                <a href="#services">EXPLORE SERVICES</a>
+                <a href="#services">Browse services</a>
               </Button>
             </div>
           </motion.div>
 
-          {/* Trust Badges on Hero */}
-          <div className="absolute bottom-16 left-8 right-12 hidden lg:flex items-center justify-between pointer-events-none">
-             <div className="flex gap-16">
-                {TRUST_BADGES.map((badge, idx) => (
-                   <motion.div 
-                     key={idx} 
-                     initial={{ opacity: 0, x: -20 }}
-                     animate={{ opacity: 1, x: 0 }}
-                     transition={{ delay: 1 + idx * 0.2 }}
-                     className="flex items-center gap-5"
-                   >
-                      <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl flex items-center justify-center text-blue-400 shadow-2xl">
-                         <badge.icon className="w-6 h-6" />
-                      </div>
-                      <div>
-                         <p className="text-[11px] font-black text-white uppercase tracking-[0.2em] mb-1">{badge.label}</p>
-                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{badge.desc}</p>
-                      </div>
-                   </motion.div>
+          <div className="grid gap-4 md:grid-cols-3 mt-16 max-w-5xl">
+            {TRUST_BADGES.map((badge, idx) => (
+              <motion.div
+                key={badge.label}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + idx * 0.08 }}
+                className="rounded-3xl bg-white/8 border border-white/10 backdrop-blur-xl p-5 flex items-start gap-4"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-cyan-300 shrink-0">
+                  <badge.icon className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] mb-1">{badge.label}</p>
+                  <p className="text-sm text-slate-300 leading-relaxed">{badge.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {slides.length > 1 && (
+            <div className="absolute bottom-8 right-6 lg:right-8 flex items-center gap-3 z-20">
+              <button onClick={prevSlide} className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white hover:text-slate-900 transition-all backdrop-blur-xl" aria-label="Previous slide">
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button onClick={nextSlide} className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white hover:text-slate-900 transition-all backdrop-blur-xl" aria-label="Next slide">
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section id="services" className="py-16 md:py-24 bg-white relative">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="max-w-3xl mb-10">
+            <p className="text-xs font-black text-blue-600 uppercase tracking-[0.3em] mb-4">Services</p>
+            <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">Choose a service, or tell us what you need.</h2>
+            <p className="text-base md:text-lg text-slate-500 mt-5 font-medium leading-relaxed">We keep the list short, clear, and focused on the most common roadside problems. If your issue is different, add a short note and we’ll handle it from there.</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.9fr] gap-8 items-start">
+            <div>
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    value={serviceSearch}
+                    onChange={(e) => setServiceSearch(e.target.value)}
+                    placeholder="Search services or describe the issue"
+                    className="h-14 rounded-2xl pl-12 bg-slate-50 border-slate-200 font-medium"
+                  />
+                </div>
+                <Button type="button" className="h-14 px-6 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black" onClick={() => startHelp()}>
+                  Continue
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                {isServicesLoading ? (
+                  <div className="col-span-full text-center text-slate-300 py-20 animate-pulse font-black uppercase tracking-[0.4em]">Loading services...</div>
+                ) : filteredServices.length > 0 ? filteredServices.map((service: any) => (
+                  <motion.button
+                    key={service.id}
+                    type="button"
+                    whileHover={{ y: -4, scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => startHelp(service.id, service.name, service.name)}
+                    className="bg-slate-50 p-6 rounded-[1.75rem] border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-blue-600/10 transition-all duration-100 group relative overflow-hidden text-left"
+                  >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/5 rounded-bl-[2rem] group-hover:bg-blue-600/50 transition-all" />
+                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-blue-600 mb-6 shadow-sm">
+                      <IconRenderer name={service.icon} size={30} />
+                    </div>
+                    <h3 className="text-xl font-black mb-2 text-slate-900 tracking-tight">{getServiceLabel(service.id as any)}</h3>
+                    <p className="text-slate-500 text-sm leading-relaxed mb-6">{service.description}</p>
+                    <span className="inline-flex items-center gap-2 text-blue-600 font-black text-xs uppercase tracking-[0.2em]">
+                      Start booking <ArrowRight className="w-4 h-4" />
+                    </span>
+                  </motion.button>
+                )) : (
+                  <div className="col-span-full rounded-[2rem] border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-slate-500">
+                    No services match your search. Try one of the quick issue options below.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] bg-slate-950 text-white p-8 md:p-10 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-400/10 rounded-full -mr-20 -mt-20 blur-2xl" />
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-300 mb-3">Need something else?</p>
+              <h3 className="text-2xl font-black tracking-tight mb-4">Tell us in a sentence.</h3>
+              <p className="text-slate-300 text-sm leading-relaxed mb-6">If your problem is not on the list, write a short note and we’ll still route you to the right help.</p>
+              <Textarea
+                value={customIssue}
+                onChange={(e) => setCustomIssue(e.target.value)}
+                placeholder="Example: My truck is overheating and I need a quick check."
+                className="min-h-[120px] rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-slate-400 resize-none mb-4"
+              />
+              <Button type="button" className="w-full h-12 rounded-2xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black" onClick={() => startHelp(customIssue ? 'otherService' : undefined, customIssue, customIssue)}>
+                Use this request
+              </Button>
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                {EXTRA_ISSUES.map((issue) => (
+                  <button
+                    key={issue}
+                    type="button"
+                    onClick={() => startHelp(undefined, issue, issue)}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-white/10 transition-all"
+                  >
+                    {issue}
+                  </button>
                 ))}
-             </div>
-             
-             {/* Slider Controls */}
-             {slides.length > 1 && (
-               <div className="flex items-center gap-4 pointer-events-auto">
-                 <button 
-                   onClick={prevSlide}
-                   className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white hover:text-slate-900 transition-all backdrop-blur-xl"
-                 >
-                   <ChevronLeft className="w-7 h-7" />
-                 </button>
-                 <button 
-                   onClick={nextSlide}
-                   className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white hover:text-slate-900 transition-all backdrop-blur-xl"
-                 >
-                   <ChevronRight className="w-7 h-7" />
-                 </button>
-               </div>
-             )}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 2. SERVICES SECTION */}
-      <section id="services" className="py-16 md:py-24 bg-white relative">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-           <div className="text-center mb-16">
-              <h2 className="text-xs font-black text-blue-600 uppercase tracking-widest mb-4">CORE CAPABILITIES</h2>
-              <h3 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">Everything Roadside</h3>
-              <p className="text-base md:text-lg text-slate-500 mt-6 font-medium max-w-2xl mx-auto italic">Any protocol, any machine, anywhere. Our certified fleet is synchronized.</p>
-           </div>
-           
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-              {isServicesLoading ? (
-                <div className="col-span-full text-center text-slate-300 py-32 animate-pulse font-black uppercase tracking-[0.5em]">SYNCHRONIZING ASSETS...</div>
-              ) : activeServices.map((s: any) => (
-                <motion.div
-                  key={s.id}
-                  whileHover={{ y: -5, scale: 1.01 }}
-                  className="bg-slate-50 p-8 rounded-3xl border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-blue-600/10 transition-all group relative overflow-hidden"
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-bl-full group-hover:bg-blue-600 group-hover:scale-150 transition-all duration-700" />
-                  <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mb-8 group-hover:rotate-12 transition-transform shadow-lg shadow-blue-600/30 relative z-10">
-                    <IconRenderer name={s.icon} size={32} />
-                  </div>
-                  <h4 className="text-2xl font-black mb-4 text-slate-900 tracking-tight relative z-10">{s.name}</h4>
-                  <p className="text-slate-500 font-medium leading-relaxed mb-8 relative z-10 text-sm">{s.description}</p>
-                  <Link to={`/get-help?service=${encodeURIComponent(s.id)}`} className="inline-flex items-center gap-2 text-blue-600 font-black text-xs uppercase tracking-widest group-hover:gap-4 transition-all relative z-10">
-                    REQUEST DISPATCH <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </motion.div>
-              ))}
-           </div>
-        </div>
-      </section>
-
-      {/* 3. HOW IT WORKS SECTION */}
       <section id="how-it-works" className="py-16 md:py-24 bg-slate-950 text-white overflow-hidden relative">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
-           <div className="text-center mb-16">
-              <h2 className="text-xs font-black text-blue-400 uppercase tracking-widest mb-4 text-center">THE PROTOCOL</h2>
-              <h3 className="text-3xl md:text-5xl font-black text-white tracking-tight text-center">Optimized Response Flow</h3>
-           </div>
-           
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 relative">
-              {/* Background Line */}
-              <div className="absolute top-32 left-0 right-0 h-px bg-white/10 hidden lg:block z-0" />
-              
-              {steps.map((step: any, i: number) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="relative z-10 text-center group"
-                >
-                  <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-8 shadow-xl backdrop-blur-xl group-hover:bg-blue-600 group-hover:border-blue-500 transition-all duration-300 transform group-hover:scale-105">
-                    <span className="text-2xl font-black text-blue-500 group-hover:text-white transition-colors">{step.idx || `0${i+1}`}</span>
-                  </div>
-                  <h4 className="text-xl font-black mb-4 tracking-tight group-hover:text-blue-400 transition-colors">{step.title}</h4>
-                  <p className="text-slate-400 font-medium leading-relaxed px-2 text-sm">{step.desc}</p>
-                </motion.div>
-              ))}
-           </div>
-           
-           <div className="mt-20 text-center">
-             <Button size="lg" className="h-14 px-10 rounded-full font-black tracking-widest text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/40 transition-all transform hover:scale-105" asChild>
-                <Link to="/signup">BECOME A VERIFIED PROVIDER</Link>
-             </Button>
-           </div>
+          <div className="text-center mb-16">
+            <p className="text-xs font-black text-cyan-300 uppercase tracking-[0.3em] mb-4">How it works</p>
+            <h3 className="text-3xl md:text-5xl font-black text-white tracking-tight text-center">A calmer way to get help</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
+            <div className="absolute top-32 left-0 right-0 h-px bg-white/10 hidden lg:block z-0" />
+            {steps.map((step: any, i: number) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                className="relative z-10 text-center group"
+              >
+                <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-8 shadow-xl backdrop-blur-xl group-hover:bg-cyan-400 group-hover:border-cyan-300 transition-all duration-300 transform group-hover:scale-105">
+                  <span className="text-2xl font-black text-cyan-300 group-hover:text-slate-950 transition-colors">{step.idx || `0${i + 1}`}</span>
+                </div>
+                <h4 className="text-xl font-black mb-4 tracking-tight group-hover:text-cyan-300 transition-colors">{step.title}</h4>
+                <p className="text-slate-400 font-medium leading-relaxed px-2 text-sm">{step.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-20 text-center">
+            <Button size="lg" className="h-14 px-10 rounded-full font-black tracking-widest text-slate-950 bg-white hover:bg-cyan-300 shadow-lg transition-all" asChild>
+              <Link to="/signup">Create an account</Link>
+            </Button>
+          </div>
         </div>
       </section>
 
-      {/* 4. REVIEWS SECTION */}
       <section id="reviews" className="py-16 md:py-24 bg-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-           <div className="text-center mb-16">
-              <h2 className="text-xs font-black text-blue-600 uppercase tracking-widest mb-4">FIELD INTEL</h2>
-              <h3 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-8">Trusted Across the Network</h3>
-              <div className="flex items-center justify-center gap-1.5 text-amber-500">
-                 {[1,2,3,4,5].map(i => <Star key={i} className="w-6 h-6 fill-current stroke-current" />)}
-              </div>
-           </div>
-           
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-              {testimonials.map((t: any, i: number) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  className="glass-card p-8 rounded-3xl flex flex-col h-full hover:shadow-xl hover:shadow-blue-600/5 transition-all group"
-                >
-                  <div className="flex gap-1 text-amber-500 mb-6">
-                     {[...Array(t.rating || 5)].map((_, idx) => <Star key={idx} className="w-4 h-4 fill-current" />)}
+          <div className="text-center mb-16">
+            <p className="text-xs font-black text-blue-600 uppercase tracking-[0.3em] mb-4">Customer stories</p>
+            <h3 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-8">Trusted by drivers who needed help fast</h3>
+            <div className="flex items-center justify-center gap-1.5 text-amber-500">
+              {[1, 2, 3, 4, 5].map((i) => <Star key={i} className="w-6 h-6 fill-current stroke-current" />)}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            {testimonials.map((t: any, i: number) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.98 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 flex flex-col h-full hover:shadow-xl hover:shadow-blue-600/5 transition-all"
+              >
+                <div className="flex gap-1 text-amber-500 mb-6">
+                  {[...Array(t.rating || 5)].map((_, idx) => <Star key={idx} className="w-4 h-4 fill-current" />)}
+                </div>
+                <p className="text-base font-medium text-slate-800 leading-relaxed mb-8 flex-grow italic tracking-tight">“{t.text}”</p>
+                <div className="flex items-center gap-4 pt-6 border-t border-slate-100">
+                  <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center font-black text-white text-lg shadow-md shadow-blue-600/20">{t.name[0]}</div>
+                  <div>
+                    <p className="font-bold text-slate-900 leading-tight">{t.name}</p>
+                    <p className="text-[10px] text-blue-600 font-bold tracking-widest uppercase mt-1">{t.loc || 'Verified user'}</p>
                   </div>
-                  <p className="text-base font-medium text-slate-800 leading-relaxed mb-8 flex-grow italic tracking-tight">
-                    “{t.text}”
-                  </p>
-                  <div className="flex items-center gap-4 pt-6 border-t border-slate-100">
-                    <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center font-black text-white text-lg shadow-md shadow-blue-600/20">
-                      {t.name[0]}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900 leading-tight">{t.name}</p>
-                      <p className="text-[10px] text-blue-600 font-bold tracking-widest uppercase mt-1">{t.loc || 'Verified Driver'}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-           </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="py-24 md:py-32 border-t border-slate-100 bg-[#F5F5F6]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-16 md:gap-24 mb-24 md:mb-32">
+      <footer className="py-20 md:py-28 border-t border-slate-100 bg-[#F5F5F6]">
+        <div className="max-w-7xl mx-auto px-6  lg:px-8">
+          <div className="flex flex-col lg:flex-row justify-between items-center gap-10 mb-16">
             <Logo size="lg" />
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-10 gap-x-16 text-center md:text-left">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-x-10 gap-y-8 text-center md:text-left">
               {[
-                { label: 'Platform Capabilities', href: '/#services' },
-                { label: 'Dispatch Protocol', href: '/#how-it-works' },
-                { label: 'Privacy Framework', href: '/privacy' },
-                { label: 'Usage Parameters', href: '/terms' },
-                { label: 'Network Portal', href: '/signup' },
+                { label: 'How it works', href: '/#how-it-works' },
+                { label: 'Our Services', href: '/#services' },
+                { label: 'Privacy Policy', href: '/privacy' },
+                { label: 'Terms of Service', href: '/terms' },
+                { label: 'Create account', href: '/signup' },
               ].map((l) => (
-                <a key={l.label} href={l.href} className="text-[11px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-[0.2em] transition-all whitespace-nowrap">{l.label}</a>
+                <a key={l.label} href={l.href} className="text-[10px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-[0.2em] transition-all whitespace-nowrap">{l.label}</a>
               ))}
             </div>
-            <div className="flex gap-6">
+            <div className="flex gap-4">
               {[Twitter, Instagram, Facebook].map((Icon, i) => (
-                <a key={i} href="#" className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white hover:scale-110 shadow-sm transition-all">
-                  <Icon className="w-6 h-6" />
+                <a key={i} href="#" className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white shadow-sm transition-all" aria-label="Social link">
+                  <Icon className="w-5 h-5" />
                 </a>
               ))}
             </div>
           </div>
-          <div className="text-center pt-16 border-t border-slate-200/50">
-            <p className="text-[11px] font-black text-slate-300 uppercase tracking-[0.5em] leading-relaxed">
-              © 2026 ROADHELP CORP. SECURED BY MULTI-LAYERED ENCRYPTION. 
-            </p>
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] leading-relaxed">
-              This Website is for demo purpose only. No real services are provided.
-            </p>
+          <div className="text-center pt-10 border-t border-slate-200/50">
+            <p className="text-[11px] font-black text-slate-300 uppercase tracking-[0.4em] leading-relaxed">© 2026 ROADHELP CORP.</p>
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] leading-relaxed mt-2">Demo environment. No real roadside services are dispatched here.</p>
           </div>
         </div>
       </footer>
     </div>
   );
 }
+
+
+
+
+
