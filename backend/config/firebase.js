@@ -16,8 +16,7 @@ if (!admin.apps.length) {
   }
 
   const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
-  const fixedKey = rawKey.includes('\n') ? rawKey.replace(/\n/g, '
-') : rawKey;
+  const fixedKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey;
 
   const serviceAccount = {
     type: 'service_account',
