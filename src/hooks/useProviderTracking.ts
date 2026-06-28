@@ -64,6 +64,8 @@ export function useProviderTracking(requestId: string | null, isActive: boolean)
         if (now - lastUpdateRef.current < intervalMs) return;
 
         set(trackingRef, {
+          requestId,
+          providerUid: profile?.uid || null,
           providerLat: latitude,
           providerLng: longitude,
           heading: heading ?? null,

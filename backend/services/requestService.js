@@ -1,6 +1,6 @@
-﻿const admin = require('../config/firebase');
+const admin = require('../config/firebase');
 const crypto = require('crypto');
-const { getFrontendUrl, sendWelcomeEmail } = require('./emailService');
+const { getFrontendUrl, sendWelcomeEmail, sendRequestReceivedEmail } = require('./emailService');
 
 const db = admin.firestore();
 const auth = admin.auth();
@@ -94,6 +94,22 @@ async function syncGuestCustomerAccount(data) {
       } catch (emailError) {
         welcomeEmailError = emailError;
         console.error('Failed to send guest welcome email:', {
+          email,
+          message: emailError?.message || emailError,
+        });
+      }
+    } else {
+      const loginLink = `${getFrontendUrl()}/login`;
+      try {
+        await sendRequestReceivedEmail({
+          to: email,
+          fullName,
+          loginLink,
+        });
+        welcomeEmailSent = true;
+      } catch (emailError) {
+        welcomeEmailError = emailError;
+        console.error('Failed to send request received email:', {
           email,
           message: emailError?.message || emailError,
         });

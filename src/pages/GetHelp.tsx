@@ -218,7 +218,22 @@ export default function GetHelp() {
   };
 
   return (
-    <div className="flex-1 bg-[#F5F5F6] min-h-screen overflow-x-hidden">
+    <div className="flex-1 bg-[#F5F5F6] min-h-screen overflow-x-hidden relative">
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/80 backdrop-blur-md"
+          >
+            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-6"></div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Processing your request</h2>
+            <p className="text-slate-500 mt-2 font-medium">Please wait while we find nearby providers...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="max-w-6xl mx-auto px-6 lg:px-8 py-10 md:py-16 pb-24 ">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
           <p className="text-xs font-black uppercase tracking-[0.3em] text-blue-600 mb-3">Book help</p>

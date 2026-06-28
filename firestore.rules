@@ -58,8 +58,9 @@ service cloud.firestore {
       // Customers create their own requests (including anonymous auth guests)
       allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
-      // Customer/provider/admin can read a specific request, and unauthenticated public can view if they have tracking link ID
-      allow get: if true;
+      // Customer/provider/admin can read a specific request after authenticating,
+      // including anonymous guest sessions used by public tracking links.
+      allow get: if isSignedIn();
 
       // List / queries are evaluated per-document (resource is each doc returned).
       allow list: if isAdmin()

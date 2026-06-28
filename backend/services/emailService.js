@@ -98,9 +98,36 @@ async function sendWelcomeEmail({ to, fullName, loginLink, resetLink }) {
   await sendEmail({ to, subject, text, html });
 }
 
+async function sendRequestReceivedEmail({ to, fullName, loginLink }) {
+  const subject = 'Your RoadHelp Request Received';
+  const text = [
+    `Hi ${fullName || 'there'},`,
+    '',
+    'We have received your new service request.',
+    'Since you already have a RoadHelp account, please sign in to track the status of your request and see more details.',
+    `Sign in here: ${loginLink}`
+  ].join('\n');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6">
+      <p>Hi ${fullName || 'there'},</p>
+      <p>We have received your new service request.</p>
+      <p>Since you already have a RoadHelp account, please sign in to track the status of your request and see more details.</p>
+      <p>
+        <a href="${loginLink}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:700">
+          Sign in to Dashboard
+        </a>
+      </p>
+    </div>
+  `;
+
+  await sendEmail({ to, subject, text, html });
+}
+
 module.exports = {
   getFrontendUrl,
   sendEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
+  sendRequestReceivedEmail,
 };

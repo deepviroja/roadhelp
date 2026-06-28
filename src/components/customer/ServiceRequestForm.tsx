@@ -1,6 +1,6 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, ShieldCheck, Car, Search, Clock3, ArrowRight, Check, Phone } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -106,7 +106,22 @@ export function ServiceRequestForm() {
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-8">
+    <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-8 relative">
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/80 backdrop-blur-md"
+          >
+            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-6"></div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Processing your request</h2>
+            <p className="text-slate-500 mt-2 font-medium">Please wait while we find nearby providers...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8 space-y-8">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-600 mb-2">New request</p>

@@ -295,18 +295,18 @@ export default function Landing() {
               </div>
             </div>
 
-            <div className="rounded-[2rem] bg-slate-950 text-white p-8 md:p-10 shadow-2xl relative overflow-hidden">
+            <div className="rounded-[2rem] bg-slate-100/20 border-slate-200 text-black p-8 md:p-10 shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-400/10 rounded-full -mr-20 -mt-20 blur-2xl" />
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-300 mb-3">Need something else?</p>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-500 mb-3">Need something else?</p>
               <h3 className="text-2xl font-black tracking-tight mb-4">Tell us in a sentence.</h3>
-              <p className="text-slate-300 text-sm leading-relaxed mb-6">If your problem is not on the list, write a short note and we’ll still route you to the right help.</p>
+              <p className="text-slate-400 text-sm leading-relaxed mb-6">If your problem is not on the list, write a short note and we’ll still route you to the right help.</p>
               <Textarea
                 value={customIssue}
                 onChange={(e) => setCustomIssue(e.target.value)}
                 placeholder="Example: My truck is overheating and I need a quick check."
                 className="min-h-[120px] rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-slate-400 resize-none mb-4"
               />
-              <Button type="button" className="w-full h-12 rounded-2xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black" onClick={() => startHelp(customIssue ? 'otherService' : undefined, customIssue, customIssue)}>
+              <Button type="button" className="w-full h-12 rounded-2xl bg-cyan-400 hover:bg-cyan-600 text-slate-950 font-black" onClick={() => startHelp(customIssue ? 'otherService' : undefined, customIssue, customIssue)}>
                 Use this request
               </Button>
               <div className="mt-6 grid grid-cols-2 gap-3">
@@ -315,7 +315,7 @@ export default function Landing() {
                     key={issue}
                     type="button"
                     onClick={() => startHelp(undefined, issue, issue)}
-                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-white/10 transition-all"
+                    className="rounded-2xl border border-black bg-white/5 px-4 py-3 text-left text-sm font-medium text-slate-400 hover:bg-slate-200 transition-all"
                   >
                     {issue}
                   </button>

@@ -46,7 +46,7 @@ RoadHelp is a Vite + React + Firebase web app with **3 roles**:
 
 ## Environment Variables
 
-Create `roadhelp/.env` (the repo includes an example). Required:
+Create `roadhelp/.env` with your Firebase web config. Required:
 
 - `VITE_FIREBASE_API_KEY`
 - `VITE_FIREBASE_AUTH_DOMAIN`
@@ -62,6 +62,16 @@ For the backend email flow, also set these in `roadhelp/backend/.env` or in Rend
 - `SENDGRID_FROM_EMAIL`
 - `SENDGRID_FROM_NAME` (optional, defaults to `RoadHelp`)
 - `APP_PUBLIC_URL` or `FRONTEND_URL`
+
+Backend Firebase Admin auth is loaded from environment variables. Set the Firebase service account fields in `backend/.env` or your hosting provider:
+
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_PRIVATE_KEY_ID`
+- `FIREBASE_PRIVATE_KEY`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_CLIENT_ID`
+
+Do not commit any `.env` file or service-account secret to GitHub.
 
 ---
 
@@ -82,36 +92,27 @@ npm run build
 
 ---
 
-## Moving the Project to a New PC / System
+## Move Or Clone
 
-If you want to move this project to another computer or system, follow these exact steps:
+To run this project on another machine:
 
-1. **Prerequisites on the new PC**:
-   - Install **Node.js** (v18 or higher recommended).
-   - Install **Git** (if you want to pull directly from your repository).
-
-2. **Copy the code to the new PC**:
-   - Easiest way: Copy the entire `roadhelp` folder (except the `node_modules` folders) via a USB drive or ZIP file. Alternatively, clone the repository using Git.
-   - **Crucial step:** Make sure to include the `.env` file in `roadhelp/.env` and `roadhelp/backend/.env`. Also, make sure `roadhelp/backend/serviceAccountKey.json` is included. Those files are typically hidden or not tracked by version control but are **required** to authenticate with Firebase.
-
-3. **Install dependencies and run the Frontend**:
+1. Install **Node.js 18+** and **Git**.
+2. Clone the repository.
+3. Recreate `roadhelp/.env` and `roadhelp/backend/.env` from your secret manager or hosting environment variables.
+4. Install dependencies and run the frontend:
    ```bash
    cd roadhelp
    npm install
    npm run dev
    ```
-
-4. **Install dependencies and run the Backend**:
-   Open a **new terminal tab/window**:
+5. In a second terminal, run the backend:
    ```bash
    cd backend
    npm install
    npm start
    ```
 
-5. **Everything should now run identical to the old PC.** No other configuration is required since the Firebase Cloud resources are stored online.
-   - The React frontend will run on `http://localhost:5173`.
-   - The Node.js backend will run on `http://localhost:5000` (which is proxied automatically by Vite).
+The frontend runs on `http://localhost:5173` and the backend runs on `http://localhost:5000`.
 
 ---
 
@@ -121,9 +122,8 @@ The platform has transitioned to a hybrid architecture: **Frontend (React) → B
 
 ### Running Backend Locally
 From `d:\project\roadhelp\backend`:
-1. Ensure your `serviceAccountKey.json` is placed in the `backend/` folder.
-2. Create `backend/.env` with `PORT=5000`.
-3. Install and run:
+1. Create `backend/.env` with `PORT=5000` and the Firebase Admin credentials listed above.
+2. Install and run:
    ```bash
    npm install
    npm start
@@ -137,8 +137,8 @@ You can deploy the `/backend` folder independently to platforms like Render, Rai
 #### 1. Render / Railway
 - Connect your GitHub repository to Render or Railway.
 - Create a new Web Service and set the Root Directory to `backend`.
-- **Environment Variables**: Since `serviceAccountKey.json` shouldn't be committed to version control, it's recommended to parse it from an environment variable (e.g., set `FIREBASE_SERVICE_ACCOUNT` as a JSON string or Base64). You'll need to adapt `config/firebase.js` to parse it.
-- **Email delivery**: `SENDGRID_FROM_EMAIL` must be a verified sender in SendGrid. A random Gmail address usually will not deliver reliably unless it is verified as a sender inside SendGrid.
+- **Environment Variables**: Provide the Firebase Admin credentials and SendGrid values in the platform secret manager.
+- **Email delivery**: `SENDGRID_FROM_EMAIL` must be a verified sender in SendGrid.
 - **Runtime**: Use Node.js 18 or newer so the backend can use the built-in `fetch` API for SendGrid requests.
 - **Start Command**: `npm start`
 - **Build Command**: `npm install`
@@ -146,7 +146,7 @@ You can deploy the `/backend` folder independently to platforms like Render, Rai
 #### 2. VPS (Ubuntu / Debian)
 - SSH into your server, install Node.js and PM2.
 - Clone the repository and navigate to the `backend` folder.
-- Safely upload your `serviceAccountKey.json` and `.env` to the server.
+- Store secrets in environment variables or a protected `.env` file outside version control.
 - Run:
   ```bash
   npm install
@@ -236,11 +236,13 @@ Platform settings used by admin + provider screens (commission, payout delays, t
 - Uses `navigator.geolocation.watchPosition(...)`
 - Writes to RTDB path: `tracking/{requestId}`
 - Payload resembles:
+  - `requestId`
+  - `providerUid`
   - `providerLat`, `providerLng`
   - `heading`, `speed`
   - `lastUpdated` (ms epoch)
 
-RTDB rules are in `database.rules.json` and currently allow authenticated read/write under `tracking/*`.
+RTDB rules are in `database.rules.json` and require authenticated writes that match the request path and provider UID.
 
 ### Customer → map + route (Firestore + RTDB)
 
@@ -286,6 +288,7 @@ If you change caching behavior, **unregister the SW** in DevTools to avoid stale
 ## Common Production Notes
 
 - **Firestore permissions**: if users can sign up but can’t update profile or `isOnline`, deploy the current `firestore.rules`.
+- **Realtime tracking**: provider writes now include the provider UID, and RTDB rules reject writes that do not match the authenticated account.
 - **QUIC / HTTP3 network issues**: this repo forces Firestore long polling in `src/config/firebase.ts` to avoid `ERR_QUIC_PROTOCOL_ERROR` on some networks.
 - **Firestore client warnings**: `net::ERR_BLOCKED_BY_CLIENT` on `firestore.googleapis.com/.../Listen/channel` usually comes from an ad blocker, privacy extension, or browser network filter rather than the app itself.
 - **Legacy folders**: a root `@/` folder and `public/index.html` may exist as legacy scaffolding; the app uses the Vite root `index.html` and `src/*` as the source of truth.
@@ -294,7 +297,4 @@ If you change caching behavior, **unregister the SW** in DevTools to avoid stale
 
 ## License / Disclaimer
 
-This project uses third-party services (Firebase, OpenStreetMap, OSRM). Review each provider’s terms before production use.
-#   r o a d h e l p  
- #   r o a d h e l p  
- 
+This project uses third-party services (Firebase, OpenStreetMap, OSRM). Review each provider's terms before production use.

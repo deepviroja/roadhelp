@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { MapPin, Navigation, Loader2 } from 'lucide-react';
@@ -46,12 +46,6 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
   const [selectedLocation, setSelectedLocation] = useState<GeoLocation | null>(initialLocation || null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
-
-  useEffect(() => {
-    if (initialLocation) {
-      setSelectedLocation(initialLocation);
-    }
-  }, [initialLocation]);
 
   const handleLocationSelect = (loc: GeoLocation) => {
     setSelectedLocation(loc);

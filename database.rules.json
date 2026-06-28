@@ -4,10 +4,30 @@
     ".write": false,
     "tracking": {
       "$requestId": {
-        ".read": true,
-        ".write": true
+        ".read": "auth != null",
+        ".write": "auth != null && newData.child('requestId').val() === $requestId && newData.child('providerUid').val() === auth.uid",
+        "requestId": {
+          ".validate": "newData.val() === $requestId"
+        },
+        "providerUid": {
+          ".validate": "newData.val() === auth.uid"
+        },
+        "providerLat": {
+          ".validate": "newData.isNumber()"
+        },
+        "providerLng": {
+          ".validate": "newData.isNumber()"
+        },
+        "lastUpdated": {
+          ".validate": "newData.isNumber()"
+        },
+        "heading": {
+          ".validate": "newData.isNumber() || newData.val() === null"
+        },
+        "speed": {
+          ".validate": "newData.isNumber() || newData.val() === null"
+        }
       }
     }
   }
 }
-
