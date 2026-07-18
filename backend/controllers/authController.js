@@ -55,13 +55,21 @@ exports.sendPasswordReset = async (req, res) => {
     });
 
     const resetLink = `${getFrontendUrl()}/reset-password?token=${resetToken}`;
-    await sendPasswordResetEmail({
-      to: email,
-      resetLink,
-      fullName: userRecord.displayName || userRecord.email,
-    });
+    try {
+      await sendPasswordResetEmail({
+        to: email,
+        resetLink,
+        fullName: userRecord.displayName || userRecord.email,
+      });
+    } catch (emailErr) {
+      console.error('Password reset email error:', emailErr);
+      return res.status(503).json({
+        success: false,
+        message: 'Could not send the password reset email right now due to a mail server connection issue. Please try again in a few moments.'
+      });
+    }
 
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: true, message: 'Password reset link sent to your email.' });
   } catch (error) {
     console.error('Password reset request error:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -185,12 +193,20 @@ exports.loginRequest = async (req, res) => {
     });
 
     // Send OTP email
-    await sendOtpEmail({
-      to: email,
-      otp,
-      fullName: userProfile.fullName,
-      type: 'login',
-    });
+    try {
+      await sendOtpEmail({
+        to: email,
+        otp,
+        fullName: userProfile.fullName,
+        type: 'login',
+      });
+    } catch (emailErr) {
+      console.error('Login OTP email error:', emailErr);
+      return res.status(503).json({
+        success: false,
+        message: 'Could not send verification code email due to a mail server connection issue. Please try again.'
+      });
+    }
 
     res.status(200).json({ success: true, verified: false, message: 'Verification code sent to your email.' });
   } catch (error) {
@@ -268,12 +284,20 @@ exports.signupOtp = async (req, res) => {
     });
 
     // Send OTP email
-    await sendOtpEmail({
-      to: cleanEmail,
-      otp,
-      fullName,
-      type: 'signup',
-    });
+    try {
+      await sendOtpEmail({
+        to: cleanEmail,
+        otp,
+        fullName,
+        type: 'signup',
+      });
+    } catch (emailErr) {
+      console.error('Signup OTP email error:', emailErr);
+      return res.status(503).json({
+        success: false,
+        message: 'Could not send verification code email due to a mail server connection issue. Please try again.'
+      });
+    }
 
     res.status(200).json({ success: true, message: 'Verification code sent to your email.' });
   } catch (error) {

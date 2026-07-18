@@ -46,11 +46,13 @@ async function sendEmail({ to, subject, text, html }) {
         port,
         secure: isSecure,
         auth: user && pass ? { user, pass } : undefined,
-        connectionTimeout: 8000,
-        greetingTimeout: 8000,
-        socketTimeout: 10000,
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 5000,
+        family: 4,
         tls: {
           rejectUnauthorized: false,
+          servername: host,
         },
       });
 
