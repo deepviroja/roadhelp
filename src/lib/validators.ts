@@ -6,6 +6,11 @@ const passwordSchema = z
   .regex(/[A-Z]/, 'Add one uppercase letter')
   .regex(/[0-9]/, 'Add one number');
 
+const phoneSchema = z
+  .string()
+  .min(1, 'Phone number is required')
+  .regex(/^\d{7,15}$/, 'Enter a valid 7 to 15 digit phone number');
+
 export const loginSchema = z.object({
   identifier: z.string().min(1, 'Email address is required').email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -17,9 +22,9 @@ export const customerSignupSchema = z
     fullName: z.string().min(2, 'Please enter your full name'),
     email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
     countryCode: z.string().min(1, 'Select a country code'),
-    phone: z.string().min(7, 'Enter a valid phone number').max(15, 'Phone number is too long'),
+    phone: phoneSchema,
     password: passwordSchema,
-    confirmPassword: z.string(),
+    confirmPassword: z.string().min(1, 'Confirm password is required'),
     role: z.literal('customer'),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -32,7 +37,7 @@ export const providerSignupSchema = z
     fullName: z.string().min(2, 'Please enter the owner name'),
     email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
     countryCode: z.string().min(1, 'Select a country code'),
-    phone: z.string().min(7, 'Enter a valid phone number').max(15, 'Phone number is too long'),
+    phone: phoneSchema,
     companyName: z.string().min(2, 'Shop name is required'),
     businessAddress: z.string().min(5, 'Business address is required'),
     city: z.string().min(2, 'City is required'),
@@ -45,7 +50,7 @@ export const providerSignupSchema = z
     serviceTypes: z.array(z.string()).min(1, 'Choose at least one service'),
     vehicleNumber: z.string().min(2, 'Vehicle number is required'),
     password: passwordSchema,
-    confirmPassword: z.string(),
+    confirmPassword: z.string().min(1, 'Confirm password is required'),
     role: z.literal('provider'),
   })
   .refine((data) => data.password === data.confirmPassword, {

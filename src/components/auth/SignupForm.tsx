@@ -120,11 +120,12 @@ export function SignupForm() {
 
   const onCustomerSubmit = async (data: CustomerSignupFormData) => {
     setIsRequestingOtp(true);
+    const cleanEmail = data.email.trim().toLowerCase();
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/signup-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, fullName: data.fullName }),
+        body: JSON.stringify({ email: cleanEmail, fullName: data.fullName }),
       });
 
       const result = await response.json();
@@ -132,8 +133,8 @@ export function SignupForm() {
         throw new Error(result.message || 'Verification code request failed.');
       }
 
-      setPendingEmail(data.email);
-      setPendingSignupData(data);
+      setPendingEmail(cleanEmail);
+      setPendingSignupData({ ...data, email: cleanEmail });
       setShowOtpDialog(true);
       setResendCountdown(30);
       toast.success('Verification code sent to your email.');
@@ -146,11 +147,12 @@ export function SignupForm() {
 
   const onProviderSubmit = async (data: ProviderSignupFormData) => {
     setIsRequestingOtp(true);
+    const cleanEmail = data.email.trim().toLowerCase();
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/signup-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, fullName: data.fullName }),
+        body: JSON.stringify({ email: cleanEmail, fullName: data.fullName }),
       });
 
       const result = await response.json();
@@ -158,8 +160,8 @@ export function SignupForm() {
         throw new Error(result.message || 'Verification code request failed.');
       }
 
-      setPendingEmail(data.email);
-      setPendingSignupData({ ...data, latitude: lat ?? undefined, longitude: lng ?? undefined });
+      setPendingEmail(cleanEmail);
+      setPendingSignupData({ ...data, email: cleanEmail, latitude: lat ?? undefined, longitude: lng ?? undefined });
       setShowOtpDialog(true);
       setResendCountdown(30);
       toast.success('Verification code sent to your email.');
@@ -239,7 +241,7 @@ export function SignupForm() {
                   <Input id="email-c" type="email" placeholder="you@example.com" {...customerForm.register('email')} className={`h-12 rounded-2xl font-bold ${errorClass(customerForm.formState.errors.email)}`} />
                   {customerForm.formState.errors.email && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.email.message}</p>}
                 </div>
-                <div className="space-y-1.5 px-0.5 md:col-span-1">
+                <div className="space-y-1.5 px-0.5 md:col-span-2">
                   <Label htmlFor="phone-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Mobile number</Label>
                   <PhoneInputGroup
                     countryCode={customerForm.watch('countryCode')}
@@ -260,6 +262,11 @@ export function SignupForm() {
                     </button>
                   </div>
                   {customerForm.formState.errors.password && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.password.message}</p>}
+                </div>
+                <div className="space-y-1.5 px-0.5">
+                  <Label htmlFor="confirmPassword-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Confirm password</Label>
+                  <Input id="confirmPassword-c" type="password" placeholder="••••••••" {...customerForm.register('confirmPassword')} className={`h-12 rounded-2xl font-bold ${errorClass(customerForm.formState.errors.confirmPassword)}`} />
+                  {customerForm.formState.errors.confirmPassword && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.confirmPassword.message}</p>}
                 </div>
                </div>
             </div>

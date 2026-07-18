@@ -85,12 +85,13 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsRequestingOtp(true);
+    const cleanIdentifier = data.identifier.trim().toLowerCase();
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/login-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          identifier: data.identifier,
+          identifier: cleanIdentifier,
           password: data.password,
           role: data.role,
         }),
