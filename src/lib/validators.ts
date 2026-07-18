@@ -1,4 +1,4 @@
-﻿import { z } from 'zod';
+import { z } from 'zod';
 
 const passwordSchema = z
   .string()
@@ -7,7 +7,7 @@ const passwordSchema = z
   .regex(/[0-9]/, 'Add one number');
 
 export const loginSchema = z.object({
-  identifier: z.string().min(1, 'Email or mobile number is required'),
+  identifier: z.string().min(1, 'Email address is required').email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
   role: z.enum(['customer', 'provider', 'admin']),
 });

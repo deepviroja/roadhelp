@@ -1,8 +1,8 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Phone, Truck, Save, ShieldCheck, AlertCircle, MapPin, Clock3 } from 'lucide-react';
+import { Mail, Phone, Truck, Save, ShieldCheck, AlertCircle, MapPin, Clock3, ShieldAlert } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -15,11 +15,19 @@ import { profileUpdateSchema, ProfileUpdateFormData } from '@/lib/validators';
 import { useServices } from '@/hooks/useServices';
 import { Badge } from '@/components/ui/badge';
 import { ImageUrlInput } from '@/components/shared/ImageUrlInput';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 export default function ProviderProfile() {
   const { profile, refreshProfile } = useAuth();
   const { services, isLoading: isServicesLoading } = useServices();
   const [serviceTypes, setServiceTypes] = useState<string[]>(profile?.serviceTypes || []);
+  const [showSupportDialog, setShowSupportDialog] = useState(false);
 
   const form = useForm<ProfileUpdateFormData>({
     resolver: zodResolver(profileUpdateSchema),
@@ -42,6 +50,9 @@ export default function ProviderProfile() {
       }, 0);
     }
   }, [profile, hasInitialized, form]);
+
+  const servicesChanged = JSON.stringify([...serviceTypes].sort()) !== JSON.stringify([...(profile?.serviceTypes || [])].sort());
+  const isDirty = form.formState.isDirty || servicesChanged;
 
   const onSubmit = async (data: ProfileUpdateFormData) => {
     if (!profile) return;
@@ -78,7 +89,10 @@ export default function ProviderProfile() {
                 <ShieldCheck className="w-4 h-4" /> Verified provider
               </Badge>
             ) : (
-              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 rounded-xl py-2 px-4 font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
+              <Badge 
+                title="Your provider credentials are currently under review by our admin team. Verification is usually completed within 24 hours."
+                className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 rounded-xl py-2 px-4 font-black uppercase text-[10px] tracking-widest flex items-center gap-2 cursor-help"
+              >
                 <AlertCircle className="w-4 h-4" /> Verification pending
               </Badge>
             )}
@@ -146,7 +160,7 @@ export default function ProviderProfile() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-blue-500/20 transition-all" />
               <h4 className="text-lg font-black mb-2 relative z-10">Need help?</h4>
               <p className="text-slate-400 text-sm font-medium leading-relaxed relative z-10 mb-6">Contact support if you need help updating your business details or service area.</p>
-              <Button className="w-full bg-white/10 hover:bg-white/20 border-white/10 text-white rounded-xl h-11 backdrop-blur-sm relative z-10">Support</Button>
+              <Button type="button" onClick={() => setShowSupportDialog(true)} className="w-full bg-white/10 hover:bg-white/20 border-white/10 text-white rounded-xl h-11 backdrop-blur-sm relative z-10">Support</Button>
             </div>
           </div>
 
@@ -223,8 +237,8 @@ export default function ProviderProfile() {
 
                 <Button 
                   type="submit" 
-                  className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-black text-lg shadow-xl shadow-blue-600/20 group"
-                  disabled={form.formState.isSubmitting}
+                  className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-black text-lg shadow-xl shadow-blue-600/20 group disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={form.formState.isSubmitting || !isDirty}
                 >
                   {form.formState.isSubmitting ? (
                     <span className="flex items-center gap-3">
@@ -253,6 +267,56 @@ export default function ProviderProfile() {
           </div>
         </div>
       </motion.div>
+
+      <Dialog open={showSupportDialog} onOpenChange={setShowSupportDialog}>
+        <DialogContent className="max-w-md rounded-[2.5rem] border-none shadow-2xl p-8 bg-slate-950 text-white">
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-2xl font-black text-white flex items-center justify-center gap-2">
+              <ShieldAlert className="w-6 h-6 text-blue-400" />
+              Operational Support
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs font-semibold uppercase mt-1.5 tracking-wider">
+              Direct uplink to help desk
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-6">
+            <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-4">
+              <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400">
+                <Phone className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Voice Protocol</p>
+                <p className="text-sm font-bold text-white">+1 (800) ROAD-HELP</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-4">
+              <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-400">
+                <Mail className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Email Command</p>
+                <p className="text-sm font-bold text-white">support@roadhelp.com</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-4">
+              <div className="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center text-green-400">
+                <Clock3 className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Availability</p>
+                <p className="text-sm font-bold text-white">24/7/365</p>
+              </div>
+            </div>
+
+            <Button onClick={() => setShowSupportDialog(false)} className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold uppercase tracking-widest text-xs mt-2">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </ProviderLayout>
   );
 }

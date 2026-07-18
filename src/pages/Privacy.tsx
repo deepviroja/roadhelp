@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import { useSystemStore } from '@/stores/systemStore';
 
 export default function Privacy() {
+  const { appName } = useSystemStore();
   return (
     <div className="bg-white min-h-screen">
       <div className="max-w-3xl mx-auto px-4 py-16 md:py-24">
@@ -8,7 +10,7 @@ export default function Privacy() {
         <div className="prose prose-lg prose-blue max-w-none text-slate-600">
           <p className="mb-6 font-semibold text-slate-400">Last Updated: March 2026</p>
           <h2 className="text-2xl font-bold mt-10 mb-4 text-slate-900">1. Information We Collect</h2>
-          <p className="mb-6 leading-relaxed">We collect information that you securely provide to us directly such as your name, email, phone number, and location when utilizing the RoadHelp platform. We also collect automated platform usage analytics to improve service reliability.</p>
+          <p className="mb-6 leading-relaxed">We collect information that you securely provide to us directly such as your name, email, phone number, and location when utilizing the {appName} platform. We also collect automated platform usage analytics to improve service reliability.</p>
           
           <h2 className="text-2xl font-bold mt-10 mb-4 text-slate-900">2. How We Use Your Information</h2>
           <p className="mb-6 leading-relaxed">Your information is used strictly to provide you with secure roadside assistance. Background location data is exclusively shared dynamically with your assigned professional provider only when you initiate an active service request.</p>

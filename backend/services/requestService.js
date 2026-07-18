@@ -1,6 +1,6 @@
 const admin = require('../config/firebase');
 const crypto = require('crypto');
-const { getFrontendUrl, sendWelcomeEmail, sendRequestReceivedEmail } = require('./emailService');
+const { getFrontendUrl, sendWelcomeGuestEmail, sendMagicLinkEmail } = require('./emailService');
 
 const db = admin.firestore();
 const auth = admin.auth();
@@ -36,6 +36,9 @@ async function syncGuestCustomerAccount(data) {
   const phoneDigits = normalizeDigits(phone);
   const phoneE164 = phone.startsWith('+') ? phone : (phoneDigits ? `+${phoneDigits}` : phone);
 
+  const countryCode = data.countryCode || (phone.startsWith('+91') ? '+91' : phone.startsWith('+1') ? '+1' : '+91');
+  const cleanPhone = data.phone || (phone.startsWith(countryCode) ? phone.slice(countryCode.length) : phone);
+
   try {
     let userRecord = null;
     try {
@@ -45,8 +48,9 @@ async function syncGuestCustomerAccount(data) {
     }
 
     let guestAccountCreated = false;
+    let tempPassword = '';
     if (!userRecord) {
-      const tempPassword = crypto.randomBytes(12).toString('base64url');
+      tempPassword = crypto.randomBytes(12).toString('base64url');
       userRecord = await auth.createUser({
         email,
         password: tempPassword,
@@ -61,7 +65,8 @@ async function syncGuestCustomerAccount(data) {
         uid: userRecord.uid,
         fullName,
         email,
-        phone,
+        phone: cleanPhone,
+        countryCode,
         phoneDigits,
         phoneE164,
         role: 'customer',
@@ -71,48 +76,48 @@ async function syncGuestCustomerAccount(data) {
         ...(guestAccountCreated
           ? { createdAt: admin.firestore.FieldValue.serverTimestamp() }
           : {}),
-        },
+      },
       { merge: true }
     );
 
+    // Generate single-use login magic token (10 minute expiry)
+    const magicToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await db.collection('magicTokens').doc(magicToken).set({
+      email,
+      role: 'customer',
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    const magicLink = `${getFrontendUrl()}/magic-login?token=${magicToken}`;
     let welcomeEmailSent = false;
     let welcomeEmailError = null;
-    if (guestAccountCreated) {
-      const loginLink = `${getFrontendUrl()}/login`;
-      try {
-        const resetLink = await auth.generatePasswordResetLink(email, {
-          url: loginLink,
-        });
 
-        await sendWelcomeEmail({
+    if (guestAccountCreated) {
+      try {
+        await sendWelcomeGuestEmail({
           to: email,
           fullName,
-          loginLink,
-          resetLink,
+          password: tempPassword,
+          magicLink,
         });
         welcomeEmailSent = true;
       } catch (emailError) {
         welcomeEmailError = emailError;
-        console.error('Failed to send guest welcome email:', {
-          email,
-          message: emailError?.message || emailError,
-        });
+        console.error('Failed to send guest welcome email:', emailError);
       }
     } else {
-      const loginLink = `${getFrontendUrl()}/login`;
       try {
-        await sendRequestReceivedEmail({
+        await sendMagicLinkEmail({
           to: email,
           fullName,
-          loginLink,
+          magicLink,
         });
         welcomeEmailSent = true;
       } catch (emailError) {
         welcomeEmailError = emailError;
-        console.error('Failed to send request received email:', {
-          email,
-          message: emailError?.message || emailError,
-        });
+        console.error('Failed to send repeat guest magic link email:', emailError);
       }
     }
 
@@ -193,10 +198,19 @@ exports.updateRequestStatus = async (requestId, status, extras = {}) => {
   const updateData = { status, ...extras };
   const adminTimestamp = admin.firestore.FieldValue.serverTimestamp();
   if (status === 'accepted') updateData.acceptedAt = adminTimestamp;
-  if (status === 'arriving') updateData.arrivingAt = adminTimestamp;
   if (status === 'inProgress') updateData.inProgressAt = adminTimestamp;
   if (status === 'completed') updateData.completedAt = adminTimestamp;
   if (status === 'cancelled') updateData.cancelledAt = adminTimestamp;
+  
+  if (status === 'arriving') {
+    updateData.arrivingAt = adminTimestamp;
+    // Generate unique 4-digit OTP if not already present
+    const docSnap = await db.collection('serviceRequests').doc(requestId).get();
+    if (docSnap.exists && !docSnap.data().arrivalOtp) {
+      updateData.arrivalOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    }
+  }
+  
   await db.collection('serviceRequests').doc(requestId).update(updateData);
 };
 
@@ -213,17 +227,103 @@ exports.acceptRequest = async (requestId, profile) => {
 };
 
 exports.completeRequest = async (requestId, finalPrice, additionalFees) => {
+  const requestSnap = await db.collection('serviceRequests').doc(requestId).get();
+  if (!requestSnap.exists) throw new Error('Request not found');
+  const requestData = requestSnap.data();
+
+  // Validate price cap on completion
+  const serviceSnap = await db.collection('services').doc(requestData.serviceType).get();
+  if (serviceSnap.exists) {
+    const serviceConfig = serviceSnap.data();
+    if (finalPrice < serviceConfig.basePrice || finalPrice > serviceConfig.maxPrice) {
+      throw new Error(`Service Base Amount must be between ${serviceConfig.basePrice} and ${serviceConfig.maxPrice}`);
+    }
+  }
+
   const totalPrice = finalPrice + (additionalFees || 0);
   const adminCommission = totalPrice * 0.15;
   const providerEarnings = totalPrice - adminCommission;
   
   await db.collection('serviceRequests').doc(requestId).update({
     status: 'completed',
+    finalPrice,
+    additionalFees,
     totalPrice,
     adminCommission,
     providerEarnings,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
     payoutStatus: 'pending',
+  });
+};
+
+exports.verifyArrivalOtp = async (requestId, otp) => {
+  const requestSnap = await db.collection('serviceRequests').doc(requestId).get();
+  if (!requestSnap.exists) throw new Error('Request not found');
+  const requestData = requestSnap.data();
+
+  if (requestData.status !== 'arriving') {
+    throw new Error('Request status is not arriving');
+  }
+
+  if (!requestData.arrivalOtp || requestData.arrivalOtp !== otp.trim()) {
+    throw new Error('Incorrect verification code.');
+  }
+
+  // Clear OTP and update status to inProgress
+  await db.collection('serviceRequests').doc(requestId).update({
+    status: 'inProgress',
+    arrivalOtp: admin.firestore.FieldValue.delete(),
+    inProgressAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+exports.proposeAdditionalCosts = async (requestId, proposedAdditionalFees, reason) => {
+  const requestSnap = await db.collection('serviceRequests').doc(requestId).get();
+  if (!requestSnap.exists) throw new Error('Request not found');
+  const requestData = requestSnap.data();
+
+  if (requestData.status !== 'accepted' && requestData.status !== 'arriving' && requestData.status !== 'inProgress') {
+    throw new Error('Cannot propose additional costs in this state');
+  }
+
+  // Validate price cap ranges on proposed base rate as well (just in case they propose costs when base rate isn't finalized yet)
+  const serviceSnap = await db.collection('services').doc(requestData.serviceType).get();
+  if (serviceSnap.exists) {
+    const serviceConfig = serviceSnap.data();
+    const currentBase = requestData.finalPrice || requestData.estimatedPrice || 0;
+    if (currentBase < serviceConfig.basePrice || currentBase > serviceConfig.maxPrice) {
+      throw new Error(`Current Service Base Rate (${currentBase}) is outside the admin price range of ${serviceConfig.basePrice} - ${serviceConfig.maxPrice}`);
+    }
+  }
+
+  await db.collection('serviceRequests').doc(requestId).update({
+    preApprovalStatus: requestData.status,
+    status: 'pendingUserApproval',
+    proposedAdditionalFees: Number(proposedAdditionalFees) || 0,
+    proposedAdditionalReason: reason || '',
+  });
+};
+
+exports.approveAdditionalCosts = async (requestId) => {
+  const requestSnap = await db.collection('serviceRequests').doc(requestId).get();
+  if (!requestSnap.exists) throw new Error('Request not found');
+  const requestData = requestSnap.data();
+
+  if (requestData.status !== 'pendingUserApproval') {
+    throw new Error('No proposed costs pending approval');
+  }
+
+  const basePrice = requestData.finalPrice || requestData.estimatedPrice || 0;
+  const newAdditionalFees = requestData.proposedAdditionalFees || 0;
+  const totalPrice = basePrice + newAdditionalFees;
+
+  await db.collection('serviceRequests').doc(requestId).update({
+    status: requestData.preApprovalStatus || 'accepted',
+    additionalFees: newAdditionalFees,
+    totalPrice: totalPrice,
+    proposedAdditionalFees: admin.firestore.FieldValue.delete(),
+    proposedAdditionalReason: admin.firestore.FieldValue.delete(),
+    preApprovalStatus: admin.firestore.FieldValue.delete(),
   });
 };
 

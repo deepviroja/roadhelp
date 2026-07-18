@@ -130,3 +130,38 @@ exports.getRequestById = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+exports.verifyArrivalOtp = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { otp } = req.body;
+    await requestService.verifyArrivalOtp(id, otp);
+    res.status(200).json({ success: true, message: 'OTP verified successfully' });
+  } catch (error) {
+    console.error('Verify Arrival OTP Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.proposeAdditionalCosts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { proposedAdditionalFees, reason } = req.body;
+    await requestService.proposeAdditionalCosts(id, proposedAdditionalFees, reason);
+    res.status(200).json({ success: true, message: 'Additional costs proposed successfully' });
+  } catch (error) {
+    console.error('Propose Additional Costs Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.approveAdditionalCosts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await requestService.approveAdditionalCosts(id);
+    res.status(200).json({ success: true, message: 'Additional costs approved successfully' });
+  } catch (error) {
+    console.error('Approve Additional Costs Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

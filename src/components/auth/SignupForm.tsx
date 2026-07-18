@@ -1,9 +1,16 @@
-﻿import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2, ShieldCheck, Truck, UserPlus, LocateFixed } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ShieldCheck, Truck, UserPlus, LocateFixed, ShieldAlert } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,10 +25,51 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 export function SignupForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<'customer' | 'provider'>('customer');
-  const { signup, isLoading } = useAuth();
-  const { services, isLoading: isServicesLoading } = useServices();
-  const { lat, lng, loading: geoLoading, error: geoError, getCurrentLocation } = useGeolocation();
   const navigate = useNavigate();
+
+  const { services, isLoading: isServicesLoading } = useServices();
+  const {
+    lat,
+    lng,
+    loading: geoLoading,
+    error: geoError,
+    getCurrentLocation,
+  } = useGeolocation();
+  // OTP Verification States
+  const [showOtpDialog, setShowOtpDialog] = useState(false);
+  const [isRequestingOtp, setIsRequestingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [otpValue, setOtpValue] = useState('');
+  const [pendingSignupData, setPendingSignupData] = useState<any>(null);
+  const [resendCountdown, setResendCountdown] = useState(0);
+
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCountdown]);
+
+  const handleResendOtp = async () => {
+    if (resendCountdown > 0) return;
+    setIsRequestingOtp(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/signup-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: pendingEmail, fullName: pendingSignupData?.fullName }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Resend failed.');
+      toast.success('A new verification code has been sent to your email.');
+      setResendCountdown(30);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to resend OTP.');
+    } finally {
+      setIsRequestingOtp(false);
+    }
+  };
 
   const customerForm = useForm<CustomerSignupFormData>({
     mode: 'onChange',
@@ -41,8 +89,21 @@ export function SignupForm() {
       phone: '',
       businessHours: 'Mon - Sat, 9:00 AM - 8:00 PM',
       serviceRadiusKm: 25,
+      vehicleNumber: '',
     },
   });
+
+  useEffect(() => {
+    if (lat !== null) {
+      providerForm.setValue('latitude', lat, { shouldValidate: true, shouldDirty: true });
+    }
+  }, [lat, providerForm]);
+
+  useEffect(() => {
+    if (lng !== null) {
+      providerForm.setValue('longitude', lng, { shouldValidate: true, shouldDirty: true });
+    }
+  }, [lng, providerForm]);
 
   const watchedServiceTypes = providerForm.watch('serviceTypes') || [];
   const activeServices = useMemo(() => services.filter((s) => s.isActive !== false), [services]);
@@ -58,26 +119,92 @@ export function SignupForm() {
   };
 
   const onCustomerSubmit = async (data: CustomerSignupFormData) => {
+    setIsRequestingOtp(true);
     try {
-      await signup(data);
-      toast.success('Your account is ready. Welcome aboard.');
-      navigate('/customer/dashboard');
-    } catch (err: any) {
-      if (err.code === 'auth/email-already-in-use') {
-        toast.error('That email is already in use.');
-      } else {
-        toast.error('We could not create your account. Please try again.');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/signup-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email, fullName: data.fullName }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Verification code request failed.');
       }
+
+      setPendingEmail(data.email);
+      setPendingSignupData(data);
+      setShowOtpDialog(true);
+      setResendCountdown(30);
+      toast.success('Verification code sent to your email.');
+    } catch (err: any) {
+      toast.error(err.message || 'Registration failed to initialize.');
+    } finally {
+      setIsRequestingOtp(false);
     }
   };
 
   const onProviderSubmit = async (data: ProviderSignupFormData) => {
+    setIsRequestingOtp(true);
     try {
-      await signup({ ...(data as any), latitude: lat ?? undefined, longitude: lng ?? undefined } as any);
-      toast.success('Provider account created successfully.');
-      navigate('/provider/dashboard');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/signup-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email, fullName: data.fullName }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Verification code request failed.');
+      }
+
+      setPendingEmail(data.email);
+      setPendingSignupData({ ...data, latitude: lat ?? undefined, longitude: lng ?? undefined });
+      setShowOtpDialog(true);
+      setResendCountdown(30);
+      toast.success('Verification code sent to your email.');
     } catch (err: any) {
-      toast.error(err.message || 'We could not create the provider account.');
+      toast.error(err.message || 'Registration failed to initialize.');
+    } finally {
+      setIsRequestingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpValue.trim()) {
+      toast.error('Please enter the verification code.');
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/verify-signup-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: pendingEmail,
+          otp: otpValue.trim(),
+          signupData: pendingSignupData,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Incorrect verification code.');
+      }
+
+      // Sign in with custom Firebase token
+      const { signInWithCustomToken } = await import('firebase/auth');
+      const { auth } = await import('@/config/firebase');
+      await signInWithCustomToken(auth, result.token);
+
+      toast.success('Registration complete! Welcome aboard.');
+      setShowOtpDialog(false);
+      navigate(pendingSignupData.role === 'provider' ? '/provider/dashboard' : '/customer/dashboard');
+    } catch (err: any) {
+      toast.error(err.message || 'Incorrect verification code. Please try again.');
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -137,9 +264,9 @@ export function SignupForm() {
                </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full h-16 rounded-[1.5rem] bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-2xl shadow-blue-600/20 group transform active:scale-[0.98] transition-all" disabled={isLoading}>
-              {isLoading ? (
-                <span className="flex items-center gap-3"><Loader2 className="w-5 h-5 animate-spin" />Creating account...</span>
+            <Button type="submit" size="lg" className="w-full h-16 rounded-[1.5rem] bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-2xl shadow-blue-600/20 group transform active:scale-[0.98] transition-all" disabled={isRequestingOtp}>
+              {isRequestingOtp ? (
+                <span className="flex items-center gap-3"><Loader2 className="w-5 h-5 animate-spin" />Requesting OTP...</span>
               ) : (
                 <span className="flex items-center gap-3 uppercase tracking-widest text-sm"><UserPlus className="w-5 h-5 group-hover:scale-110 transition-transform" />Create account</span>
               )}
@@ -195,8 +322,13 @@ export function SignupForm() {
                 </div>
                 <div className="space-y-1.5 focus-within:z-10">
                   <Label htmlFor="serviceRadiusKm-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Service radius (km)</Label>
-                  <Input id="serviceRadiusKm-p" type="number" min="1" max="500" placeholder="25" {...providerForm.register('serviceRadiusKm')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.serviceRadiusKm)}`} />
+                  <Input id="serviceRadiusKm-p" type="number" min="1" max="500" placeholder="25" {...providerForm.register('serviceRadiusKm', { valueAsNumber: true })} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.serviceRadiusKm)}`} />
                   {providerForm.formState.errors.serviceRadiusKm && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.serviceRadiusKm.message}</p>}
+                </div>
+                <div className="space-y-1.5 focus-within:z-10">
+                  <Label htmlFor="vehicleNumber-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Vehicle number / License Plate</Label>
+                  <Input id="vehicleNumber-p" placeholder="MH 01 AA 1111" {...providerForm.register('vehicleNumber')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.vehicleNumber)}`} />
+                  {providerForm.formState.errors.vehicleNumber && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.vehicleNumber.message}</p>}
                 </div>
                 <div className="space-y-1.5 focus-within:z-10">
                   <Label htmlFor="phone-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Contact number</Label>
@@ -212,11 +344,7 @@ export function SignupForm() {
                 <div className="space-y-1.5 focus-within:z-10 md:col-span-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Current location</Label>
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Button type="button" variant="outline" className="h-12 rounded-2xl border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-[10px] tracking-widest gap-2" onClick={() => {
-                      getCurrentLocation();
-                      if (lat !== null) providerForm.setValue('latitude', lat, { shouldValidate: true, shouldDirty: true });
-                      if (lng !== null) providerForm.setValue('longitude', lng, { shouldValidate: true, shouldDirty: true });
-                    }}>
+                    <Button type="button" variant="outline" className="h-12 rounded-2xl border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-[10px] tracking-widest gap-2" onClick={getCurrentLocation}>
                       <LocateFixed className="w-4 h-4" />
                       {geoLoading ? 'Getting location...' : 'Use GPS'}
                     </Button>
@@ -304,9 +432,9 @@ export function SignupForm() {
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full h-16 rounded-[1.5rem] bg-indigo-600 hover:bg-black text-white text-lg font-black shadow-2xl shadow-indigo-600/20 group transform active:scale-[0.98] transition-all" disabled={isLoading}>
-              {isLoading ? (
-                <span className="flex items-center gap-3"><Loader2 className="w-5 h-5 animate-spin" />Saving profile...</span>
+            <Button type="submit" size="lg" className="w-full h-16 rounded-[1.5rem] bg-indigo-600 hover:bg-black text-white text-lg font-black shadow-2xl shadow-indigo-600/20 group transform active:scale-[0.98] transition-all" disabled={isRequestingOtp}>
+              {isRequestingOtp ? (
+                <span className="flex items-center gap-3"><Loader2 className="w-5 h-5 animate-spin" />Requesting OTP...</span>
               ) : (
                 <span className="flex items-center gap-3 uppercase tracking-widest text-sm"><UserPlus className="w-5 h-5 group-hover:scale-110 transition-transform" />Create provider account</span>
               )}
@@ -314,6 +442,63 @@ export function SignupForm() {
           </form>
         </TabsContent>
       </Tabs>
+
+      {/* OTP Verification Dialog */}
+      <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
+        <DialogContent className="max-w-md rounded-[2.5rem] border-none shadow-2xl p-8 bg-white">
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-2xl font-black text-slate-900 flex items-center justify-center gap-2">
+              <ShieldAlert className="w-6 h-6 text-blue-600" />
+              Email Verification
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs font-semibold uppercase mt-1.5 tracking-wider">
+              Verify your security code to complete registration
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-6">
+            <div className="space-y-2 text-center">
+              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">
+                Verification Code Sent to Email
+              </Label>
+              <Input
+                type="text"
+                maxLength={6}
+                placeholder="Enter 6-digit OTP"
+                value={otpValue}
+                onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="h-16 text-center text-3xl font-black tracking-[8px] bg-slate-50 border-slate-200 rounded-2xl focus:bg-white focus:ring-slate-300"
+              />
+            </div>
+
+            <Button
+              onClick={handleVerifyOtp}
+              disabled={isVerifyingOtp || otpValue.length !== 6}
+              className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-sm uppercase tracking-widest"
+            >
+              {isVerifyingOtp ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Verifying...
+                </span>
+              ) : (
+                'Verify & Create Account'
+              )}
+            </Button>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                disabled={resendCountdown > 0 || isRequestingOtp}
+                onClick={handleResendOtp}
+                className="text-xs font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 disabled:text-slate-400 transition-colors cursor-pointer"
+              >
+                {resendCountdown > 0 ? `Resend OTP in ${resendCountdown}s` : 'Resend Verification Code'}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

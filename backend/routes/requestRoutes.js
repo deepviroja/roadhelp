@@ -17,4 +17,9 @@ router.put('/:id/complete', requestController.completeRequest);
 router.put('/:id/payment', requestController.processPayment);
 router.put('/:id/rating', requestController.submitRating);
 
+// Custom lifecycle and verification endpoints
+router.put('/:id/verify-arrival-otp', requestController.verifyArrivalOtp);
+router.post('/:id/propose-additional-costs', requestController.proposeAdditionalCosts);
+router.put('/:id/approve-additional-costs', requestController.approveAdditionalCosts);
+
 module.exports = router;

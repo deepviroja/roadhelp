@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Phone, Check, MapPin, XCircle } from 'lucide-react';
+import { Phone, Check, MapPin, XCircle, ShieldAlert } from 'lucide-react';
 import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -69,11 +69,12 @@ function StatusStepper({ status }: { status: string }) {
 export default function PublicTrackRequest() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { submitRating, updateRequestStatus } = useServiceRequest();
+  const { submitRating, updateRequestStatus, approveAdditionalCosts } = useServiceRequest();
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
+  const [showCompletionConfirm, setShowCompletionConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -91,7 +92,7 @@ export default function PublicTrackRequest() {
               setIsLoading(false);
 
               if (data.status === 'completed' && !data.isPaid) {
-                setShowPayment(true);
+                setShowCompletionConfirm(true);
               }
               if (data.status === 'completed' && data.isPaid && !data.rating) {
                 setShowRating(true);
@@ -236,7 +237,82 @@ export default function PublicTrackRequest() {
                 </div>
               )}
 
-              {canCancel && (
+              {request.status === 'arriving' && request.arrivalOtp && request.providerArrived && (
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 text-center space-y-3 shadow-md animate-bounce">
+                  <p className="text-[10px] font-black uppercase text-amber-700 tracking-widest">Share Verification OTP</p>
+                  <div className="text-4xl font-black text-slate-800 tracking-[8px]">{request.arrivalOtp}</div>
+                  <p className="text-xs text-amber-700 font-medium">Your service provider will require this code to verify their arrival.</p>
+                </div>
+              )}
+
+              {request.status === 'arriving' && request.arrivalOtp && !request.providerArrived && (
+                <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-6 text-center space-y-2 shadow-sm">
+                  <p className="text-[10px] font-black uppercase text-blue-600 tracking-[0.25em] animate-pulse">Helper en route</p>
+                  <p className="text-xs text-blue-700 font-semibold leading-relaxed">
+                    Your service provider is currently traveling to your location. Your arrival verification OTP will be displayed here once they arrive.
+                  </p>
+                </div>
+              )}
+
+              {request.status === 'pendingUserApproval' && (
+                <div className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-4 shadow-md relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-orange-200/10 rounded-full -mr-12 -mt-12" />
+                  <div className="flex items-center gap-3 border-b border-orange-100 pb-3">
+                    <div className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center flex-shrink-0 animate-pulse">
+                      <ShieldAlert className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase text-orange-800 tracking-widest">Action Required: Additional Fees Proposed</h4>
+                      <p className="text-[10px] text-orange-600 font-bold uppercase mt-0.5">Please review extra charges to proceed</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Additional Cost:</span>
+                    <span className="text-3xl font-black text-slate-950">{formatCurrency(request.proposedAdditionalFees || 0)}</span>
+                  </div>
+
+                  <p className="text-xs text-slate-700 font-medium leading-relaxed bg-white/70 border border-orange-50 p-4 rounded-xl text-left">
+                    <span className="font-bold text-orange-900 block mb-1">Reason:</span>
+                    "{request.proposedAdditionalReason || 'No reason provided'}"
+                  </p>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          await updateRequestStatus(request.id, 'cancelled');
+                          toast.success('Request cancelled successfully.');
+                        } catch {
+                          toast.error('Failed to cancel request.');
+                        }
+                      }}
+                      className="flex-1 border-red-200 text-red-600 hover:bg-red-50 font-bold h-12 rounded-xl"
+                    >
+                      Reject & Cancel
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/requests/${request.id}/approve-additional-costs`, {
+                            method: 'POST',
+                          });
+                          if (!response.ok) throw new Error();
+                          toast.success('Additional charges approved!');
+                        } catch {
+                          toast.error('Failed to approve charges.');
+                        }
+                      }}
+                      className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-bold h-12 rounded-xl"
+                    >
+                      Approve & Proceed
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {canCancel && request.status !== 'pendingUserApproval' && (
                 <Button
                   variant="outline"
                   className="h-14 w-full rounded-2xl border-red-100 text-red-500 hover:bg-red-50 font-bold text-[10px] uppercase tracking-widest transition-all"
@@ -250,7 +326,7 @@ export default function PublicTrackRequest() {
               {request.status === 'completed' && !request.isPaid && (
                 <Button 
                   className="h-16 w-full rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm tracking-widest shadow-lg shadow-green-600/40 transform hover:scale-105 transition-all" 
-                  onClick={() => setShowPayment(true)}
+                  onClick={() => setShowCompletionConfirm(true)}
                 >
                   SETTLE PROTOCOL — {formatCurrency(request.finalPrice || request.estimatedPrice)}
                 </Button>
@@ -276,6 +352,20 @@ export default function PublicTrackRequest() {
             onClose={() => setShowRating(false)}
             onSubmit={handleRatingSubmit}
             providerName={request.providerName}
+          />
+        )}
+
+        {request && (
+          <ConfirmDialog
+            open={showCompletionConfirm}
+            onOpenChange={setShowCompletionConfirm}
+            title="Confirm Work Completion?"
+            description={`Please confirm that the provider has finished the work to your satisfaction. Once confirmed, you will proceed to the payment gateway to pay ${formatCurrency(request.finalPrice || request.estimatedPrice)}.`}
+            confirmText="Confirm & Pay"
+            onConfirm={() => {
+              setShowCompletionConfirm(false);
+              setShowPayment(true);
+            }}
           />
         )}
 

@@ -1,6 +1,7 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Star, Wifi, Phone, Navigation } from 'lucide-react';
+import { MapPin, Star, Wifi, Phone, Navigation, Clock3 } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { CustomerLayout } from '@/components/layout/CustomerLayout';
 import { Button } from '@/components/ui/button';
@@ -199,34 +200,64 @@ export default function NearbyProviders() {
                   </div>
                 )}
 
-                {/* Distance */}
-                {provider.distance !== undefined && (
-                  <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-3">
-                    <Navigation className="w-4 h-4 text-blue-400" />
-                    <span>{provider.distance < 1
-                      ? `${(provider.distance * 1000).toFixed(0)}m away`
-                      : `${provider.distance.toFixed(1)} km away`}
-                    </span>
-                    <span className="text-gray-300">â€¢</span>
-                    <span className="text-xs text-gray-400">
-                      ~{Math.ceil(provider.distance * 3)} min
-                    </span>
-                  </div>
-                )}
+                {/* Distance & Radius */}
+                <div className="space-y-1.5 mb-3 text-xs text-slate-500">
+                  {provider.distance !== undefined && (
+                    <div className="flex items-center gap-1.5">
+                      <Navigation className="w-3.5 h-3.5 text-blue-500" />
+                      <span>
+                        {provider.distance < 1
+                          ? `${(provider.distance * 1000).toFixed(0)}m away`
+                          : `${provider.distance.toFixed(1)} km away`}
+                      </span>
+                      <span className="text-slate-400 font-medium ml-1">
+                        ~{Math.ceil(provider.distance * 3)} min arrival
+                      </span>
+                    </div>
+                  )}
+                  {provider.serviceRadiusKm && (
+                    <p className="text-slate-400 font-semibold uppercase text-[9px] tracking-wider ml-5">
+                      Serves up to {provider.serviceRadiusKm} km radius
+                    </p>
+                  )}
+                </div>
 
-                {/* Vehicle / action */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                {/* Additional Info: City, Hours */}
+                <div className="space-y-1.5 mb-4 pt-3 border-t border-slate-50 text-xs text-slate-600">
+                  {(provider.city || provider.state) && (
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{[provider.city, provider.state].filter(Boolean).join(', ')}</span>
+                    </div>
+                  )}
+                  {provider.businessHours && (
+                    <div className="flex items-center gap-1.5">
+                      <Clock3 className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="truncate">{provider.businessHours}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Vehicle / Actions */}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100 gap-2">
                   {provider.vehicleNumber && (
-                    <p className="text-xs text-gray-400">{provider.vehicleNumber}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{provider.vehicleNumber}</p>
                   )}
-                  {provider.phone && (
-                    <Button variant="outline" size="sm" asChild className="ml-auto border-blue-200 text-blue-600 hover:bg-blue-50 h-8 text-xs gap-1.5">
-                      <a href={`tel:${provider.phone}`}>
-                        <Phone className="w-3.5 h-3.5" />
-                        Call
-                      </a>
+                  <div className="flex items-center gap-2 ml-auto">
+                    {provider.phone && (
+                      <Button variant="outline" size="sm" asChild className="border-blue-200 text-blue-600 hover:bg-blue-50 h-8 px-3 text-xs gap-1.5">
+                        <a href={`tel:${provider.phone}`}>
+                          <Phone className="w-3 h-3" />
+                          Call
+                        </a>
+                      </Button>
+                    )}
+                    <Button size="sm" asChild className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 text-xs font-bold">
+                      <Link to={`/customer/new-request?service=${selectedServiceType !== 'all' ? selectedServiceType : (provider.serviceTypes?.[0] || 'towing')}`}>
+                        Request Help
+                      </Link>
                     </Button>
-                  )}
+                  </div>
                 </div>
               </motion.div>
             ))}

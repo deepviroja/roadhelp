@@ -826,7 +826,7 @@ export default function AdminSettings() {
                         key={review.id}
                         className="p-8 bg-amber-50/50 border border-amber-100 rounded-[2.5rem] flex items-start gap-6 relative group overflow-hidden"
                       >
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-bl-[3rem]" />
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-bl-[3rem] pointer-events-none" />
                         <div className="flex-1 relative z-10">
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-black text-[#1A1A2E]">
@@ -857,7 +857,7 @@ export default function AdminSettings() {
                                 ),
                             })
                           }
-                          className="h-10 w-10 p-0 text-amber-600 hover:bg-amber-200/50 rounded-full flex-shrink-0"
+                          className="h-10 w-10 p-0 text-amber-600 hover:bg-amber-200/50 rounded-full flex-shrink-0 relative z-20"
                         >
                           <XCircle className="w-5 h-5" />
                         </Button>

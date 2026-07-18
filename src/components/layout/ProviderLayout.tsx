@@ -26,17 +26,16 @@ function AvailabilityToggle() {
     try {
       await updateDoc(doc(db, 'users', profile.uid), { isOnline: checked });
       await refreshProfile();
-      toast.success(checked ? 'UPLINK ESTABLISHED - ONLINE' : 'UPLINK DISCONNECTED - OFFLINE');
+      checked ? toast.success('Status: Online') : toast.error('Status: Offline');
     } catch {
       toast.error('Telemetry Sync Failed');
     }
   };
 
   return (
-    <div className={`flex items-center gap-4 px-5 py-2 rounded-2xl border transition-all duration-500 ${isOnline ? 'bg-green-500/10 border-green-500/20' : 'bg-slate-100 border-slate-200'}`}>
-      <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
-      <Label htmlFor="availability" className={`text-[10px] font-black uppercase tracking-[0.2em] cursor-pointer ${isOnline ? 'text-green-600' : 'text-slate-500'}`}>
-        {isOnline ? 'Operational' : 'Standby'}
+    <div className={`flex items-center justify-between gap-2 px-2 py-2 rounded-2xl border transition-all duration-500 ${isOnline ? 'bg-green-500/10 border-green-500/20' : 'bg-slate-100 border-slate-200'}`}>
+      <Label htmlFor="availability" className={`text-[10px]  mt-2 font-black uppercase tracking-[0.2em] cursor-pointer ${isOnline ? 'text-green-600' : 'text-slate-500'}`}>
+        {isOnline ? 'Available' : 'Unavailable'}
       </Label>
       <Switch
         id="availability"

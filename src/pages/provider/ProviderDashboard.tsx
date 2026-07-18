@@ -186,12 +186,12 @@ export default function ProviderDashboard() {
                </div>
                <div className="mr-6">
                  <p className="text-[9px] font-bold uppercase text-slate-500 leading-none mb-1 tracking-widest">
-                   Fleet Link
+                   Incomming Requests Status
                  </p>
                  <p
                    className={`text-xs font-bold uppercase tracking-widest ${isOnline ? "text-green-600" : "text-slate-600"}`}
                  >
-                   {isOnline ? "CONNECTED" : "DISCONNECTED"}
+                   {isOnline ? "Recieving" : "Not Recieving"}
                  </p>
                </div>
                <Switch
@@ -299,16 +299,16 @@ export default function ProviderDashboard() {
                     <div className="w-24 h-24 bg-white rounded-2xl shadow-sm flex items-center justify-center text-slate-300 mb-6 group-hover:rotate-6 group-hover:scale-105 transition-all duration-500">
                       <WifiOff className="w-10 h-10" />
                     </div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4">Operations Suspended</h2>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4">Unavailable to Take Requests</h2>
                     <p className="text-slate-500 font-semibold text-xs max-w-xs leading-relaxed italic">
-                      Initialize satellite link to begin receiving mission-critical telemetry from the dispatch network.
+                      Turn on the receiver to start receiving requests
                     </p>
                     <Button
                       onClick={() => handleToggleOnline(true)}
                       className="mt-8 h-12 px-8 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-bold uppercase text-[10px] tracking-widest gap-3 shadow-md transition-all active:scale-95 group/btn"
                     >
                       <Zap className="w-4 h-4 text-blue-400 group-hover/btn:scale-110 transition-transform" />
-                      Initialize Hub
+                      I'm Available
                     </Button>
                   </div>
                 )}
@@ -348,7 +348,7 @@ export default function ProviderDashboard() {
                  </div>
 
                  <div className="mt-8 pt-6 border-t border-white/10 relative z-10">
-                    <Button variant="outline" asChild className="w-full h-12 rounded-xl bg-white/5 border-white/10 hover:bg-white hover:text-slate-900 font-bold text-[9px] uppercase tracking-widest transition-all">
+                    <Button variant="outline" asChild className="w-full h-12 rounded-xl bg-white/5 text-white border-white/10 hover:bg-white hover:text-slate-900 font-bold text-[9px] uppercase tracking-widest transition-all">
                        <Link to="/provider/earnings">View Full Analytics</Link>
                     </Button>
                  </div>

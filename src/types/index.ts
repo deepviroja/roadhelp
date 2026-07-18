@@ -22,7 +22,8 @@ export type RequestStatus =
   | 'arriving'
   | 'inProgress'
   | 'completed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'pendingUserApproval';
 
 export interface RequestProposal {
   id: string;
@@ -142,6 +143,13 @@ export interface ServiceRequest {
   inProgressAt?: Timestamp | Date;
   completedAt?: Timestamp | Date;
   cancelledAt?: Timestamp | Date;
+  arrivalOtp?: string;
+  proposedAdditionalFees?: number;
+  proposedAdditionalReason?: string;
+  preApprovalStatus?: RequestStatus;
+  providerArrived?: boolean;
+  phone?: string;
+  countryCode?: string;
 }
 
 export interface AppSettings {

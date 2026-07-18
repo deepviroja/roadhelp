@@ -198,7 +198,7 @@ export default function ManageProviders() {
                             className="h-10 px-4 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold uppercase text-[10px] tracking-widest gap-2 shadow-sm shadow-green-600/20 active:scale-95 transition-all" 
                             onClick={() => handleVerify(p, true)}
                           >
-                            <ShieldCheck className="w-3.5 h-3.5" /> Grant
+                            <ShieldCheck className="w-3.5 h-3.5" /> Verified
                           </Button>
                         ) : (
                           <Button 
@@ -206,7 +206,7 @@ export default function ManageProviders() {
                             className="h-10 px-4 rounded-xl text-red-600 border-red-100 hover:bg-red-50 font-bold uppercase text-[10px] tracking-widest gap-2 active:scale-95 transition-all" 
                             onClick={() => handleVerify(p, false)}
                           >
-                            <ShieldX className="w-3.5 h-3.5" /> Revoke
+                            <ShieldX className="w-3.5 h-3.5" /> Unverified
                           </Button>
                         )}
                       </td>

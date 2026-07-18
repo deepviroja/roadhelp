@@ -3,6 +3,7 @@ import { HelpCircle, Search, MessageSquare, Phone, Mail, ChevronRight, Zap, Shie
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/layout/Navbar';
+import { useSystemStore } from '@/stores/systemStore';
 
 const CATEGORIES = [
   { icon: Zap, title: 'Urgent Dispatch', desc: 'Real-time tracking and response times' },
@@ -17,6 +18,7 @@ const FAQS = [
 ];
 
 export default function HelpCenter() {
+  const { appName } = useSystemStore();
   return (
     <div className="min-h-screen bg-[#F5F5F6]">
       <Navbar />
@@ -111,7 +113,7 @@ export default function HelpCenter() {
                     </div>
                     <div>
                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Email Command</p>
-                       <p className="text-lg font-black tracking-tight">intel@roadhelp.com</p>
+                       <p className="text-lg font-black tracking-tight">support@{appName.toLowerCase().replace(/\s+/g, '')}.com</p>
                     </div>
                  </div>
               </div>

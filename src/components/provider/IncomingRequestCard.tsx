@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Phone, CheckCircle, XCircle, Navigation } from 'lucide-react';
+import { MapPin, Phone, CheckCircle, XCircle, Navigation, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { IconRenderer } from '@/components/shared/IconRenderer';
@@ -8,6 +8,8 @@ import { ServiceRequest } from '@/types';
 import { getServiceLabel, calculateDistance, formatCurrency } from '@/lib/utils';
 import { SERVICE_MAP } from '@/lib/constants';
 import { useAuth } from '@/hooks/useAuth';
+import { useState } from 'react';
+import { ProviderLocationMap } from '@/components/map/ProviderLocationMap';
 
 interface IncomingRequestCardProps {
   request: ServiceRequest;
@@ -21,6 +23,7 @@ export function IncomingRequestCard({ request, onAccept, onDecline, isAccepting 
   const serviceIcon = request.serviceIcon ?? service?.icon ?? 'Wrench';
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const [showMap, setShowMap] = useState(false);
 
   const distance = profile?.location
     ? calculateDistance(
@@ -36,17 +39,28 @@ export function IncomingRequestCard({ request, onAccept, onDecline, isAccepting 
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white rounded-xl border border-orange-200 shadow-md overflow-hidden"
+      className={`bg-white rounded-xl border-2 shadow-md overflow-hidden transition-all ${
+        request.isEmergency ? 'border-red-500 shadow-red-500/10 shadow-lg' : 'border-orange-200'
+      }`}
     >
-      <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-3 flex items-center justify-between">
+      <div className={`px-4 py-3 flex items-center justify-between ${
+        request.isEmergency ? 'bg-gradient-to-r from-red-600 via-rose-600 to-red-500' : 'bg-gradient-to-r from-orange-500 to-amber-500'
+      }`}>
         <div className="flex items-center gap-2">
           <span className="text-xl text-white"><IconRenderer name={serviceIcon} size={20} /></span>
           <div>
-            <span className="text-white font-semibold text-sm">{request.serviceName ?? getServiceLabel(request.serviceType)}</span>
-            <p className="text-orange-100 text-xs">New Request!</p>
+            <span className="text-white font-semibold text-sm flex items-center gap-1.5">
+              {request.serviceName ?? getServiceLabel(request.serviceType)}
+              {request.isEmergency && (
+                <span className="bg-white text-red-600 text-[8px] font-black px-1.5 py-0.5 rounded uppercase animate-pulse">SOS</span>
+              )}
+            </span>
+            <p className={`${request.isEmergency ? 'text-red-100' : 'text-orange-100'} text-xs font-bold`}>
+              {request.isEmergency ? 'URGENT DEPLOYMENT REQUIRED' : 'New Request!'}
+            </p>
           </div>
         </div>
-        <Badge className="bg-white/20 text-white border-0">
+        <Badge className={`${request.isEmergency ? 'bg-white text-red-600 border-0 font-black' : 'bg-white/20 text-white border-0'}`}>
           {formatCurrency(request.estimatedPrice)}
         </Badge>
       </div>
@@ -66,9 +80,31 @@ export function IncomingRequestCard({ request, onAccept, onDecline, isAccepting 
         </div>
 
         {distance !== null && (
-          <div className="flex items-center gap-2">
-            <Navigation className="w-4 h-4 text-blue-500" />
-            <p className="text-sm text-blue-600 font-medium">{distance.toFixed(1)} km away</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Navigation className="w-4 h-4 text-blue-500" />
+              <p className="text-sm text-blue-600 font-semibold">{distance.toFixed(1)} km away</p>
+            </div>
+            {profile?.location && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-blue-600 hover:bg-blue-50 h-8 font-bold gap-1 rounded-lg"
+                onClick={() => setShowMap(!showMap)}
+              >
+                <Map className="w-3.5 h-3.5" />
+                {showMap ? 'Hide Route' : 'Show Route'}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {showMap && profile?.location && (
+          <div className="h-56 w-full rounded-xl overflow-hidden border border-slate-200 shadow-inner">
+            <ProviderLocationMap
+              providerLocation={profile.location}
+              customerLocation={request.customerLocation}
+            />
           </div>
         )}
 

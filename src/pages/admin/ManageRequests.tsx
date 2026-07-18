@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatSafe } from '@/lib/date-utils';
-import { Search, ClipboardList, Zap, Eye, Filter, Loader2, Star } from 'lucide-react';
+import { Search, ClipboardList, Zap, Eye, Filter, Loader2, Star, AlertTriangle } from 'lucide-react';
 
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
@@ -126,7 +126,9 @@ export default function ManageRequests() {
                       animate={{ opacity: 1 }}
                       transition={{ delay: idx * 0.02 }}
                       key={req.id} 
-                      className="hover:bg-blue-50/50 transition-all group cursor-pointer"
+                      className={`hover:bg-blue-50/50 transition-all group cursor-pointer relative ${
+                        req.isEmergency ? 'bg-red-50/30 hover:bg-red-50/50 border-l-2 border-red-500' : ''
+                      }`}
                       onClick={() => setSelectedRequest(req)}
                     >
                       <td className="px-6 py-5">
@@ -134,7 +136,12 @@ export default function ManageRequests() {
                            <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                               <Zap className="w-4 h-4" />
                            </div>
-                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">#{req.id.slice(-8).toUpperCase()}</span>
+                           <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">#{req.id.slice(-8).toUpperCase()}</span>
+                             {req.isEmergency && (
+                               <span className="bg-red-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase animate-pulse">SOS</span>
+                             )}
+                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-5">
@@ -151,6 +158,8 @@ export default function ManageRequests() {
                                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{req.providerName}</span>
                              </div>
+                           ) : req.status === 'cancelled' ? (
+                             <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Aborted</span>
                            ) : (
                              <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Awaiting Unit</span>
                            )}
@@ -226,16 +235,83 @@ export default function ManageRequests() {
               </div>
 
               <div className="p-8 space-y-8 overflow-y-auto">
+                 {selectedRequest.isEmergency && (
+                   <div className="bg-red-600/10 border border-red-500/30 text-red-500 rounded-xl p-4 flex items-center gap-2 animate-pulse">
+                     <AlertTriangle className="w-5 h-5 text-red-500 animate-bounce" />
+                     <span className="text-[10px] font-black uppercase tracking-widest">EMERGENCY ACTIVE</span>
+                   </div>
+                 )}
                  <div className="grid grid-cols-2 gap-6">
-                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                       <p className="text-[10px] font-bold uppercase text-slate-500 tracking-widest mb-3 leading-none">Dispatcher Info</p>
-                       <p className="text-xl font-bold text-slate-900 leading-none mb-2">{selectedRequest.customerName}</p>
-                       <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{selectedRequest.customerPhone || 'UNAVAILABLE'}</p>
+                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                       <p className="text-[10px] font-bold uppercase text-slate-500 tracking-widest mb-2 leading-none">Dispatcher Info</p>
+                       <p className="text-xl font-bold text-slate-900 leading-none mb-1">{selectedRequest.customerName}</p>
+                       <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{selectedRequest.customerPhone || 'UNAVAILABLE'}</p>
+                       {selectedRequest.customerEmail && (
+                         <p className="text-[10px] text-slate-400 truncate">{selectedRequest.customerEmail}</p>
+                       )}
+                       {selectedRequest.preferredContactMethod && (
+                         <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 pt-1">Contact: {selectedRequest.preferredContactMethod}</p>
+                       )}
                     </div>
-                    <div className="p-6 bg-slate-900 rounded-2xl border border-slate-800 text-white">
-                       <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-3 leading-none">Deployed Unit</p>
-                       <p className="text-xl font-bold leading-none mb-2">{selectedRequest.providerName || 'AWAITING SELECTION'}</p>
-                       <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">MISSION STATUS: {selectedRequest.status}</p>
+                    <div className="p-6 bg-slate-900 rounded-2xl border border-slate-800 text-white space-y-1">
+                       <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-2 leading-none">Deployed Unit</p>
+                       <p className="text-xl font-bold leading-none mb-1">{selectedRequest.providerName || 'AWAITING SELECTION'}</p>
+                       <p className="text-xs font-bold text-blue-400 uppercase tracking-widest">STATUS: {selectedRequest.status}</p>
+                    </div>
+                 </div>
+
+                 <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                    <p className="text-[10px] font-bold uppercase text-slate-500 tracking-widest leading-none">Mission Telemetry</p>
+                    
+                    <div className="space-y-3 text-xs font-semibold">
+                      <div>
+                        <span className="text-slate-400 uppercase tracking-wider text-[9px] block mb-1">Issue Description</span>
+                        <p className="text-slate-800 font-medium bg-white p-3 rounded-lg border border-slate-100">
+                          "{selectedRequest.description || 'No description provided.'}"
+                        </p>
+                      </div>
+
+                      {selectedRequest.notes && (
+                        <div>
+                          <span className="text-slate-400 uppercase tracking-wider text-[9px] block mb-1">Location Details / Landmarks</span>
+                          <p className="text-slate-800 font-medium bg-white p-3 rounded-lg border border-slate-100">
+                            "{selectedRequest.notes}"
+                          </p>
+                        </div>
+                      )}
+
+                      {selectedRequest.vehicleInfo && (
+                        <div>
+                          <span className="text-slate-400 uppercase tracking-wider text-[9px] block mb-1">Vehicle Specification</span>
+                          <div className="grid grid-cols-2 gap-2 bg-white p-3 rounded-lg border border-slate-100 text-slate-800">
+                            <p><span className="text-slate-400">Company:</span> {selectedRequest.vehicleInfo.make || '—'}</p>
+                            <p><span className="text-slate-400">Model:</span> {selectedRequest.vehicleInfo.model || '—'}</p>
+                            {selectedRequest.vehicleInfo.color && <p><span className="text-slate-400">Color:</span> {selectedRequest.vehicleInfo.color}</p>}
+                            <p><span className="text-slate-400">Plate:</span> {selectedRequest.vehicleInfo.plateNumber || '—'}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedRequest.customerLocation && (
+                        <div>
+                          <span className="text-slate-400 uppercase tracking-wider text-[9px] block mb-1">Location Coordinates & Base</span>
+                          <div className="bg-white p-3 rounded-lg border border-slate-100 text-slate-800 space-y-2">
+                            <p className="leading-tight"><span className="text-slate-400">Address:</span> {selectedRequest.customerLocation.address}</p>
+                            <div className="flex items-center justify-between pt-1">
+                              <p className="text-[10px] text-slate-400">LAT: {selectedRequest.customerLocation.lat.toFixed(5)} | LNG: {selectedRequest.customerLocation.lng.toFixed(5)}</p>
+                              <Button variant="outline" size="sm" asChild className="h-7 text-[10px] uppercase font-bold text-blue-600 border-blue-200">
+                                <a 
+                                  href={`https://www.google.com/maps/search/${selectedRequest.customerLocation.lat},${selectedRequest.customerLocation.lng}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Open in Maps
+                                </a>
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                  </div>
 
@@ -296,7 +372,7 @@ export default function ManageRequests() {
                    onClick={() => setSelectedRequest(null)}
                    className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-blue-600 text-white font-bold uppercase text-xs tracking-widest transition-all shadow-md"
                  >
-                   TERMINATE ANALYSIS
+                   CLOSE
                  </Button>
               </div>
             </div>

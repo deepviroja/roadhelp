@@ -8,7 +8,7 @@ export function usePlatformSettings() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'system', 'platform'), (snap) => {
+    const unsub = onSnapshot(doc(db, 'system', 'config'), (snap) => {
       if (snap.exists()) {
         setSettings(snap.data() as AppSettings);
       }

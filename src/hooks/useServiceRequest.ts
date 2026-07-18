@@ -162,6 +162,53 @@ export function useServiceRequest() {
     return result.data;
   }, []);
 
+  const verifyArrivalOtp = useCallback(async (requestId: string, otp: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/requests/${requestId}/verify-arrival-otp`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otp }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'OTP verification failed.');
+      return result;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const proposeAdditionalCosts = useCallback(async (requestId: string, proposedAdditionalFees: number, reason: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/requests/${requestId}/propose-additional-costs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposedAdditionalFees, reason }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Failed to propose additional costs.');
+      return result;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const approveAdditionalCosts = useCallback(async (requestId: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/requests/${requestId}/approve-additional-costs`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Failed to approve additional costs.');
+      return result;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     isLoading,
     createRequest,
@@ -176,5 +223,8 @@ export function useServiceRequest() {
     getProviderRequests,
     getPendingRequests,
     getRequestById,
+    verifyArrivalOtp,
+    proposeAdditionalCosts,
+    approveAdditionalCosts,
   };
 }

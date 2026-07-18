@@ -4,6 +4,7 @@ import { ProviderLayout } from '@/components/layout/ProviderLayout';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useServiceRequest } from '@/hooks/useServiceRequest';
 import { ServiceRequest } from '@/types';
@@ -15,6 +16,7 @@ export default function JobHistory() {
   const { getProviderRequests } = useServiceRequest();
   const [jobs, setJobs] = useState<ServiceRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -22,7 +24,7 @@ export default function JobHistory() {
       setJobs(data.filter((j) => j.status === 'completed' || j.status === 'cancelled'));
       setIsLoading(false);
     });
-  }, [profile?.uid]);
+  }, [profile?.uid, getProviderRequests]);
 
   return (
     <ProviderLayout>
@@ -43,7 +45,8 @@ export default function JobHistory() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: idx * 0.05 }}
-                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+                  onClick={() => navigate(`/provider/active-job/${job.id}`)}
+                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">

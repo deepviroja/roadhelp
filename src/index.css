@@ -35,16 +35,16 @@
   --color-warm-amber: #F59E0B;
 
   /* Fluid Typography Scale */
-  --text-fluid-xs: clamp(0.7rem, 0.6rem + 0.5vw, 0.8rem);
-  --text-fluid-sm: clamp(0.8rem, 0.7rem + 0.5vw, 1rem);
-  --text-fluid-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
-  --text-fluid-lg: clamp(1.125rem, 1rem + 0.6vw, 1.25rem);
-  --text-fluid-xl: clamp(1.25rem, 1.1rem + 0.8vw, 1.5rem);
-  --text-fluid-2xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
-  --text-fluid-3xl: clamp(2rem, 1.8rem + 1.2vw, 3rem);
-  --text-fluid-4xl: clamp(2.5rem, 2.2rem + 1.5vw, 4rem);
-  --text-fluid-5xl: clamp(3rem, 2.5rem + 2vw, 5rem);
-  --text-fluid-6xl: clamp(4rem, 3rem + 4vw, 8rem);
+  --text-xs: clamp(0.7rem, 0.6rem + 0.5vw, 0.8rem);
+  --text-sm: clamp(0.8rem, 0.7rem + 0.5vw, 1rem);
+  --text-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1rem + 0.6vw, 1.25rem);
+  --text-xl: clamp(1.25rem, 1.1rem + 0.8vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+  --text-3xl: clamp(2rem, 1.8rem + 1.2vw, 3rem);
+  --text-4xl: clamp(2.5rem, 2.2rem + 1.5vw, 4rem);
+  --text-5xl: clamp(3rem, 2.5rem + 2vw, 5rem);
+  --text-6xl: clamp(4rem, 3rem + 4vw, 8rem);
 }
 
 :root {

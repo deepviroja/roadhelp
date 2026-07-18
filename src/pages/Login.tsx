@@ -1,9 +1,11 @@
-﻿import { motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Logo } from '@/components/shared/Logo';
 import { LoginForm } from '@/components/auth/LoginForm';
+import { useSystemStore } from '@/stores/systemStore';
 
 export default function Login() {
+  const { appName } = useSystemStore();
   return (
     <div className="flex-1 bg-[#F5F5F6] flex items-center justify-center p-6 sm:p-12 pb-32 overflow-hidden relative min-h-screen">
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-3xl -mr-64 -mt-64" />
@@ -33,7 +35,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.5em] mt-12">
-          © 2026 ROADHELP CORP. SECURE AUTHENTICATION.
+          © 2026 {appName.toUpperCase()} CORP. SECURE AUTHENTICATION.
         </p>
       </motion.div>
     </div>

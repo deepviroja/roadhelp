@@ -45,7 +45,7 @@ export function PaymentModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
 
-  const baseAmount = request.totalPrice || request.estimatedPrice || 0;
+  const baseAmount = request.finalPrice || request.estimatedPrice || 0;
   const additionalFees = request.additionalFees || 0;
   const totalAmount = baseAmount + additionalFees + tipAmount;
 

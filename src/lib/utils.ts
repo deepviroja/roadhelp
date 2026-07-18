@@ -48,6 +48,7 @@ export function getStatusColor(status: RequestStatus): string {
     completed: 'bg-green-500/10 text-green-600 border-green-500/20',
     cancelled: 'bg-red-500/10 text-red-600 border-red-500/20',
     bidding: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+    pendingUserApproval: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
   };
 
   return colors[status] || 'bg-gray-500/10 text-gray-600 border-gray-500/20';
@@ -62,6 +63,7 @@ export function getStatusLabel(status: RequestStatus): string {
     completed: 'Completed',
     cancelled: 'Cancelled',
     bidding: 'Bidding in Progress',
+    pendingUserApproval: 'Pending Customer Approval',
   };
 
   return labels[status] || status;

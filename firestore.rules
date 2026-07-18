@@ -88,5 +88,11 @@ service cloud.firestore {
           && request.resource.data.serviceType == resource.data.serviceType
         );
     }
+
+    // SOS Distress Alerts
+    match /sosAlerts/{alertId} {
+      allow create, update: if true;
+      allow read: if isAdmin();
+    }
   }
 }

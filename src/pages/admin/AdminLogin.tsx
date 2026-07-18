@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
@@ -11,11 +11,13 @@ import { Label } from '@/components/ui/label';
 import { loginSchema, LoginFormData } from '@/lib/validators';
 import { useAuth } from '@/hooks/useAuth';
 import { Logo } from '@/components/shared/Logo';
+import { useSystemStore } from '@/stores/systemStore';
 
 export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { appName } = useSystemStore();
 
   const {
     register,
@@ -57,7 +59,7 @@ export default function AdminLogin() {
           </div>
         </div>
         <h2 className="mt-2 text-center text-3xl font-extrabold text-blue-600">
-          Admin Portal
+          {appName} Admin Portal
         </h2>
         <p className="mt-2 text-center text-sm text-gray-400">
           Authorized personnel only
@@ -66,10 +68,10 @@ export default function AdminLogin() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="bg-[#F5F5F6] py-8 px-4 shadow-2xl sm:rounded-xl sm:px-10 border border-gray-700">
-          <div className="mb-6 flex items-center gap-3 p-3 bg-red-900/30 rounded-lg border border-red-900/50">
-            <ShieldAlert className="text-red-900 w-6 h-6 flex-shrink-0" />
-            <p className="text-xs text-red-900">
-              This is a restricted access area. All activities are securely logged and monitored.
+          <div className="mb-6 flex items-center gap-3 p-3 bg-white/30 rounded-lg border border-red-900/50">
+            <ShieldAlert className="text-black/50 w-6 h-6 flex-shrink-0" />
+            <p className="text-xs text-black/50">
+              Admin Activities
             </p>
           </div>
 

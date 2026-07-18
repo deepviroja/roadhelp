@@ -1,4 +1,4 @@
-﻿import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
@@ -7,10 +7,13 @@ import { Navbar } from '@/components/layout/Navbar';
 import { MaintenanceBanner } from '@/components/shared/MaintenanceBanner';
 import { SOSButton } from '@/components/shared/SOSButton';
 import { UserRole } from '@/types';
+import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 
 const Landing = lazy(() => import('@/pages/Landing'));
 const Login = lazy(() => import('@/pages/Login'));
 const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
+const MagicLogin = lazy(() => import('@/pages/MagicLogin'));
 const Register = lazy(() => import('@/pages/Signup'));
 const AdminLogin = lazy(() => import('@/pages/admin/AdminLogin'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
@@ -65,7 +68,7 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
             <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
           </div>
         </div>
-        <p className="mt-8 text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse italic">Initializing Neural Link...</p>
+        <p className="mt-8 text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse italic">Loading...</p>
       </div>
     );
   }
@@ -110,7 +113,9 @@ function ProtectedRoute({ allowedRole }: { allowedRole?: 'customer' | 'provider'
 export default function App() {
   const initializeAuth = useAuthStore((state) => state.initialize);
   const initializeSystem = useSystemStore((state) => state.initialize);
-  
+
+  const appName = useSystemStore((state) => state.appName);
+
   useEffect(() => {
     const unsubAuth = initializeAuth();
     const unsubSystem = initializeSystem();
@@ -120,11 +125,28 @@ export default function App() {
     };
   }, [initializeAuth, initializeSystem]);
 
+  useEffect(() => {
+    if (appName) {
+      document.title = `${appName} — 24/7 Roadside Assistance`;
+
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute('content', `${appName} - Roadside assistance in minutes. Connect with verified service providers near you.`);
+      }
+
+      const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+      if (appleTitle) {
+        appleTitle.setAttribute('content', appName);
+      }
+    }
+  }, [appName]);
+
   return (
     <BrowserRouter>
       <ScrollToTop />
       <div className="min-h-screen bg-[#F5F5F6] flex flex-col font-sans text-[#1A1A2E]">
         <Toaster position="top-right" richColors />
+        <NetworkStatusBanner />
         <SOSButton />
         <Suspense
           fallback={
@@ -215,6 +237,27 @@ export default function App() {
                     </div>
                   </>
                 </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/reset-password"
+              element={
+                <PublicOnlyRoute>
+                  <>
+                    <Navbar />
+                    <div className="flex-1 flex flex-col">
+                      <ResetPassword />
+                    </div>
+                  </>
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/magic-login"
+              element={
+                <div className="flex-1 flex flex-col">
+                  <MagicLogin />
+                </div>
               }
             />
             <Route

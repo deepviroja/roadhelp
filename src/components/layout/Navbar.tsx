@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSystemStore } from '@/stores/systemStore';
 
 interface NavLink {
   to: string;
@@ -24,6 +25,7 @@ export function Navbar({ links = [], extra }: NavbarProps) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const user = profile?.role;
+  const { appName } = useSystemStore();
 
   const handleLogout = async () => {
     await logout();
@@ -87,9 +89,6 @@ export function Navbar({ links = [], extra }: NavbarProps) {
                   <p className="text-sm font-black text-slate-900 leading-tight">{profile?.fullName}</p>
                   <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest">{profile?.role}</p>
                 </Link>
-                <button className="w-11 h-11 rounded-xl bg-slate-100/50 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white transition-all shadow-sm">
-                  <Bell className="w-5 h-5" />
-                </button>
                 <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-500 hover:text-red-600 font-black uppercase tracking-widest text-[10px]">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
@@ -157,7 +156,7 @@ export function Navbar({ links = [], extra }: NavbarProps) {
                     </>
                   )}
                   <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-8">
-                    © 2026 ROADHELP CORP.
+                    © 2026 {appName.toUpperCase()} CORP.
                   </p>
                 </div>
               </div>

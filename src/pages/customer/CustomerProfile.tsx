@@ -18,17 +18,22 @@ import { profileUpdateSchema, ProfileUpdateFormData } from "@/lib/validators";
 import { formatDate } from "@/lib/utils";
 import { VehicleManager } from "@/components/customer/VehicleManager";
 import { PhoneInputGroup } from "@/components/ui/phone-input";
+import { useSystemStore } from "@/stores/systemStore";
 
 export default function CustomerProfile() {
   const { profile, logout, refreshProfile } = useAuth();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { appName } = useSystemStore();
+
+  const initialCountryCode = profile?.countryCode || (profile?.phone?.startsWith("+91") ? "+91" : profile?.phone?.startsWith("+1") ? "+1" : "+91");
+  const initialPhone = profile?.phone ? (profile.phone.startsWith(initialCountryCode) ? profile.phone.slice(initialCountryCode.length) : profile.phone) : "";
 
   const form = useForm<ProfileUpdateFormData>({
     resolver: zodResolver(profileUpdateSchema),
     defaultValues: {
       fullName: profile?.fullName || "",
-      countryCode: profile?.countryCode || "+1",
-      phone: profile?.phone || "",
+      countryCode: initialCountryCode,
+      phone: initialPhone,
     },
   });
 
@@ -164,8 +169,8 @@ export default function CustomerProfile() {
 
                 <Button
                   type="submit"
-                  className="w-full md:w-auto min-w-[180px] bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-8 h-12 font-bold text-[10px] shadow-md shadow-blue-600/20 group transform active:scale-95 transition-all"
-                  disabled={form.formState.isSubmitting}
+                  className="w-full md:w-auto min-w-[180px] bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-8 h-12 font-bold text-[10px] shadow-md shadow-blue-600/20 group transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={form.formState.isSubmitting || !form.formState.isDirty}
                 >
                   {form.formState.isSubmitting ? (
                     <span className="flex items-center gap-2 italic">Updating profile...</span>
@@ -212,7 +217,7 @@ export default function CustomerProfile() {
           open={showDeleteDialog}
           onOpenChange={setShowDeleteDialog}
           title="Final Account Termination?"
-          description="You are about to irreversibly delete your RoadHelp profile and vehicle garage. Are you absolutely certain you wish to proceed with account removal?"
+          description={`You are about to irreversibly delete your ${appName} profile and vehicle garage. Are you absolutely certain you wish to proceed with account removal?`}
           confirmText="YES, TERMINATE ACCOUNT"
           onConfirm={handleDeleteAccount}
           isDestructive

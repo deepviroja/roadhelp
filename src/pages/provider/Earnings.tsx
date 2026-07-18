@@ -177,10 +177,10 @@ export default function Earnings() {
             <div className="px-10 py-10 border-b border-slate-50 flex items-center justify-between">
               <h2 className="text-xl font-black tracking-tight flex items-center gap-3">
                 <IndianRupee className="w-4 h-4 text-green-600" />
-                Mission History Ledger
+                History Ledger
               </h2>
               <div className="px-5 py-2 bg-green-50 rounded-full border border-green-100 text-[9px] font-black text-green-600 uppercase tracking-widest">
-                {jobs.length} Missions Logged
+                {jobs.length} Logged
               </div>
             </div>
 

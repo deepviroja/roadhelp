@@ -24,7 +24,7 @@ export function ActiveRequestCard({ request, onCancel }: ActiveRequestCardProps)
       animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-xl border border-blue-200 shadow-sm overflow-hidden"
     >
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-300 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xl text-white"><IconRenderer name={serviceIcon} size={20} /></span>
           <span className="text-white font-medium text-sm">{request.serviceName ?? getServiceLabel(request.serviceType)}</span>
@@ -33,7 +33,7 @@ export function ActiveRequestCard({ request, onCancel }: ActiveRequestCardProps)
       </div>
 
       <div className="p-4">
-        <div className="flex items-start gap-2 mb-3">
+        <div className="flex items-start gap-2 mb-3 py-8">
           <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
           <p className="text-sm text-gray-600 line-clamp-2">{request.customerLocation.address}</p>
         </div>

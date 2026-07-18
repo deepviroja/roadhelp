@@ -25,6 +25,7 @@ import { IconRenderer } from '@/components/shared/IconRenderer';
 import { getServiceLabel } from '@/lib/utils';
 import { db } from '@/config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { useSystemStore } from '@/stores/systemStore';
 
 const TRUST_BADGES = [
   { icon: Clock3, label: 'Fast arrival', desc: 'Average response in under 30 minutes' },
@@ -59,6 +60,7 @@ const ISSUE_SERVICE_HINTS: Record<string, string> = {
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { appName } = useSystemStore();
   const { services, isLoading: isServicesLoading } = useServices();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [config, setConfig] = useState<any>(null);
@@ -105,7 +107,7 @@ export default function Landing() {
       ];
 
   const activeServices = useMemo(
-    () => services.filter((s: any) => s.isActive ?? true),
+    () => services.filter((s: any) => (s.isActive ?? true) && s.id !== 'otherService'),
     [services],
   );
 
@@ -185,7 +187,7 @@ export default function Landing() {
           >
             <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/10 border border-white/10 rounded-full text-[10px] tracking-[0.3em] mb-8 uppercase backdrop-blur-md font-black">
               <Zap className="w-4 h-4 text-cyan-300" strokeWidth={3} />
-              RoadHelp, ready when your day changes course
+              {appName}, ready when your day changes course
             </div>
             <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[0.95] mb-6 max-w-4xl">
               <span className="block">{config?.heroHeadline || 'Roadside help'}</span>
@@ -304,7 +306,7 @@ export default function Landing() {
                 value={customIssue}
                 onChange={(e) => setCustomIssue(e.target.value)}
                 placeholder="Example: My truck is overheating and I need a quick check."
-                className="min-h-[120px] rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-slate-400 resize-none mb-4"
+                className="min-h-[120px] rounded-2xl bg-white/5 border-white/10 text-black placeholder:text-slate-400 resize-none mb-4"
               />
               <Button type="button" className="w-full h-12 rounded-2xl bg-cyan-400 hover:bg-cyan-600 text-slate-950 font-black" onClick={() => startHelp(customIssue ? 'otherService' : undefined, customIssue, customIssue)}>
                 Use this request
@@ -422,7 +424,7 @@ export default function Landing() {
             </div>
           </div>
           <div className="text-center pt-10 border-t border-slate-200/50">
-            <p className="text-[11px] font-black text-slate-300 uppercase tracking-[0.4em] leading-relaxed">© 2026 ROADHELP CORP.</p>
+            <p className="text-[11px] font-black text-slate-300 uppercase tracking-[0.4em] leading-relaxed">© 2026 {appName.toUpperCase()} CORP.</p>
             <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] leading-relaxed mt-2">Demo environment. No real roadside services are dispatched here.</p>
           </div>
         </div>

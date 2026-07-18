@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Image as ImageIcon, Link as LinkIcon, Check, X, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ interface ImageUrlInputProps {
 
 export function ImageUrlInput({ currentImage, onImageChange, onRemove, className = "", variant = "default" }: ImageUrlInputProps) {
   const [url, setUrl] = useState("");
-  const [isEditing, setIsEditing] = useState(!currentImage);
+  const [isEditing, setIsEditing] = useState(false);
 
   const handleSave = () => {
     if (url.trim()) {

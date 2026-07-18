@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useServiceRequest } from '@/hooks/useServiceRequest';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ServiceRequest } from '@/types';
 import { formatDate, getServiceLabel, formatCurrency } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,6 +18,7 @@ export default function RequestHistory() {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -67,7 +68,8 @@ export default function RequestHistory() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: idx * 0.05 }}
-                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+                  onClick={() => navigate(`/customer/track/${req.id}`)}
+                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">

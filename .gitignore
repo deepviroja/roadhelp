@@ -1,3 +1,13 @@
+# Environment files (Never commit real credentials)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+backend/.env.local
+backend/serviceAccountKey.json
+
 # Logs
 logs
 *.log
@@ -6,22 +16,17 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-.env
 
+# Dependencies & Build artifacts
 node_modules/
-.env
-.env.local
-.env.production
-backend/.env
-backend/serviceAccountKey.json
 dist/
+dist-ssr/
+.firebase/
 
-node_modules
-dist
-dist-ssr
-*.local
+# Stray/Accidental CLI directories
+/@/
 
-# Editor directories and files
+# Editor & System files
 .vscode/*
 !.vscode/extensions.json
 .idea

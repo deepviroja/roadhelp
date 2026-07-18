@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap,
@@ -37,6 +37,7 @@ import { formatDate, getServiceLabel, formatCurrency } from "@/lib/utils";
 export default function CustomerDashboard() {
   const { profile } = useAuth();
   const { updateRequestStatus } = useServiceRequest();
+  const navigate = useNavigate();
   const [activeRequest, setActiveRequest] = useState<ServiceRequest | null>(null);
   const [recentRequests, setRecentRequests] = useState<ServiceRequest[]>([]);
   const [stats, setStats] = useState({ total: 0, totalSpent: 0, avgRating: 0 });
@@ -45,22 +46,20 @@ export default function CustomerDashboard() {
   useEffect(() => {
     if (!profile?.uid) return;
 
-    // Listen to active requests in real time
+    // Listen to active requests in real time (including completed but unpaid, and pending user approval)
     const q = query(
       collection(db, "serviceRequests"),
       where("customerId", "==", profile.uid),
-      where("status", "in", ["pending", "accepted", "arriving", "inProgress"]),
-      orderBy("createdAt", "desc"),
-      limit(1),
+      where("status", "in", ["pending", "accepted", "arriving", "inProgress", "completed", "pendingUserApproval"]),
+      orderBy("createdAt", "desc")
     );
 
-    const unsubscribe = onSnapshot(q, 
+    const unsubscribe = onSnapshot(q,
       (snap) => {
-        if (!snap.empty) {
-          setActiveRequest({
-            id: snap.docs[0].id,
-            ...snap.docs[0].data(),
-          } as ServiceRequest);
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as ServiceRequest));
+        const active = docs.find(req => req.status !== 'completed' || !req.isPaid);
+        if (active) {
+          setActiveRequest(active);
         } else {
           setActiveRequest(null);
         }
@@ -130,18 +129,18 @@ export default function CustomerDashboard() {
         className="max-w-7xl mx-auto pb-20"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-8">
-           <div>
-              <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
-                Welcome, {profile?.fullName?.split(" ")[0]}
-              </h1>
-              <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1 italic">Customer Intelligence Terminal • Online</p>
-           </div>
-           <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3">
-                 <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                 <span className="text-[10px] font-black uppercase text-blue-600 tracking-widest leading-none">Account Status: Elite</span>
-              </div>
-           </div>
+          <div>
+            <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
+              Welcome, {profile?.fullName?.split(" ")[0]}
+            </h1>
+            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1 italic">Customer Intelligence Terminal • Online</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+              <span className="text-[10px] font-black uppercase text-blue-600 tracking-widest leading-none">Account Status: Elite</span>
+            </div>
+          </div>
         </div>
 
         {/* Quick Action Deployment */}
@@ -179,16 +178,16 @@ export default function CustomerDashboard() {
               animate={{ opacity: 1, scale: 1 }}
               className="mb-12"
             >
-               <div className="flex items-center gap-3 mb-6">
-                  <div className="w-1.5 h-6 bg-amber-500 rounded-full" />
-                  <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-                    Mission Intelligence
-                  </h2>
-               </div>
-               <ActiveRequestCard
-                 request={activeRequest}
-                 onCancel={handleCancelRequest}
-               />
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-1.5 h-6 bg-amber-500 rounded-full" />
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+                  Track Your Request
+                </h2>
+              </div>
+              <ActiveRequestCard
+                request={activeRequest}
+                onCancel={handleCancelRequest}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -203,17 +202,17 @@ export default function CustomerDashboard() {
         {/* Operational Records */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-md shadow-slate-200/20 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between bg-slate-50/20 gap-4">
-             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-xl border border-slate-100 flex items-center justify-center text-blue-600 shadow-sm">
-                   <Activity className="w-5 h-5" />
-                </div>
-                <h2 className="text-lg font-black tracking-tight uppercase">Mission Log Database</h2>
-             </div>
-             <Button variant="ghost" asChild className="rounded-xl h-10 px-4 font-bold uppercase text-[9px] tracking-widest text-slate-500 hover:text-blue-600">
-               <Link to="/customer/history" className="flex items-center gap-2">
-                  Full Archive <ArrowRight className="w-3 h-3" />
-               </Link>
-             </Button>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white rounded-xl border border-slate-100 flex items-center justify-center text-blue-600 shadow-sm">
+                <Activity className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-black tracking-tight uppercase">Tracking History</h2>
+            </div>
+            <Button variant="ghost" asChild className="rounded-xl h-10 px-4 font-bold uppercase text-[9px] tracking-widest text-slate-500 hover:text-blue-600">
+              <Link to="/customer/history" className="flex items-center gap-2">
+                Full Archive <ArrowRight className="w-3 h-3" />
+              </Link>
+            </Button>
           </div>
 
           {isLoading ? (
@@ -231,58 +230,59 @@ export default function CustomerDashboard() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-               <table className="w-full text-left border-collapse min-w-[700px]">
-                  <thead>
-                     <tr className="bg-slate-50/30">
-                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Deployment Asset</th>
-                        <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Timestamp</th>
-                        <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Projected Cost</th>
-                        <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Operational Status</th>
-                        <th className="px-6 py-4 text-right"></th>
-                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    <AnimatePresence>
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="bg-slate-50/30">
+                    <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Deployment Asset</th>
+                    <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Timestamp</th>
+                    <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Projected Cost</th>
+                    <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Operational Status</th>
+                    <th className="px-6 py-4 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <AnimatePresence>
                     {recentRequests.map((req, idx) => (
-                      <motion.tr 
-                         initial={{ opacity: 0 }}
-                         animate={{ opacity: 1 }}
-                         transition={{ delay: idx * 0.05 }}
-                         key={req.id} 
-                         className="hover:bg-blue-50/50 transition-all group"
+                      <motion.tr
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: idx * 0.05 }}
+                        key={req.id}
+                        onClick={() => navigate(`/customer/track/${req.id}`)}
+                        className="hover:bg-blue-50/50 cursor-pointer transition-all group"
                       >
-                         <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                               <div className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all transform group-hover:rotate-6 flex-shrink-0">
-                                  <Truck className="w-4 h-4" />
-                               </div>
-                               <div>
-                                  <p className="font-bold text-slate-900 leading-none mb-1 uppercase text-xs tracking-tight">{req.serviceName ?? getServiceLabel(req.serviceType)}</p>
-                                  <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">#{req.id.slice(-8).toUpperCase()}</p>
-                               </div>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all transform group-hover:rotate-6 flex-shrink-0">
+                              <Truck className="w-4 h-4" />
                             </div>
-                         </td>
-                         <td className="px-4 py-4">
-                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{formatDate(req.createdAt)}</span>
-                         </td>
-                         <td className="px-4 py-4 font-bold text-slate-700 text-sm">
-                            {req.finalPrice ? formatCurrency(req.finalPrice) : req.estimatedPrice ? formatCurrency(req.estimatedPrice) : "—"}
-                         </td>
-                         <td className="px-4 py-4">
-                            <StatusBadge status={req.status} className="scale-90 origin-left" />
-                         </td>
-                         <td className="px-6 py-4 text-right">
-                            <Button variant="ghost" size="icon" asChild className="opacity-0 group-hover:opacity-100 transition-all hover:bg-white shadow-sm rounded-xl h-8 w-8">
-                               <Link to={`/track/${req.id}`}>
-                                  <ChevronRight className="w-4 h-4 text-blue-600" />
-                               </Link>
-                            </Button>
-                         </td>
+                            <div>
+                              <p className="font-bold text-slate-900 leading-none mb-1 uppercase text-xs tracking-tight">{req.serviceName ?? getServiceLabel(req.serviceType)}</p>
+                              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">#{req.id.slice(-8).toUpperCase()}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{formatDate(req.createdAt)}</span>
+                        </td>
+                        <td className="px-4 py-4 font-bold text-slate-700 text-sm">
+                          {req.finalPrice ? formatCurrency(req.finalPrice) : req.estimatedPrice ? formatCurrency(req.estimatedPrice) : "—"}
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusBadge status={req.status} className="scale-90 origin-left" />
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <Button variant="ghost" size="icon" asChild className="opacity-0 group-hover:opacity-100 transition-all hover:bg-white shadow-sm rounded-xl h-8 w-8">
+                            <Link to={`/track/${req.id}`}>
+                              <ChevronRight className="w-4 h-4 text-blue-600" />
+                            </Link>
+                          </Button>
+                        </td>
                       </motion.tr>
                     ))}
-                    </AnimatePresence>
-                  </tbody>
-               </table>
+                  </AnimatePresence>
+                </tbody>
+              </table>
             </div>
           )}
         </div>

@@ -145,8 +145,17 @@ export function ServiceRequestForm() {
                 key={service.id}
                 type="button"
                 onClick={() => {
-                  setSelectedService(service);
-                  form.setValue('serviceType', service.id, { shouldValidate: true, shouldDirty: true });
+                  if (isSelected) {
+                    setSelectedService(null);
+                    form.setValue('serviceType', '', { shouldValidate: true, shouldDirty: true });
+                  } else {
+                    setSelectedService(service);
+                    form.setValue('serviceType', service.id, { shouldValidate: true, shouldDirty: true });
+                  }
+                }}
+                onDoubleClick={() => {
+                  setSelectedService(null);
+                  form.setValue('serviceType', '', { shouldValidate: true, shouldDirty: true });
                 }}
                 className={`text-left rounded-[1.5rem] border p-5 transition-all ${isSelected ? 'border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-600/15' : 'border-slate-100 bg-slate-50 hover:bg-white hover:border-blue-200'}`}
               >
@@ -172,7 +181,7 @@ export function ServiceRequestForm() {
             {form.formState.errors.vehicleModel && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.vehicleModel.message}</p>}
           </div>
           <div className="space-y-1.5">
-            <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle color</Label>
+            <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle color (option)</Label>
             <Input {...form.register('vehicleColor')} placeholder="White" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.vehicleColor ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
           </div>
           <div className="space-y-1.5">
@@ -186,7 +195,7 @@ export function ServiceRequestForm() {
             {form.formState.errors.description && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.description.message}</p>}
           </div>
           <div className="space-y-1.5 md:col-span-2">
-            <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Location details</Label>
+            <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Location details (option)</Label>
             <Input {...form.register('locationDetails')} placeholder="Near the petrol station, opposite the main gate..." className="h-12 rounded-2xl font-semibold bg-slate-50 border-slate-200" />
           </div>
         </div>
