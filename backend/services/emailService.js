@@ -20,7 +20,6 @@ async function getAppName() {
 
 async function sendEmail({ to, subject, text, html }) {
   const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   const fromEmail = process.env.SMTP_FROM_EMAIL;
@@ -31,41 +30,47 @@ async function sendEmail({ to, subject, text, html }) {
 
   const appName = await getAppName();
   const fromName = process.env.SMTP_FROM_NAME || appName;
-
   const nodemailer = require('nodemailer');
 
+  const configuredPort = parseInt(process.env.SMTP_PORT || '465', 10);
+  const portsToTry = configuredPort === 465 ? [465, 587] : [configuredPort, 465];
+  const ports = Array.from(new Set(portsToTry));
 
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: user && pass ? { user, pass } : undefined,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
+  let lastError = null;
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
-      to,
-      subject,
-      text,
-      html,
-    });
-    return true;
-  } catch (error) {
-    console.error('[SMTP] Connection or authentication error details:', {
-      host,
-      port,
-      user,
-      errorMessage: error.message,
-      errorCode: error.code,
-      errorCommand: error.command,
-      errorStack: error.stack,
-    });
-    throw new Error(`SMTP Mail delivery failed: ${error.message}`);
+  for (const port of ports) {
+    const isSecure = port === 465;
+    try {
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: isSecure,
+        auth: user && pass ? { user, pass } : undefined,
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 10000,
+        tls: {
+          rejectUnauthorized: false,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to,
+        subject,
+        text,
+        html,
+      });
+
+      return true;
+    } catch (error) {
+      lastError = error;
+      console.warn(`[SMTP] Attempt on port ${port} failed (${error.message}). Trying alternate port...`);
+    }
   }
+
+  console.error('[SMTP] All delivery attempts failed:', lastError?.message);
+  throw new Error(`SMTP Mail delivery failed: ${lastError?.message || 'Connection timeout'}`);
 }
 
 async function sendPasswordResetEmail({ to, resetLink, fullName }) {

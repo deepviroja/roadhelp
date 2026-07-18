@@ -117,7 +117,7 @@ exports.loginRequest = async (req, res) => {
     // Lookup user in Firestore
     const userSnap = await db.collection('users').where('email', '==', email).limit(1).get();
     if (userSnap.empty) {
-      return res.status(404).json({ success: false, message: 'Profile not found. Please sign up.' });
+      return res.status(404).json({ success: false, message: 'Email not found. Please sign up.' });
     }
 
     const userProfile = userSnap.docs[0].data();
@@ -149,8 +149,14 @@ exports.loginRequest = async (req, res) => {
     const authData = await resAuth.json();
     if (!resAuth.ok) {
       const errMsg = authData.error?.message;
-      if (errMsg === 'INVALID_PASSWORD' || errMsg === 'EMAIL_NOT_FOUND') {
-        return res.status(401).json({ success: false, message: 'The email or password is incorrect.' });
+      if (errMsg === 'INVALID_PASSWORD' || errMsg === 'INVALID_LOGIN_CREDENTIALS') {
+        return res.status(401).json({ success: false, message: 'Password is incorrect. Please try again.' });
+      }
+      if (errMsg === 'EMAIL_NOT_FOUND') {
+        return res.status(404).json({ success: false, message: 'Email not found. Please sign up.' });
+      }
+      if (errMsg === 'USER_DISABLED') {
+        return res.status(403).json({ success: false, message: 'This account has been disabled.' });
       }
       return res.status(400).json({ success: false, message: errMsg || 'Authentication failed' });
     }
@@ -244,7 +250,7 @@ exports.signupOtp = async (req, res) => {
     // Check if user already exists in Firebase Auth
     try {
       await auth.getUserByEmail(cleanEmail);
-      return res.status(400).json({ success: false, message: 'That email is already in use.' });
+      return res.status(400).json({ success: false, message: 'That email is already exists. SignIn to access your account' });
     } catch (err) {
       if (err.code !== 'auth/user-not-found') throw err;
     }
