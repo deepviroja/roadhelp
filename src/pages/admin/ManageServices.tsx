@@ -66,21 +66,21 @@ export default function ManageServices() {
     }
 
     const basePrice = editingService?.basePrice;
-    if (basePrice === undefined || basePrice === null || basePrice === "") {
+    if (basePrice === undefined || basePrice === null || (basePrice as any) === "") {
       newErrors.basePrice = "Min price is required";
     } else if (isNaN(Number(basePrice)) || Number(basePrice) < 0) {
       newErrors.basePrice = "Min price must be a positive number";
     }
 
     const maxPrice = editingService?.maxPrice;
-    if (maxPrice === undefined || maxPrice === null || maxPrice === "") {
+    if (maxPrice === undefined || maxPrice === null || (maxPrice as any) === "") {
       newErrors.maxPrice = "Max price is required";
     } else if (isNaN(Number(maxPrice)) || Number(maxPrice) < 0) {
       newErrors.maxPrice = "Max price must be a positive number";
     } else if (
       basePrice !== undefined &&
       basePrice !== null &&
-      basePrice !== "" &&
+      (basePrice as any) !== "" &&
       Number(maxPrice) < Number(basePrice)
     ) {
       newErrors.maxPrice = "Max price cannot be less than min price";

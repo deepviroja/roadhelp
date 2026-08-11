@@ -46,12 +46,7 @@ export const providerSignupSchema = z
     state: z.string().min(2, 'State is required'),
     pin: z.string().min(4, 'Enter a valid PIN code'),
     businessHours: z.string().min(2, 'Add your business hours'),
-    serviceRadiusKm: z.preprocess(
-      (val) => (val === '' || val === undefined || val === null || isNaN(Number(val)) ? undefined : Number(val)),
-      z.number({ invalid_type_error: 'Add a service radius', required_error: 'Add a service radius' })
-        .min(1, 'Add a service radius')
-        .max(500, 'Radius is too large')
-    ),
+    serviceRadiusKm: z.union([z.number(), z.string()]),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
     serviceTypes: z.array(z.string()).min(1, 'Choose at least one service'),

@@ -254,7 +254,11 @@ export const useAuthStore = create<AuthState>()(
               serviceRadiusKm: providerData.serviceRadiusKm,
               location:
                 typeof providerData.latitude === 'number' && typeof providerData.longitude === 'number'
-                  ? { lat: providerData.latitude, lng: providerData.longitude }
+                  ? { 
+                      lat: providerData.latitude, 
+                      lng: providerData.longitude, 
+                      address: providerData.businessAddress || 'Base location' 
+                    }
                   : undefined,
               serviceTypes: providerData.serviceTypes as UserProfile['serviceTypes'],
               vehicleNumber: providerData.vehicleNumber,

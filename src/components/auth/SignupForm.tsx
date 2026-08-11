@@ -172,7 +172,13 @@ export function SignupForm() {
       }
 
       setPendingEmail(cleanEmail);
-      setPendingSignupData({ ...data, email: cleanEmail, latitude: lat ?? undefined, longitude: lng ?? undefined });
+      setPendingSignupData({ 
+        ...data, 
+        email: cleanEmail, 
+        serviceRadiusKm: Number(data.serviceRadiusKm) || 25,
+        latitude: lat ?? undefined, 
+        longitude: lng ?? undefined 
+      });
       setShowOtpDialog(true);
       setResendCountdown(30);
       toast.success('Verification code sent to your email.');

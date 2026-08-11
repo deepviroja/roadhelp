@@ -119,7 +119,7 @@ export function DynamicFormFields({ fields, form }: DynamicFormFieldsProps) {
           );
         }
 
-        if (field.type === 'password' || field.id === 'password' || field.id === 'confirmPassword') {
+        if (field.id === 'password' || field.id === 'confirmPassword') {
           const isVisible = !!showPasswords[field.id];
           return (
             <div key={field.id} className="space-y-1.5 w-full relative">
