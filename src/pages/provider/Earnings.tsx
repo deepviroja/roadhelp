@@ -76,10 +76,10 @@ export default function Earnings() {
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
           <div>
             <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
-              Treasury Intel
+              My Earnings
             </h1>
-            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
-              Provider Revenue & Yield Analysis
+            <p className="text-slate-500 font-medium text-xs mt-1">
+              Track your income and job history.
             </p>
           </div>
           <div className="flex items-center gap-4 bg-slate-900 text-white px-8 py-4 rounded-[1.5rem] shadow-2xl relative overflow-hidden group">
@@ -118,7 +118,7 @@ export default function Earnings() {
             color="red"
           />
           <StatCard
-            label="Net Treasury Yield"
+            label="Net Earnings"
             value={formatCurrency(totalNet)}
             icon={TrendingUp}
             color="green"
@@ -130,15 +130,14 @@ export default function Earnings() {
           <div className="relative z-10 text-center md:text-left flex-1">
             <h3 className="text-2xl font-black mb-2 flex items-center gap-3">
               <Clock className="w-6 h-6 text-indigo-600" />
-              Settlement Lifecycle
+              Payout Timeline
             </h3>
             <p className="text-slate-400 text-sm font-medium leading-relaxed max-w-2xl">
-              Earnings are held in escrow for{" "}
+              after completing a job, held for{" "}
               <span className="text-indigo-600 font-bold">
                 {payoutDelay} days
               </span>{" "}
-              post-service to ensure mission integrity. Once settled, payouts
-              are disbursed to your verified financial terminal within 48 hours.
+              before being released to your account.
             </p>
           </div>
           <div className="relative z-10 flex flex-col items-center md:items-end bg-slate-900 p-8 rounded-[2rem] text-white shadow-2xl">
@@ -149,7 +148,7 @@ export default function Earnings() {
               {payoutDelay}-Day Escrow
             </p>
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-              Active Governance
+              Current Policy
             </span>
           </div>
         </div>
@@ -161,23 +160,23 @@ export default function Earnings() {
               className="w-12 h-12 text-blue-600 mb-4"
             />
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em]">
-              Synchronizing Intelligence Cluster
+              Loading earnings...
             </p>
           </div>
         ) : jobs.length === 0 ? (
           <div className="py-24 bg-white rounded-[3rem] border-2 border-slate-50 border-dashed">
             <EmptyState
               icon={<Zap className="w-16 h-16 text-slate-100" />}
-              title="Zero Deployment Yields"
-              description="Execute your first mission successfully to initialize your career ledger."
+              title="No completed jobs yet"
+              description="Your earnings will appear here after completing your first job."
             />
           </div>
         ) : (
           <div className="bg-white rounded-[3rem] border-2 border-slate-50 shadow-xl shadow-slate-200/20 overflow-hidden">
             <div className="px-10 py-10 border-b border-slate-50 flex items-center justify-between">
               <h2 className="text-xl font-black tracking-tight flex items-center gap-3">
-                <IndianRupee className="w-4 h-4 text-green-600" />
-                History Ledger
+                 <IndianRupee className="w-4 h-4 text-green-600" />
+                 Earnings History
               </h2>
               <div className="px-5 py-2 bg-green-50 rounded-full border border-green-100 text-[9px] font-black text-green-600 uppercase tracking-widest">
                 {jobs.length} Logged
@@ -188,9 +187,9 @@ export default function Earnings() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50/50">
-                    <th className="text-left px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                      Service Protocol
-                    </th>
+                     <th className="text-left px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                       Service
+                     </th>
                     <th className="text-left px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                       Timestamp
                     </th>
@@ -200,9 +199,9 @@ export default function Earnings() {
                     <th className="text-right px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                       Cut & Tips
                     </th>
-                    <th className="text-right px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                      Net Yield
-                    </th>
+                     <th className="text-right px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                       Net Amount
+                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">

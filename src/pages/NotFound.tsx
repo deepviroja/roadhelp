@@ -22,7 +22,8 @@ export default function NotFound() {
         <h1 className="text-fluid-9xl font-black text-[#1A1A2E] tracking-tighter leading-none mb-6">404</h1>
         <h2 className="text-fluid-2xl font-black text-[#1A1A2E] tracking-tight mb-6 uppercase">Off-Road Tracking</h2>
         <p className="text-slate-500 font-black uppercase text-[11px] tracking-[0.4em] mb-12 max-w-sm mx-auto italic">
-          SIGNAL LOST. PROTOCOL UNABLE TO LOCATE REQUESTED COORDINATES.
+          Page Not Found. We couldn't find the page you were looking for.
+
         </p>
         
         <Button asChild className="h-20 px-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[11px] uppercase tracking-[0.3em] shadow-3xl shadow-blue-600/30 active:scale-95 transition-all">

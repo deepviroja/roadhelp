@@ -35,6 +35,19 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Dynamic form configs (signup/login/getHelp forms) — public read so unauthenticated
+    // signup page can load fields; admin-only write
+    match /formConfigs/{formId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Audit logs — admin read, backend writes via Admin SDK (bypasses rules)
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // only backend Admin SDK writes here
+    }
+
     // Profiles
     match /users/{uid} {
       // Read:

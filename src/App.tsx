@@ -8,6 +8,16 @@ import { MaintenanceBanner } from '@/components/shared/MaintenanceBanner';
 import { SOSButton } from '@/components/shared/SOSButton';
 import { UserRole } from '@/types';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
+import { Button } from '@/components/ui/button';
+import { logSystemEvent } from '@/lib/systemLogger';
+
+const ServicesPage = lazy(() => import('@/pages/ServicesPage'));
+const HowItWorksPage = lazy(() => import('@/pages/HowItWorksPage'));
+const ForCustomersPage = lazy(() => import('@/pages/ForCustomersPage'));
+const ForProvidersPage = lazy(() => import('@/pages/ForProvidersPage'));
+const AboutPage = lazy(() => import('@/pages/AboutPage'));
+const ContactPage = lazy(() => import('@/pages/ContactPage'));
+const FAQPage = lazy(() => import('@/pages/FAQPage'));
 
 const Landing = lazy(() => import('@/pages/Landing'));
 const Login = lazy(() => import('@/pages/Login'));
@@ -41,14 +51,36 @@ const AdminRevenue = lazy(() => import('@/pages/admin/AdminRevenue'));
 const AdminPayouts = lazy(() => import('@/pages/admin/AdminPayouts'));
 const ManageUsers = lazy(() => import('./pages/admin/ManageUsers'));
 const ManageRequests = lazy(() => import('./pages/admin/ManageRequests'));
+const AdminVehicleTypes = lazy(() => import('./pages/admin/AdminVehicleTypes'));
+const AdminFormBuilder = lazy(() => import('./pages/admin/AdminFormBuilder'));
+const AdminCMSPages = lazy(() => import('./pages/admin/AdminCMSPages'));
+const AdminAuditLogs = lazy(() => import('./pages/admin/AdminAuditLogs'));
+const AdminContactMessages = lazy(() => import('./pages/admin/AdminContactMessages'));
+const AdminAdmins = lazy(() => import('./pages/admin/AdminAdmins'));
+const AdminSOS = lazy(() => import('./pages/admin/AdminSOS'));
+const AdminEmailTemplates = lazy(() => import('./pages/admin/AdminEmailTemplates'));
+import { useDocumentTitle } from './hooks/useDocumentTitle';
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  useDocumentTitle();
+
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [pathname]);
+
+    // Log page navigation event
+    const profile = useAuthStore.getState().profile;
+    logSystemEvent({
+      type: 'navigation',
+      message: `Navigated to ${pathname}${search}`,
+      userId: profile?.uid,
+      userRole: profile?.role,
+      userEmail: profile?.email,
+    });
+  }, [pathname, search]);
   return null;
 }
+
 
 function getDashboardPath(role: UserRole) {
   if (role === 'customer') return '/customer/dashboard';
@@ -61,7 +93,7 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 
   if (!initialized) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F5F5F6]">
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F5F5F6]">
         <div className="relative">
           <div className="w-24 h-24 border-8 border-blue-600/10 border-t-blue-600 rounded-[2rem] animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
@@ -80,13 +112,13 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function ProtectedRoute({ allowedRole }: { allowedRole?: 'customer' | 'provider' | 'admin' }) {
+function ProtectedRoute({ allowedRole, allowedPermissions }: { allowedRole?: 'customer' | 'provider' | 'admin', allowedPermissions?: string[] }) {
   const { user, profile, initialized } = useAuthStore();
   const { maintenanceMode } = useSystemStore();
 
   if (!initialized) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-gray-500 text-sm">Loading...</p>
@@ -105,6 +137,24 @@ function ProtectedRoute({ allowedRole }: { allowedRole?: 'customer' | 'provider'
 
   if (maintenanceMode && profile.role !== 'admin') {
     return <MaintenanceBanner />;
+  }
+
+  if (profile.role === 'admin' && allowedPermissions && allowedPermissions.length > 0) {
+    const hasAll = !profile.permissions || profile.permissions.length === 0 || profile.permissions.includes('all');
+    if (!hasAll) {
+      const hasPermission = allowedPermissions.some(p => profile.permissions?.includes(p));
+      if (!hasPermission) {
+        return (
+          <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 text-slate-800 p-6">
+            <h1 className="text-3xl font-black mb-2">Access Denied</h1>
+            <p className="text-sm font-medium text-slate-500 mb-6">You do not have permission to view this page.</p>
+            <Button onClick={() => window.location.href = '/admin/dashboard'} className="rounded-xl font-bold">
+              Go to Dashboard
+            </Button>
+          </div>
+        );
+      }
+    }
   }
 
   return <Outlet />;
@@ -170,17 +220,21 @@ export default function App() {
                 </PublicOnlyRoute>
               }
             />
+            <Route path="/services" element={<ServicesPage />} />
+            <Route path="/how-it-works" element={<HowItWorksPage />} />
+            <Route path="/for-customers" element={<ForCustomersPage />} />
+            <Route path="/for-providers" element={<ForProvidersPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/faq" element={<FAQPage />} />
             <Route path="/help" element={<HelpCenter />} />
             <Route
               path="/get-help"
               element={
                 <PublicOnlyRoute>
-                  <>
-                    <Navbar />
-                    <div className="flex-1 flex flex-col">
-                      <GetHelp />
-                    </div>
-                  </>
+                  <div className="flex-1 flex flex-col">
+                    <GetHelp />
+                  </div>
                 </PublicOnlyRoute>
               }
             />
@@ -283,6 +337,7 @@ export default function App() {
             />
 
             <Route element={<ProtectedRoute allowedRole="customer" />}>
+
               <Route path="/customer/dashboard" element={<CustomerDashboard />} />
               <Route path="/customer/track/:id" element={<TrackRequest />} />
               <Route path="/customer/history" element={<RequestHistory />} />
@@ -299,16 +354,50 @@ export default function App() {
               <Route path="/provider/active-job/:id" element={<ActiveJob />} />
             </Route>
 
+            {/* General Admin Access (No specific granular permission required for dashboard) */}
             <Route element={<ProtectedRoute allowedRole="admin" />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/providers" element={<ManageProviders />} />
-              <Route path="/admin/services" element={<ManageServices />} />
-              <Route path="/admin/revenue" element={<AdminRevenue />} />
-              <Route path="/admin/payouts" element={<AdminPayouts />} />
-              <Route path="/admin/settings" element={<AdminSettings />} />
+            </Route>
+
+            {/* Users & Providers */}
+            <Route element={<ProtectedRoute allowedRole="admin" allowedPermissions={['users']} />}>
               <Route path="/admin/users" element={<ManageUsers />} />
+              <Route path="/admin/providers" element={<ManageProviders />} />
+            </Route>
+
+            {/* Requests */}
+            <Route element={<ProtectedRoute allowedRole="admin" allowedPermissions={['requests']} />}>
               <Route path="/admin/requests" element={<ManageRequests />} />
             </Route>
+
+            {/* Services & Vehicles */}
+            <Route element={<ProtectedRoute allowedRole="admin" allowedPermissions={['services']} />}>
+              <Route path="/admin/services" element={<ManageServices />} />
+              <Route path="/admin/vehicles" element={<AdminVehicleTypes />} />
+            </Route>
+
+            {/* CMS & Forms */}
+            <Route element={<ProtectedRoute allowedRole="admin" allowedPermissions={['cms']} />}>
+              <Route path="/admin/forms" element={<AdminFormBuilder />} />
+              <Route path="/admin/pages" element={<AdminCMSPages />} />
+              <Route path="/admin/email-templates" element={<AdminEmailTemplates />} />
+            </Route>
+
+            {/* Finance */}
+            <Route element={<ProtectedRoute allowedRole="admin" allowedPermissions={['finance']} />}>
+              <Route path="/admin/revenue" element={<AdminRevenue />} />
+              <Route path="/admin/payouts" element={<AdminPayouts />} />
+            </Route>
+
+            {/* System Settings & Admins */}
+            <Route element={<ProtectedRoute allowedRole="admin" allowedPermissions={['settings']} />}>
+              <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/admins" element={<AdminAdmins />} />
+              <Route path="/admin/sos" element={<AdminSOS />} />
+              <Route path="/admin/logs" element={<AdminAuditLogs />} />
+              <Route path="/admin/contact-messages" element={<AdminContactMessages />} />
+            </Route>
+
 
             <Route path="*" element={<NotFound />} />
           </Routes>

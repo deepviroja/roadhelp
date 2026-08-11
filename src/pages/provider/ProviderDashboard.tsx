@@ -22,8 +22,6 @@ import {
   limit,
   doc,
   updateDoc,
-  setDoc,
-  serverTimestamp,
 } from "firebase/firestore";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -33,23 +31,44 @@ import { ActiveJobCard } from "@/components/provider/ActiveJobCard";
 import { StatCard } from "@/components/admin/StatsOverview";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useAuth } from "@/hooks/useAuth";
-import { useServiceRequest } from "@/hooks/useServiceRequest";
 import { db } from "@/config/firebase";
 import { ServiceRequest } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useSystemStore } from "@/stores/systemStore";
 
 export default function ProviderDashboard() {
   const { profile, refreshProfile } = useAuth();
-  const { acceptRequest } = useServiceRequest();
   const [pendingRequests, setPendingRequests] = useState<ServiceRequest[]>([]);
   const [activeJob, setActiveJob] = useState<ServiceRequest | null>(null);
-  const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [calculatedEarnings, setCalculatedEarnings] = useState(profile?.totalEarnings || 0);
   const [calculatedJobs, setCalculatedJobs] = useState(profile?.totalJobs || 0);
+  // Track provider's current serviceTypes to detect changes
+  const [providerServiceTypes, setProviderServiceTypes] = useState<string[]>(profile?.serviceTypes || []);
 
   const isOnline = profile?.isOnline ?? false;
+
+  // Fetch eligible requests from API
+  const fetchEligible = async (signal?: AbortSignal) => {
+    try {
+      const token = await (await import('firebase/auth')).getAuth().currentUser?.getIdToken(true);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/requests/eligible/mine`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal,
+      });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setPendingRequests(json.data);
+      } else {
+        setPendingRequests([]);
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') console.error('Eligible requests fetch error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -76,7 +95,7 @@ export default function ProviderDashboard() {
       where("status", "in", ["accepted", "arriving", "inProgress"]),
       limit(1),
     );
-    const unsubActive = onSnapshot(activeQ, 
+    const unsubActive = onSnapshot(activeQ,
       (snap) => {
         if (!snap.empty) {
           setActiveJob({
@@ -87,41 +106,47 @@ export default function ProviderDashboard() {
           setActiveJob(null);
         }
       },
-      (err) => {
-        console.error('Active job snapshot error:', err);
-      }
+      (err) => { console.error('Active job snapshot error:', err); }
     );
 
-    // Listen for pending requests (ONLY when online and NO active job)
-    let unsubPending = () => {};
-    if (isOnline && !activeJob) {
-      const pendingQ = query(
-        collection(db, "serviceRequests"),
-        where("status", "==", "pending"),
-        orderBy("createdAt", "desc"),
-        limit(10),
-      );
-      unsubPending = onSnapshot(pendingQ, 
-        (snap) => {
-          const requests = snap.docs.map(
-            (d) => ({ id: d.id, ...d.data() }) as ServiceRequest,
-          );
-          setPendingRequests(requests);
-          setIsLoading(false);
-        },
-        (err) => {
-          console.error('Pending requests snapshot error:', err);
-          setIsLoading(false);
+    // Live-listen to provider's own profile — if serviceTypes or other fields change, sync state
+    const unsubProfile = onSnapshot(doc(db, 'users', profile.uid), (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const newTypes: string[] = data.serviceTypes || [];
+      refreshProfile(); // Keep Zustand store profile in sync in real time
+      setProviderServiceTypes((prev) => {
+        const changed = JSON.stringify([...prev].sort()) !== JSON.stringify([...newTypes].sort());
+        if (changed) {
+          // Service types changed — refresh request queue immediately
+          setPendingRequests([]);
+          setIsLoading(true);
+          fetchEligible();
         }
-      );
-    } else {
-      setPendingRequests([]);
-      setIsLoading(false);
-    }
+        return newTypes;
+      });
+    });
 
     return () => {
       unsubActive();
-      unsubPending();
+      unsubProfile();
+    };
+  }, [profile?.uid]);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    if (!isOnline || activeJob) {
+      setPendingRequests([]);
+      setIsLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setIsLoading(true);
+    fetchEligible(controller.signal);
+    const interval = setInterval(() => fetchEligible(controller.signal), 15000);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
     };
   }, [profile?.uid, isOnline, activeJob]);
 
@@ -133,28 +158,25 @@ export default function ProviderDashboard() {
       await refreshProfile();
       toast.success(
         checked
-          ? "Satellite Link Established: Receiving Telemetry"
-          : "System Standby: Dispatch Halted",
+          ? "You're Online — Receiving Requests"
+          : "You're Offline — No new requests",
       );
     } catch (err) {
       console.error("Failed to update provider status:", err);
-      toast.error("Critical: Protocol Synchronization Failed");
+      toast.error("Failed to update status");
     }
   };
 
-  const handleAccept = async (request: ServiceRequest) => {
-    setAcceptingId(request.id);
+  const handleDecline = async (requestId: string) => {
     try {
-      await acceptRequest(request.id);
-      toast.success("Mission Engaged! Tracking subject coordinates.");
-    } catch {
-      toast.error("Mission Conflict: Request assigned to other unit");
-    } finally {
-      setAcceptingId(null);
+      const token = await (await import('firebase/auth')).getAuth().currentUser?.getIdToken(true);
+      await fetch(`${import.meta.env.VITE_API_URL || ''}/api/requests/${requestId}/decline`, {
+        method: 'PUT',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+    } catch (err) {
+      console.warn('Failed to notify backend of decline:', err);
     }
-  };
-
-  const handleDecline = (requestId: string) => {
     setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
   };
 
@@ -170,8 +192,10 @@ export default function ProviderDashboard() {
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-600/10 border border-blue-500/30 rounded-full text-blue-600 font-bold text-[10px] tracking-widest mb-4 uppercase backdrop-blur-md">
                DASHBOARD ACTIVE
             </div>
-            <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight leading-none mb-2">Ops Center</h1>
-            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">{profile?.fullName} • Fleet ID: {profile?.vehicleNumber || 'RH-ALPHA-01'}</p>
+            <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight leading-none mb-2">
+              {useSystemStore.getState().pageContent?.dashboardProviderWelcome || profile?.fullName}
+            </h1>
+            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">{profile?.email} • Fleet ID: {profile?.companyName || 'Company'}</p>
           </div>
           <div className="flex items-center gap-4">
              <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm pr-6">
@@ -231,6 +255,23 @@ export default function ProviderDashboard() {
           />
         </div>
 
+        {!profile?.isVerified && (
+          <div className="mb-10 p-5 rounded-3xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⏳</span>
+              <div className="text-left">
+                <h4 className="text-sm font-black uppercase tracking-wider text-amber-800">Verification Pending</h4>
+                <p className="text-xs font-semibold text-amber-700/90 mt-0.5">
+                  Your provider account is currently pending administrator verification. You won't receive active customer requests in your area until certified.
+                </p>
+              </div>
+            </div>
+            <div className="text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full shrink-0">
+              It takes upto 48 business hours for verification
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-20">
            {/* Active Mission or Queue */}
            <div className="lg:col-span-8">
@@ -243,7 +284,7 @@ export default function ProviderDashboard() {
                   >
                     <div className="flex items-center gap-4 mb-8">
                       <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
-                      <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">High Priority Deployment</h2>
+                      <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">Incoming Request</h2>
                     </div>
                     <ActiveJobCard request={activeJob} />
                   </motion.div>
@@ -285,9 +326,7 @@ export default function ProviderDashboard() {
                           >
                             <IncomingRequestCard
                               request={req}
-                              onAccept={() => handleAccept(req)}
                               onDecline={() => handleDecline(req.id)}
-                              isAccepting={acceptingId === req.id}
                             />
                           </motion.div>
                         ))}
@@ -361,3 +400,5 @@ export default function ProviderDashboard() {
     </ProviderLayout>
   );
 }
+
+

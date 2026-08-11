@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Phone, Truck, Save, ShieldCheck, AlertCircle, MapPin, Clock3, ShieldAlert } from 'lucide-react';
+import { Mail, Phone, Truck, Save, ShieldCheck, AlertCircle, MapPin, Clock3, ShieldAlert, Navigation, Loader2, Target } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { profileUpdateSchema, ProfileUpdateFormData } from '@/lib/validators';
 import { useServices } from '@/hooks/useServices';
 import { Badge } from '@/components/ui/badge';
 import { ImageUrlInput } from '@/components/shared/ImageUrlInput';
+import { LocationPicker } from '@/components/map/LocationPicker';
 import {
   Dialog,
   DialogContent,
@@ -34,10 +35,13 @@ export default function ProviderProfile() {
     defaultValues: {
       fullName: profile?.fullName || '',
       phone: profile?.phone || '',
+      serviceRadiusKm: profile?.serviceRadiusKm || 25,
     },
   });
 
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
+
   useEffect(() => {
     if (profile && !hasInitialized) {
       setTimeout(() => {
@@ -45,6 +49,7 @@ export default function ProviderProfile() {
         form.reset({
           fullName: profile.fullName || '',
           phone: profile.phone || '',
+          serviceRadiusKm: profile.serviceRadiusKm || 25,
         });
         setHasInitialized(true);
       }, 0);
@@ -56,10 +61,15 @@ export default function ProviderProfile() {
 
   const onSubmit = async (data: ProfileUpdateFormData) => {
     if (!profile) return;
+    if (!serviceTypes || serviceTypes.length === 0) {
+      toast.error('Choose at least one service before saving settings.');
+      return;
+    }
     try {
       await updateDoc(doc(db, 'users', profile.uid), {
         fullName: data.fullName,
         phone: data.phone,
+        serviceRadiusKm: Number(data.serviceRadiusKm) || 25,
         serviceTypes,
       });
       await refreshProfile();
@@ -183,6 +193,11 @@ export default function ProviderProfile() {
                     <Input {...form.register('phone')} className={`h-12 rounded-2xl bg-slate-50 border-slate-100 font-bold ${form.formState.errors.phone ? 'border-red-500' : ''}`} />
                     {form.formState.errors.phone && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.phone.message}</p>}
                   </div>
+                  <div className="space-y-1.5 focus-within:z-10 md:col-span-2">
+                    <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Service Range / Radius (km)</Label>
+                    <Input type="number" {...form.register('serviceRadiusKm')} className={`h-12 rounded-2xl bg-slate-50 border-slate-100 font-bold ${form.formState.errors.serviceRadiusKm ? 'border-red-500' : ''}`} />
+                    {form.formState.errors.serviceRadiusKm && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.serviceRadiusKm.message}</p>}
+                  </div>
                 </div>
 
                 <div className="pt-6 border-t border-slate-50">
@@ -253,6 +268,49 @@ export default function ProviderProfile() {
                   )}
                 </Button>
               </form>
+            </div>
+
+            {/* Service Location Card */}
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 space-y-5">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-900 tracking-tight">Service Base Location</h4>
+                  <p className="text-xs font-semibold text-slate-400">Select your base location on the map for matching and dispatching</p>
+                </div>
+              </div>
+
+              {profile?.location && (
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
+                  <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <span className="truncate">
+                    {profile.location.address || `${profile.location.lat?.toFixed(4)}, ${profile.location.lng?.toFixed(4)}`}
+                  </span>
+                </div>
+              )}
+
+              <div className="rounded-3xl overflow-hidden border border-slate-200">
+                <LocationPicker
+                  onLocationSelect={async (loc) => {
+                    if (!profile?.uid) return;
+                    setIsUpdatingLocation(true);
+                    try {
+                      await updateDoc(doc(db, 'users', profile.uid), {
+                        location: loc,
+                      });
+                      await refreshProfile();
+                      toast.success('Service base location updated successfully!');
+                    } catch {
+                      toast.error('Failed to update base location');
+                    } finally {
+                      setIsUpdatingLocation(false);
+                    }
+                  }}
+                  initialLocation={profile?.location}
+                />
+              </div>
             </div>
 
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 flex flex-col md:flex-row items-center gap-6">

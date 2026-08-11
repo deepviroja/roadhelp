@@ -21,7 +21,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 
-export function LoginForm() {
+export function LoginForm({ onRoleChange }: { onRoleChange?: (role: UserRole) => void }) {
   const [showPassword, setShowPassword] = useState(false);
   const [activeRole, setActiveRole] = useState<UserRole>('customer');
   const [isRequestingOtp, setIsRequestingOtp] = useState(false);
@@ -180,6 +180,17 @@ export function LoginForm() {
     const r = role as UserRole;
     setActiveRole(r);
     setValue('role', r, { shouldValidate: true, shouldDirty: true });
+    if (onRoleChange) onRoleChange(r);
+  };
+
+  const scrollToFirstError = () => {
+    setTimeout(() => {
+      const firstError = document.querySelector('.border-red-500, [aria-invalid="true"]');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (firstError as HTMLElement).focus?.();
+      }
+    }, 100);
   };
 
   return (
@@ -190,7 +201,7 @@ export function LoginForm() {
           <TabsTrigger value="provider" className="data-[state=active]:text-blue-600">Provider</TabsTrigger>
         </TabsList>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit, scrollToFirstError)} className="space-y-6">
           <input type="hidden" {...register('role')} value={activeRole} />
 
           <div className="space-y-1">

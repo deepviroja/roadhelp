@@ -14,6 +14,7 @@ export function Logo({ size = 'md', className = '' }: LogoProps) {
     sm: 'text-lg',
     md: 'text-xl font-extrabold',
     lg: 'text-3xl font-black',
+    
   };
 
   const getStyledName = () => {

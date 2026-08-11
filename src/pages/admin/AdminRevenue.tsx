@@ -116,7 +116,7 @@ export default function AdminRevenue() {
               Financial Ledger
             </h1>
             <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
-              Platform Yields & Transaction Intelligence
+              Revenue & Transaction Overview
             </p>
           </div>
           <div className="flex items-center gap-4 bg-slate-900 text-white px-8 py-4 rounded-[1.5rem] shadow-2xl">
@@ -195,13 +195,13 @@ export default function AdminRevenue() {
                         Transaction ID
                       </th>
                       <th className="text-left px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                        Deployment Type
+                        Service Type
                       </th>
                       <th className="text-left px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                         Gross Value
                       </th>
                       <th className="text-left px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                        Platform Yield
+                        Commission
                       </th>
                       <th className="text-left px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                         Provider Cut

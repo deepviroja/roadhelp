@@ -11,11 +11,41 @@ exports.createRequest = async (req, res) => {
   }
 };
 
+exports.getEligibleRequests = async (req, res) => {
+  try {
+    const providerUid = req.userProfile?.uid || req.params.providerId;
+    if (!providerUid) {
+      return res.status(401).json({ success: false, message: 'Provider identification missing.' });
+    }
+    const data = await requestService.getEligibleRequestsForProvider(providerUid);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('Get Eligible Requests Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.submitProposal = async (req, res) => {
   try {
     const { id } = req.params;
     const proposal = req.body;
-    const proposalId = await requestService.submitProposal(id, proposal);
+    const admin = require('../config/firebase');
+    
+    let providerUser;
+    if (req.userProfile && req.userProfile.role === 'provider') {
+      providerUser = req.userProfile;
+    } else {
+      if (!proposal.providerId) {
+        return res.status(400).json({ success: false, message: 'providerId is required' });
+      }
+      const providerSnap = await admin.firestore().collection('users').doc(proposal.providerId).get();
+      if (!providerSnap.exists) {
+        return res.status(404).json({ success: false, message: 'Provider not found' });
+      }
+      providerUser = { uid: proposal.providerId, ...providerSnap.data() };
+    }
+
+    const proposalId = await requestService.submitProposal(id, proposal, providerUser);
     res.status(201).json({ success: true, data: { id: proposalId } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -25,9 +55,32 @@ exports.submitProposal = async (req, res) => {
 exports.selectProposal = async (req, res) => {
   try {
     const { id } = req.params;
-    const { proposal } = req.body;
-    await requestService.selectProposal(id, proposal);
+    const { proposalId } = req.body;
+    const customerUid = req.userProfile?.uid || req.body.customerId;
+    await requestService.selectProposal(id, proposalId || req.body.proposal?.id, customerUid);
     res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.rejectProposal = async (req, res) => {
+  try {
+    const { id, proposalId } = req.params;
+    const customerUid = req.userProfile?.uid;
+    await requestService.rejectProposal(id, proposalId, customerUid);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.autoAssignProposal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const customerUid = req.userProfile?.uid;
+    const result = await requestService.autoAssignProposal(id, customerUid);
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -37,7 +90,7 @@ exports.updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, extras } = req.body;
-    await requestService.updateRequestStatus(id, status, extras);
+    await requestService.updateRequestStatus(id, status, extras, req.userProfile);
     res.status(200).json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -47,8 +100,19 @@ exports.updateStatus = async (req, res) => {
 exports.acceptRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { profile } = req.body;
+    const profile = req.userProfile || req.body.profile;
     await requestService.acceptRequest(id, profile);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.declineRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const providerUid = req.userProfile?.uid;
+    await requestService.declineRequest(id, providerUid);
     res.status(200).json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -90,8 +154,8 @@ exports.submitRating = async (req, res) => {
 
 exports.getCustomerRequests = async (req, res) => {
   try {
-    const { customerId } = req.params;
-    const data = await requestService.getCustomerRequests(customerId);
+    const customerId = req.params.customerId === 'mine' ? req.userProfile?.uid : req.params.customerId;
+    const data = await requestService.getCustomerRequests(customerId, req.userProfile);
     res.status(200).json({ success: true, data });
   } catch (error) {
     console.error('Get Customer Requests Error:', error);
@@ -101,8 +165,8 @@ exports.getCustomerRequests = async (req, res) => {
 
 exports.getProviderRequests = async (req, res) => {
   try {
-    const { providerId } = req.params;
-    const data = await requestService.getProviderRequests(providerId);
+    const providerId = req.params.providerId === 'mine' ? req.userProfile?.uid : req.params.providerId;
+    const data = await requestService.getProviderRequests(providerId, req.userProfile);
     res.status(200).json({ success: true, data });
   } catch (error) {
     console.error('Get Provider Requests Error:', error);
@@ -112,7 +176,7 @@ exports.getProviderRequests = async (req, res) => {
 
 exports.getPendingRequests = async (req, res) => {
   try {
-    const data = await requestService.getPendingRequests();
+    const data = await requestService.getPendingRequests(req.userProfile);
     res.status(200).json({ success: true, data });
   } catch (error) {
     console.error('Get Pending Requests Error:', error);
@@ -123,7 +187,7 @@ exports.getPendingRequests = async (req, res) => {
 exports.getRequestById = async (req, res) => {
   try {
     const { id } = req.params;
-    const data = await requestService.getRequestById(id);
+    const data = await requestService.getRequestById(id, req.userProfile);
     if (!data) return res.status(404).json({ success: false, message: 'Not found' });
     res.status(200).json({ success: true, data });
   } catch (error) {
@@ -165,3 +229,4 @@ exports.approveAdditionalCosts = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+

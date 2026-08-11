@@ -117,7 +117,7 @@ export const REQUEST_STATUSES = [
 
 export const COMMISSION_RATE = 0.15; // 15% platform fee
 
-export const DEFAULT_MAP_CENTER = { lat: 40.7128, lng: -74.006 }; // New York City
+export const DEFAULT_MAP_CENTER = { lat: 28.6139, lng: 77.2090 }; // India (New Delhi)
 export const DEFAULT_MAP_ZOOM = 14;
 
 export const ADMIN_EMAIL = 'admin@roadhelp.com';

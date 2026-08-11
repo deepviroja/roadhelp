@@ -33,6 +33,7 @@ import { useServiceRequest } from "@/hooks/useServiceRequest";
 import { ServiceRequest } from "@/types";
 import { db } from "@/config/firebase";
 import { formatDate, getServiceLabel, formatCurrency } from "@/lib/utils";
+import { useSystemStore } from "@/stores/systemStore";
 
 export default function CustomerDashboard() {
   const { profile } = useAuth();
@@ -115,9 +116,9 @@ export default function CustomerDashboard() {
     if (!activeRequest) return;
     try {
       await updateRequestStatus(activeRequest.id, "cancelled");
-      toast.success("Request successfully aborted");
+      toast.success("Request cancelled");
     } catch {
-      toast.error("Critical: Failed to abort request");
+      toast.error("Failed to cancel request");
     }
   };
 
@@ -133,12 +134,14 @@ export default function CustomerDashboard() {
             <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
               Welcome, {profile?.fullName?.split(" ")[0]}
             </h1>
-            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1 italic">Customer Intelligence Terminal • Online</p>
+            <p className="text-slate-500 font-medium text-xs mt-1">
+              {useSystemStore.getState().pageContent?.dashboardCustomerWelcome || "Here's what's happening with your account."}
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="px-4 py-2 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-              <span className="text-[10px] font-black uppercase text-blue-600 tracking-widest leading-none">Account Status: Elite</span>
+            <div className="px-4 py-2 bg-green-50 rounded-2xl border border-green-100 flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse" />
+              <span className="text-[10px] font-black uppercase text-green-700 tracking-widest leading-none">Account Active</span>
             </div>
           </div>
         </div>
@@ -155,10 +158,10 @@ export default function CustomerDashboard() {
               <div className="absolute top-0 right-0 w-[24rem] h-[24rem] bg-blue-600/10 rounded-full -mr-24 -mt-24 blur-3xl group-hover:scale-110 transition-transform duration-1000" />
               <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
                 <div className="text-center md:text-left">
-                  <span className="px-3 py-1 bg-blue-600/20 border border-blue-500/20 rounded-full text-[9px] font-bold uppercase tracking-widest text-blue-400 mb-4 inline-block">Instant Dispatch</span>
-                  <h2 className="text-3xl md:text-4xl font-black mb-2 tracking-tight leading-none">Vehicle Immobilized?</h2>
-                  <p className="text-slate-400 text-sm font-semibold italic max-w-md leading-relaxed">
-                    Access our global network of professional assistance assets in under 60 seconds.
+                  <span className="px-3 py-1 bg-blue-600/20 border border-blue-500/20 rounded-full text-[9px] font-bold uppercase tracking-widest text-blue-400 mb-4 inline-block">Need help?</span>
+                  <h2 className="text-3xl md:text-4xl font-black mb-2 tracking-tight leading-none">Stuck on the road?</h2>
+                  <p className="text-slate-400 text-sm font-semibold max-w-md leading-relaxed">
+                    Get matched with a verified roadside provider in a few simple steps.
                   </p>
                 </div>
                 <Button
@@ -167,7 +170,7 @@ export default function CustomerDashboard() {
                 >
                   <Link to="/customer/new-request">
                     <PlusCircle className="w-5 h-5 group-hover/btn:rotate-90 transition-transform duration-500" />
-                    Deploy Help Now
+                    Get Help Now
                   </Link>
                 </Button>
               </div>
@@ -194,9 +197,9 @@ export default function CustomerDashboard() {
 
         {/* Stats Matrix */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
-          <StatCard label="Deployment History" value={stats.total} icon={History} color="blue" />
-          <StatCard label="Total Capital Allocated" value={formatCurrency(stats.totalSpent)} icon={TrendingUp} color="green" />
-          <StatCard label="Trust Score Recieved" value={stats.avgRating ? `${stats.avgRating.toFixed(1)}/5.0` : "N/A"} icon={Star} color="amber" />
+          <StatCard label="Requests" value={stats.total} icon={History} color="blue" />
+          <StatCard label="Total Spent" value={formatCurrency(stats.totalSpent)} icon={TrendingUp} color="green" />
+          <StatCard label="Average Rating" value={stats.avgRating ? `${stats.avgRating.toFixed(1)}/5.0` : "N/A"} icon={Star} color="amber" />
         </div>
 
         {/* Operational Records */}
@@ -206,11 +209,11 @@ export default function CustomerDashboard() {
               <div className="w-10 h-10 bg-white rounded-xl border border-slate-100 flex items-center justify-center text-blue-600 shadow-sm">
                 <Activity className="w-5 h-5" />
               </div>
-              <h2 className="text-lg font-black tracking-tight uppercase">Tracking History</h2>
+            <h2 className="text-lg font-black tracking-tight uppercase">Recent Requests</h2>
             </div>
             <Button variant="ghost" asChild className="rounded-xl h-10 px-4 font-bold uppercase text-[9px] tracking-widest text-slate-500 hover:text-blue-600">
               <Link to="/customer/history" className="flex items-center gap-2">
-                Full Archive <ArrowRight className="w-3 h-3" />
+                View all <ArrowRight className="w-3 h-3" />
               </Link>
             </Button>
           </div>
@@ -218,14 +221,14 @@ export default function CustomerDashboard() {
           {isLoading ? (
             <div className="py-16 flex flex-col items-center">
               <div className="animate-spin w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full mb-3" />
-              <p className="text-[9px] font-bold uppercase text-slate-400 tracking-widest">Synchronizing Archives...</p>
+              <p className="text-[9px] font-bold uppercase text-slate-400 tracking-widest">Loading your history...</p>
             </div>
           ) : recentRequests.length === 0 ? (
             <div className="py-16">
               <EmptyState
                 icon={<Zap className="w-12 h-12 text-slate-200" />}
-                title="Zero Past Deployments"
-                description="Your operational mission history will initialize here after your first assist."
+                title="No requests yet"
+                description="Your service history will appear here after your first booking."
               />
             </div>
           ) : (
@@ -233,10 +236,10 @@ export default function CustomerDashboard() {
               <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
                   <tr className="bg-slate-50/30">
-                    <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Deployment Asset</th>
-                    <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Timestamp</th>
-                    <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Projected Cost</th>
-                    <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Operational Status</th>
+                    <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Service</th>
+                    <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Date</th>
+                    <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Cost</th>
+                    <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
                     <th className="px-6 py-4 text-right"></th>
                   </tr>
                 </thead>

@@ -39,9 +39,15 @@ export function useServices() {
       }
     };
 
+    // Fallback timeout safeguard to ensure loading state unblocks within 2 seconds
+    const timeoutTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+
     const unsubscribe = onSnapshot(
       servicesRef,
       (snapshot) => {
+        clearTimeout(timeoutTimer);
         setError(null);
         if (snapshot.empty) {
           seedOtherService();
@@ -53,6 +59,7 @@ export function useServices() {
         setIsLoading(false);
       },
       (err) => {
+        clearTimeout(timeoutTimer);
         console.error('Services snapshot error:', err);
         setError(err?.message || 'Unable to load services. Check Firestore security rules.');
         setServices([OTHER_SERVICE]);
@@ -60,8 +67,12 @@ export function useServices() {
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(timeoutTimer);
+      unsubscribe();
+    };
   }, []);
+
 
   const updateService = async (service: ServiceTypeConfig) => {
     try {

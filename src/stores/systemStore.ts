@@ -10,6 +10,8 @@ interface SystemState {
   currency: string;
   currencySymbol: string;
   trackingInterval: number;
+  requestVisibilityHours: number;
+  pageContent: Record<string, any>;
   error: string | null;
   initialized: boolean;
   initialize: () => () => void;
@@ -23,6 +25,8 @@ export const useSystemStore = create<SystemState>((set) => ({
   currency: 'USD',
   currencySymbol: '$',
   trackingInterval: 5,
+  requestVisibilityHours: 24,
+  pageContent: {},
   error: null,
   initialized: false,
   initialize: () => {
@@ -31,7 +35,14 @@ export const useSystemStore = create<SystemState>((set) => ({
     (async () => {
       try {
         const snap = await getDoc(doc(db, 'system', 'config'));
+        const pagesSnap = await getDoc(doc(db, 'system', 'pages'));
+        
         if (cancelled) return;
+
+        let newPageContent = {};
+        if (pagesSnap.exists()) {
+          newPageContent = pagesSnap.data();
+        }
 
         if (snap.exists()) {
           const data = snap.data();
@@ -47,11 +58,13 @@ export const useSystemStore = create<SystemState>((set) => ({
             currency: newCurrency,
             currencySymbol: data.currencySymbol || '$',
             trackingInterval: data.trackingInterval || 5,
+            requestVisibilityHours: Number(data.requestVisibilityHours || 24),
+            pageContent: newPageContent,
             error: null,
             initialized: true,
           });
         } else {
-          set({ initialized: true, error: null });
+          set({ pageContent: newPageContent, initialized: true, error: null });
         }
       } catch (err) {
         console.error('System config load error:', err);
@@ -66,3 +79,5 @@ export const useSystemStore = create<SystemState>((set) => ({
     };
   },
 }));
+
+

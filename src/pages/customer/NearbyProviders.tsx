@@ -253,7 +253,7 @@ export default function NearbyProviders() {
                       </Button>
                     )}
                     <Button size="sm" asChild className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 text-xs font-bold">
-                      <Link to={`/customer/new-request?service=${selectedServiceType !== 'all' ? selectedServiceType : (provider.serviceTypes?.[0] || 'towing')}`}>
+                      <Link to={`/customer/new-request?service=${selectedServiceType !== 'all' ? selectedServiceType : (provider.serviceTypes?.[0] || 'towing')}&providerId=${provider.uid}`}>
                         Request Help
                       </Link>
                     </Button>

@@ -9,6 +9,68 @@ function normalizeDigits(value) {
   return String(value || '').replace(/\D+/g, '');
 }
 
+function calculateHaversineDistanceKm(lat1, lon1, lat2, lon2) {
+  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return Infinity;
+  const R = 6371; // Earth radius in KM
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function getRequestVisibilityHours(sysConfig) {
+  const rawHours =
+    sysConfig.requestVisibilityHours ??
+    sysConfig.requestVisibilityWindowHours ??
+    sysConfig.requestExpiryHours ??
+    24;
+  const hours = Number(rawHours);
+  return Number.isFinite(hours) && hours > 0 ? hours : 24;
+}
+
+function getTimestampMillis(value) {
+  if (!value) return null;
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  if (value instanceof Date) return value.getTime();
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isRequestWithinVisibilityWindow(request, visibilityHours) {
+  const createdAtMs = getTimestampMillis(request.createdAt);
+  if (!createdAtMs) return true;
+  const visibilityMs = visibilityHours * 60 * 60 * 1000;
+  return Date.now() - createdAtMs <= visibilityMs;
+}
+
+async function getSystemConfig() {
+  const sysSnap = await db.collection('system').doc('config').get();
+  return sysSnap.exists ? sysSnap.data() : {};
+}
+
+const ALLOWED_TRANSITIONS = {
+  draft: ['submitted', 'searching_providers', 'cancelled'],
+  pending: ['submitted', 'searching_providers', 'offers_received', 'bidding', 'accepted', 'cancelled'],
+  submitted: ['searching_providers', 'offers_received', 'bidding', 'accepted', 'cancelled'],
+  searching_providers: ['offers_received', 'bidding', 'provider_selected', 'accepted', 'cancelled', 'expired'],
+  offers_received: ['provider_selected', 'accepted', 'cancelled', 'expired'],
+  bidding: ['offers_received', 'provider_selected', 'accepted', 'cancelled', 'expired'],
+  provider_selected: ['accepted', 'provider_en_route', 'cancelled'],
+  accepted: ['provider_en_route', 'arriving', 'provider_arrived', 'cancelled'],
+  arriving: ['inProgress', 'in_progress', 'cancelled'],
+  provider_en_route: ['provider_arrived', 'arriving', 'inProgress', 'cancelled'],
+  provider_arrived: ['inProgress', 'in_progress', 'cancelled'],
+  inProgress: ['completed', 'pendingUserApproval', 'cancelled'],
+  in_progress: ['completed', 'pendingUserApproval', 'cancelled'],
+  pendingUserApproval: ['inProgress', 'in_progress', 'accepted', 'cancelled'],
+  completed: [],
+  cancelled: [],
+  expired: [],
+};
+
 function serializeDoc(doc) {
   const data = doc.data();
   if (data.createdAt?.toDate) data.createdAt = data.createdAt.toDate().toISOString();
@@ -18,6 +80,44 @@ function serializeDoc(doc) {
   if (data.completedAt?.toDate) data.completedAt = data.completedAt.toDate().toISOString();
   if (data.cancelledAt?.toDate) data.cancelledAt = data.cancelledAt.toDate().toISOString();
   return { id: doc.id, ...data };
+}
+
+function sanitizeForUser(request, user) {
+  if (!request) return null;
+  if (!user) {
+    const { customerPhone, customerEmail, providerPhone, ...publicInfo } = request;
+    return publicInfo;
+  }
+  const isCustomerOwner = request.customerId === user.uid;
+  const isAssignedProvider = request.providerId === user.uid;
+  const isAdmin = user.role === 'admin';
+  const isOpenStatus = ['pending', 'submitted', 'searching_providers', 'offers_received', 'bidding'].includes(request.status);
+  const isEligibleProvider = user.role === 'provider' && isOpenStatus;
+
+  if (isCustomerOwner || isAssignedProvider || isAdmin || isEligibleProvider) {
+    return request;
+  }
+
+  const { customerPhone, customerEmail, providerPhone, ...redacted } = request;
+  return redacted;
+}
+
+async function expireRequestIfNeeded(requestRef, requestData, sysConfig) {
+  if (!requestData || ['completed', 'cancelled', 'expired'].includes(requestData.status)) {
+    return requestData;
+  }
+
+  const visibilityHours = getRequestVisibilityHours(sysConfig);
+  if (isRequestWithinVisibilityWindow(requestData, visibilityHours)) {
+    return requestData;
+  }
+
+  await requestRef.update({
+    status: 'expired',
+    expiredAt: admin.firestore.FieldValue.serverTimestamp(),
+    closedReason: 'visibility_window_expired',
+  });
+  return { ...requestData, status: 'expired' };
 }
 
 async function syncGuestCustomerAccount(data) {
@@ -80,7 +180,6 @@ async function syncGuestCustomerAccount(data) {
       { merge: true }
     );
 
-    // Generate single-use login magic token (10 minute expiry)
     const magicToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await db.collection('magicTokens').doc(magicToken).set({
@@ -105,7 +204,6 @@ async function syncGuestCustomerAccount(data) {
         welcomeEmailSent = true;
       } catch (emailError) {
         welcomeEmailError = emailError;
-        console.error('Failed to send guest welcome email:', emailError);
       }
     } else {
       try {
@@ -117,7 +215,6 @@ async function syncGuestCustomerAccount(data) {
         welcomeEmailSent = true;
       } catch (emailError) {
         welcomeEmailError = emailError;
-        console.error('Failed to send repeat guest magic link email:', emailError);
       }
     }
 
@@ -129,7 +226,6 @@ async function syncGuestCustomerAccount(data) {
       ...(welcomeEmailError ? { welcomeEmailError: welcomeEmailError.message || String(welcomeEmailError) } : {}),
     };
   } catch (error) {
-    console.warn('Guest account sync failed, continuing with booking:', error.message || error);
     return {
       customerId: data.customerId,
       guestAccountCreated: false,
@@ -141,6 +237,8 @@ async function syncGuestCustomerAccount(data) {
 
 exports.saveRequest = async (data) => {
   const guestSync = data.isGuest && data.customerEmail ? await syncGuestCustomerAccount(data) : null;
+  const sysConfig = await getSystemConfig();
+  const visibilityHours = getRequestVisibilityHours(sysConfig);
   const requestData = {
     ...data,
     customerId: guestSync?.customerId || data.customerId,
@@ -148,9 +246,11 @@ exports.saveRequest = async (data) => {
     guestAccountCreated: guestSync?.guestAccountCreated || false,
     welcomeEmailSent: guestSync?.welcomeEmailSent || false,
     ...(guestSync?.welcomeEmailError ? { welcomeEmailError: guestSync.welcomeEmailError } : {}),
-    status: 'pending',
+    status: 'submitted',
     isPaid: false,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    visibilityHours,
+    expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + visibilityHours * 60 * 60 * 1000)),
   };
 
   const docRef = await db.collection('serviceRequests').add(requestData);
@@ -161,61 +261,318 @@ exports.saveRequest = async (data) => {
     customerEmail: requestData.customerEmail,
     guestAccountCreated: requestData.guestAccountCreated,
     welcomeEmailSent: requestData.welcomeEmailSent,
-    ...(requestData.welcomeEmailError ? { welcomeEmailError: requestData.welcomeEmailError } : {}),
   };
 };
 
-exports.submitProposal = async (requestId, proposal) => {
+exports.getEligibleRequestsForProvider = async (providerUid) => {
+  const providerSnap = await db.collection('users').doc(providerUid).get();
+  if (!providerSnap.exists) throw new Error('Provider account not found');
+  const provider = providerSnap.data();
+
+  if (provider.role !== 'provider') throw new Error('User is not a service provider');
+  if (provider.isVerified === false) return [];
+
+  const sysConfig = await getSystemConfig();
+  const defaultRadius = Number(sysConfig.defaultServiceRadiusKm || sysConfig.serviceRadiusKm) || 15;
+  const providerRadius = Number(provider.serviceRadiusKm) || defaultRadius;
+
+  const providerLat = provider.location?.lat;
+  const providerLng = provider.location?.lng;
+
+  const openStatuses = ['pending', 'submitted', 'searching_providers', 'offers_received', 'bidding'];
+  const snap = await db.collection('serviceRequests')
+    .where('status', 'in', openStatuses)
+    .get();
+
+  const eligibleRequests = [];
+  for (const doc of snap.docs) {
+    const req = serializeDoc(doc);
+    if (!isRequestWithinVisibilityWindow(req, getRequestVisibilityHours(sysConfig))) {
+      await doc.ref.update({
+        status: 'expired',
+        expiredAt: admin.firestore.FieldValue.serverTimestamp(),
+        closedReason: 'visibility_window_expired',
+      });
+      continue;
+    }
+
+    // Direct request check: if pre-assigned to a provider, only show to that provider
+    if (req.providerId && req.providerId !== providerUid) {
+      continue;
+    }
+
+    const reqLat = req.customerLocation?.lat;
+    const reqLng = req.customerLocation?.lng;
+
+    // Check if this provider has an invitation or existing proposal on this request
+    const proposalSnap = await doc.ref.collection('proposals')
+      .where('providerId', '==', providerUid)
+      .limit(1)
+      .get();
+    const hasProposal = !proposalSnap.empty;
+    const proposalData = hasProposal ? proposalSnap.docs[0].data() : null;
+
+    if (hasProposal || req.providerId === providerUid) {
+      // Direct invite or pre-assigned request — bypass distance checks
+      if (provider.serviceTypes && provider.serviceTypes.includes(req.serviceType)) {
+        const distance = (reqLat != null && reqLng != null && providerLat != null && providerLng != null)
+          ? calculateHaversineDistanceKm(providerLat, providerLng, reqLat, reqLng)
+          : null;
+        
+        eligibleRequests.push({ 
+          ...req, 
+          distanceKm: distance != null ? Number(distance.toFixed(1)) : null,
+          directInvite: hasProposal && proposalData?.requestedByCustomer === true,
+          proposalStatus: hasProposal ? proposalData?.status : null,
+          proposalPrice: hasProposal ? proposalData?.estimatedPrice : null,
+        });
+      }
+    } else if (reqLat != null && reqLng != null && providerLat != null && providerLng != null) {
+      const distance = calculateHaversineDistanceKm(providerLat, providerLng, reqLat, reqLng);
+      if (distance <= providerRadius) {
+        if (provider.serviceTypes && provider.serviceTypes.includes(req.serviceType)) {
+          eligibleRequests.push({ ...req, distanceKm: Number(distance.toFixed(1)) });
+        }
+      }
+    } else {
+      if (provider.serviceTypes && provider.serviceTypes.includes(req.serviceType)) {
+        eligibleRequests.push({ ...req, distanceKm: null });
+      }
+    }
+  }
+
+  eligibleRequests.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+  return eligibleRequests;
+};
+
+exports.submitProposal = async (requestId, proposal, providerUser) => {
+  const requestRef = db.collection('serviceRequests').doc(requestId);
+  const reqSnap = await requestRef.get();
+  if (!reqSnap.exists) throw new Error('Request not found');
+  const reqData = reqSnap.data();
+
+  // Verify provider actually offers the requested service type
+  if (providerUser && providerUser.serviceTypes) {
+    if (!providerUser.serviceTypes.includes(reqData.serviceType)) {
+      throw new Error('Service type mismatch — you do not offer this service type in your settings');
+    }
+  }
+
+  // Check if provider already has a proposal on this request
+  const existingSnap = await requestRef.collection('proposals')
+    .where('providerId', '==', providerUser.uid)
+    .limit(1)
+    .get();
+  if (!existingSnap.empty) {
+    // Update existing proposal instead
+    const existingDoc = existingSnap.docs[0];
+    await existingDoc.ref.update({
+      estimatedPrice: proposal.estimatedPrice,
+      estimatedTime: proposal.estimatedTime,
+      message: proposal.message || '',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return existingDoc.id;
+  }
+
   const proposalData = {
     ...proposal,
     requestId,
+    providerId: providerUser.uid,
+    providerName: providerUser.fullName || proposal.providerName || 'Service Provider',
+    providerPhone: providerUser.phone || proposal.providerPhone || '',
+    providerRating: providerUser.rating || 5,
+    providerCompanyName: providerUser.companyName || '',
+    distanceKm: proposal.distanceKm || null,
+    status: 'offered',
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   };
-  const proposalRef = await db.collection('serviceRequests').doc(requestId).collection('proposals').add(proposalData);
-  await db.collection('serviceRequests').doc(requestId).update({ status: 'bidding' });
-  await db.collection('users').doc(proposal.providerId).update({ 'stats.applied': admin.firestore.FieldValue.increment(1) });
+
+  const proposalRef = await requestRef.collection('proposals').add(proposalData);
+
+  // Set the request status to offers_received and set a proposalDeadline if not already set
+  const updatePayload = { status: 'offers_received' };
+  if (!reqData.proposalDeadline) {
+    // First offer — start 3-minute customer choice window
+    const deadline = new Date(Date.now() + 3 * 60 * 1000);
+    updatePayload.proposalDeadline = admin.firestore.Timestamp.fromDate(deadline);
+    updatePayload.proposalDeadlineMs = deadline.getTime();
+  }
+  await requestRef.update(updatePayload);
+
+  await db.collection('users').doc(providerUser.uid)
+    .update({ 'stats.applied': admin.firestore.FieldValue.increment(1) })
+    .catch(() => {});
+
   return proposalRef.id;
 };
 
-exports.selectProposal = async (requestId, proposal) => {
+exports.selectProposal = async (requestId, proposalId, customerUid) => {
+  const requestRef = db.collection('serviceRequests').doc(requestId);
+  const reqSnap = await requestRef.get();
+  if (!reqSnap.exists) throw new Error('Request not found');
+  const reqData = reqSnap.data();
+
+  if (reqData.customerId !== customerUid) {
+    throw new Error('Unauthorized to select proposal for this request');
+  }
+
+  const proposalSnap = await requestRef.collection('proposals').doc(proposalId).get();
+  if (!proposalSnap.exists) throw new Error('Selected offer not found');
+  const proposal = proposalSnap.data();
+
   const adminTimestamp = admin.firestore.FieldValue.serverTimestamp();
-  await db.collection('serviceRequests').doc(requestId).update({
+  await requestRef.update({
     status: 'accepted',
     providerId: proposal.providerId,
     providerName: proposal.providerName,
     providerPhone: proposal.providerPhone || '',
     providerVehicleNumber: proposal.providerVehicleNumber || '',
     providerRating: proposal.providerRating || 5,
-    estimatedPrice: proposal.estimatedPrice || 0,
+    estimatedPrice: proposal.estimatedPrice || reqData.estimatedPrice || 0,
+    estimatedTime: proposal.estimatedTime || null,
     additionalFees: proposal.additionalFees || 0,
-    totalPrice: (proposal.estimatedPrice || 0) + (proposal.additionalFees || 0),
+    totalPrice: (proposal.estimatedPrice || reqData.estimatedPrice || 0) + (proposal.additionalFees || 0),
     acceptedAt: adminTimestamp,
+    proposalDeadline: admin.firestore.FieldValue.delete(),
+    proposalDeadlineMs: admin.firestore.FieldValue.delete(),
   });
-  await db.collection('users').doc(proposal.providerId).update({ 'stats.approved': admin.firestore.FieldValue.increment(1) });
+
+  const proposalsSnap = await requestRef.collection('proposals').get();
+  const batch = db.batch();
+  proposalsSnap.docs.forEach((pDoc) => {
+    if (pDoc.id === proposalId) {
+      batch.update(pDoc.ref, { status: 'selected' });
+    } else {
+      batch.update(pDoc.ref, { status: 'rejected' });
+    }
+  });
+  await batch.commit();
+
+  await db.collection('users').doc(proposal.providerId)
+    .update({ 'stats.approved': admin.firestore.FieldValue.increment(1) })
+    .catch(() => {});
 };
 
-exports.updateRequestStatus = async (requestId, status, extras = {}) => {
-  const updateData = { status, ...extras };
+exports.rejectProposal = async (requestId, proposalId, customerUid) => {
+  const requestRef = db.collection('serviceRequests').doc(requestId);
+  const reqSnap = await requestRef.get();
+  if (!reqSnap.exists) throw new Error('Request not found');
+  const reqData = reqSnap.data();
+
+  if (reqData.customerId !== customerUid) {
+    throw new Error('Unauthorized');
+  }
+
+  await requestRef.collection('proposals').doc(proposalId).update({ status: 'rejected' });
+};
+
+exports.autoAssignProposal = async (requestId, customerUid) => {
+  const requestRef = db.collection('serviceRequests').doc(requestId);
+  const reqSnap = await requestRef.get();
+  if (!reqSnap.exists) throw new Error('Request not found');
+  const reqData = reqSnap.data();
+
+  // Only auto-assign for the owner or open requests past deadline
+  if (customerUid && reqData.customerId !== customerUid) {
+    throw new Error('Unauthorized');
+  }
+
+  // Must still be in an open state
+  const openStates = ['offers_received', 'bidding', 'pending', 'submitted', 'searching_providers'];
+  if (!openStates.includes(reqData.status)) {
+    throw new Error('Request is no longer open for assignment');
+  }
+
+  // Get all pending proposals ordered by createdAt (earliest first)
+  const proposalsSnap = await requestRef.collection('proposals')
+    .where('status', '==', 'offered')
+    .orderBy('createdAt', 'asc')
+    .limit(1)
+    .get();
+
+  if (proposalsSnap.empty) {
+    // No proposals — keep open or mark as searching
+    await requestRef.update({ status: 'searching_providers', proposalDeadline: admin.firestore.FieldValue.delete(), proposalDeadlineMs: admin.firestore.FieldValue.delete() });
+    return { assigned: false };
+  }
+
+  const winnerDoc = proposalsSnap.docs[0];
+  const winner = winnerDoc.data();
+
   const adminTimestamp = admin.firestore.FieldValue.serverTimestamp();
-  if (status === 'accepted') updateData.acceptedAt = adminTimestamp;
-  if (status === 'inProgress') updateData.inProgressAt = adminTimestamp;
-  if (status === 'completed') updateData.completedAt = adminTimestamp;
-  if (status === 'cancelled') updateData.cancelledAt = adminTimestamp;
-  
-  if (status === 'arriving') {
+  await requestRef.update({
+    status: 'accepted',
+    providerId: winner.providerId,
+    providerName: winner.providerName,
+    providerPhone: winner.providerPhone || '',
+    providerRating: winner.providerRating || 5,
+    estimatedPrice: winner.estimatedPrice || reqData.estimatedPrice || 0,
+    estimatedTime: winner.estimatedTime || null,
+    totalPrice: winner.estimatedPrice || reqData.estimatedPrice || 0,
+    acceptedAt: adminTimestamp,
+    autoAssigned: true,
+    proposalDeadline: admin.firestore.FieldValue.delete(),
+    proposalDeadlineMs: admin.firestore.FieldValue.delete(),
+  });
+
+  // Mark winner selected, others rejected
+  const allProposals = await requestRef.collection('proposals').get();
+  const batch = db.batch();
+  allProposals.docs.forEach((pDoc) => {
+    batch.update(pDoc.ref, { status: pDoc.id === winnerDoc.id ? 'selected' : 'rejected' });
+  });
+  await batch.commit();
+
+  await db.collection('users').doc(winner.providerId)
+    .update({ 'stats.approved': admin.firestore.FieldValue.increment(1) })
+    .catch(() => {});
+
+  return { assigned: true, providerId: winner.providerId, providerName: winner.providerName };
+};
+
+exports.updateRequestStatus = async (requestId, targetStatus, extras = {}, user) => {
+  const requestRef = db.collection('serviceRequests').doc(requestId);
+  const reqSnap = await requestRef.get();
+  if (!reqSnap.exists) throw new Error('Request not found');
+  const reqData = reqSnap.data();
+
+  const currentStatus = reqData.status || 'submitted';
+  const allowed = ALLOWED_TRANSITIONS[currentStatus] || [];
+
+  if (!allowed.includes(targetStatus) && user?.role !== 'admin') {
+    throw new Error(`Invalid status transition from '${currentStatus}' to '${targetStatus}'.`);
+  }
+
+  const updateData = { status: targetStatus, ...extras };
+  const adminTimestamp = admin.firestore.FieldValue.serverTimestamp();
+  if (targetStatus === 'accepted') updateData.acceptedAt = adminTimestamp;
+  if (targetStatus === 'inProgress' || targetStatus === 'in_progress') updateData.inProgressAt = adminTimestamp;
+  if (targetStatus === 'completed') updateData.completedAt = adminTimestamp;
+  if (targetStatus === 'cancelled') updateData.cancelledAt = adminTimestamp;
+
+  if (targetStatus === 'arriving' || targetStatus === 'provider_arrived') {
     updateData.arrivingAt = adminTimestamp;
-    // Generate unique 4-digit OTP if not already present
-    const docSnap = await db.collection('serviceRequests').doc(requestId).get();
-    if (docSnap.exists && !docSnap.data().arrivalOtp) {
+    if (!reqData.arrivalOtp) {
       updateData.arrivalOtp = Math.floor(1000 + Math.random() * 9000).toString();
     }
   }
-  
-  await db.collection('serviceRequests').doc(requestId).update(updateData);
+
+  await requestRef.update(updateData);
 };
 
 exports.acceptRequest = async (requestId, profile) => {
-  await db.collection('serviceRequests').doc(requestId).update({
+  const docRef = db.collection('serviceRequests').doc(requestId);
+  const reqSnap = await docRef.get();
+  if (!reqSnap.exists) throw new Error('Request not found');
+  const reqData = reqSnap.data();
+
+  const openStatuses = ['pending', 'submitted', 'searching_providers', 'offers_received', 'bidding'];
+  if (!openStatuses.includes(reqData.status) || (reqData.providerId && reqData.providerId !== profile.uid)) {
+    throw new Error('Mission Conflict: Request assigned to other unit');
+  }
+
+  await docRef.update({
     status: 'accepted',
     providerId: profile.uid,
     providerName: profile.fullName,
@@ -226,24 +583,47 @@ exports.acceptRequest = async (requestId, profile) => {
   });
 };
 
+exports.declineRequest = async (requestId, providerUid) => {
+  const docRef = db.collection('serviceRequests').doc(requestId);
+  const reqSnap = await docRef.get();
+  if (!reqSnap.exists) throw new Error('Request not found');
+  const reqData = reqSnap.data();
+
+  if (reqData.providerId === providerUid) {
+    await docRef.update({
+      providerId: admin.firestore.FieldValue.delete(),
+      providerName: admin.firestore.FieldValue.delete(),
+      providerPhone: admin.firestore.FieldValue.delete(),
+      providerRating: admin.firestore.FieldValue.delete(),
+      providerVehicleNumber: admin.firestore.FieldValue.delete(),
+      status: 'searching_providers',
+    });
+  }
+};
+
 exports.completeRequest = async (requestId, finalPrice, additionalFees) => {
   const requestSnap = await db.collection('serviceRequests').doc(requestId).get();
   if (!requestSnap.exists) throw new Error('Request not found');
   const requestData = requestSnap.data();
 
-  // Validate price cap on completion
   const serviceSnap = await db.collection('services').doc(requestData.serviceType).get();
   if (serviceSnap.exists) {
     const serviceConfig = serviceSnap.data();
-    if (finalPrice < serviceConfig.basePrice || finalPrice > serviceConfig.maxPrice) {
-      throw new Error(`Service Base Amount must be between ${serviceConfig.basePrice} and ${serviceConfig.maxPrice}`);
+    if (serviceConfig.basePrice && serviceConfig.maxPrice) {
+      if (finalPrice < serviceConfig.basePrice || finalPrice > serviceConfig.maxPrice) {
+        throw new Error(`Service Base Amount must be between ${serviceConfig.basePrice} and ${serviceConfig.maxPrice}`);
+      }
     }
   }
 
   const totalPrice = finalPrice + (additionalFees || 0);
-  const adminCommission = totalPrice * 0.15;
+  const sysSnap = await db.collection('system').doc('config').get();
+  const sysConfig = sysSnap.exists ? sysSnap.data() : {};
+  const commRate = (sysConfig.baseCommissionRate || 15) / 100;
+
+  const adminCommission = totalPrice * commRate;
   const providerEarnings = totalPrice - adminCommission;
-  
+
   await db.collection('serviceRequests').doc(requestId).update({
     status: 'completed',
     finalPrice,
@@ -261,7 +641,7 @@ exports.verifyArrivalOtp = async (requestId, otp) => {
   if (!requestSnap.exists) throw new Error('Request not found');
   const requestData = requestSnap.data();
 
-  if (requestData.status !== 'arriving') {
+  if (requestData.status !== 'arriving' && requestData.status !== 'provider_arrived') {
     throw new Error('Request status is not arriving');
   }
 
@@ -269,7 +649,6 @@ exports.verifyArrivalOtp = async (requestId, otp) => {
     throw new Error('Incorrect verification code.');
   }
 
-  // Clear OTP and update status to inProgress
   await db.collection('serviceRequests').doc(requestId).update({
     status: 'inProgress',
     arrivalOtp: admin.firestore.FieldValue.delete(),
@@ -282,18 +661,8 @@ exports.proposeAdditionalCosts = async (requestId, proposedAdditionalFees, reaso
   if (!requestSnap.exists) throw new Error('Request not found');
   const requestData = requestSnap.data();
 
-  if (requestData.status !== 'accepted' && requestData.status !== 'arriving' && requestData.status !== 'inProgress') {
+  if (requestData.status !== 'accepted' && requestData.status !== 'provider_en_route' && requestData.status !== 'arriving' && requestData.status !== 'inProgress') {
     throw new Error('Cannot propose additional costs in this state');
-  }
-
-  // Validate price cap ranges on proposed base rate as well (just in case they propose costs when base rate isn't finalized yet)
-  const serviceSnap = await db.collection('services').doc(requestData.serviceType).get();
-  if (serviceSnap.exists) {
-    const serviceConfig = serviceSnap.data();
-    const currentBase = requestData.finalPrice || requestData.estimatedPrice || 0;
-    if (currentBase < serviceConfig.basePrice || currentBase > serviceConfig.maxPrice) {
-      throw new Error(`Current Service Base Rate (${currentBase}) is outside the admin price range of ${serviceConfig.basePrice} - ${serviceConfig.maxPrice}`);
-    }
   }
 
   await db.collection('serviceRequests').doc(requestId).update({
@@ -332,13 +701,13 @@ exports.processPayment = async (requestId, tip) => {
   const snap = await docRef.get();
   if (!snap.exists) throw new Error('Request not found');
   const data = snap.data();
-  
+
   await docRef.update({
     isPaid: true,
     tipAmount: tip || 0,
     paidAt: admin.firestore.FieldValue.serverTimestamp(),
   });
-  
+
   if (data.providerId) {
     await db.collection('users').doc(data.providerId).update({
       totalEarnings: admin.firestore.FieldValue.increment((data.providerEarnings || 0) + (tip || 0)),
@@ -351,32 +720,48 @@ exports.submitRating = async (requestId, rating, review) => {
   await db.collection('serviceRequests').doc(requestId).update({ rating, review: review || '' });
 };
 
-exports.getCustomerRequests = async (customerId) => {
+exports.getCustomerRequests = async (customerId, requestingUser) => {
   const snap = await db.collection('serviceRequests')
     .where('customerId', '==', customerId)
     .orderBy('createdAt', 'desc')
     .get();
-  return snap.docs.map(serializeDoc);
+  return snap.docs.map((d) => sanitizeForUser(serializeDoc(d), requestingUser));
 };
 
-exports.getProviderRequests = async (providerId) => {
+exports.getProviderRequests = async (providerId, requestingUser) => {
   const snap = await db.collection('serviceRequests')
     .where('providerId', '==', providerId)
     .orderBy('createdAt', 'desc')
     .get();
-  return snap.docs.map(serializeDoc);
+  return snap.docs.map((d) => sanitizeForUser(serializeDoc(d), requestingUser));
 };
 
-exports.getPendingRequests = async () => {
+exports.getPendingRequests = async (requestingUser) => {
+  const sysConfig = await getSystemConfig();
+  const visibilityHours = getRequestVisibilityHours(sysConfig);
   const snap = await db.collection('serviceRequests')
-    .where('status', '==', 'pending')
+    .where('status', 'in', ['pending', 'submitted', 'searching_providers', 'offers_received', 'bidding', 'expired', 'cancelled'])
     .orderBy('createdAt', 'desc')
     .get();
-  return snap.docs.map(serializeDoc);
+  const items = [];
+  for (const d of snap.docs) {
+    const req = serializeDoc(d);
+    if (!['expired', 'cancelled', 'completed'].includes(req.status) && !isRequestWithinVisibilityWindow(req, visibilityHours)) {
+      await d.ref.update({
+        status: 'expired',
+        expiredAt: admin.firestore.FieldValue.serverTimestamp(),
+        closedReason: 'visibility_window_expired',
+      });
+      req.status = 'expired';
+    }
+    items.push(sanitizeForUser(req, requestingUser));
+  }
+  return items;
 };
 
-exports.getRequestById = async (requestId) => {
+exports.getRequestById = async (requestId, requestingUser) => {
   const snap = await db.collection('serviceRequests').doc(requestId).get();
   if (!snap.exists) return null;
-  return serializeDoc(snap);
+  return sanitizeForUser(serializeDoc(snap), requestingUser);
 };
+

@@ -7,93 +7,63 @@ import { toast } from 'sonner';
 import {
   ArrowLeft,
   ArrowRight,
-  BadgeHelp,
-  Car,
   Check,
-  ChevronDown,
-  Clock3,
   MapPin,
-  Phone,
   Search,
   ShieldCheck,
-  Sparkles,
   User,
+  Car,
+  Phone,
   AlertTriangle,
-
+  FileText,
+  Clock,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react';
+import { CustomerLayout } from '@/components/layout/CustomerLayout';
+import { useFormBuilder } from '@/hooks/useFormBuilder';
+import { DynamicFormFields } from '@/components/shared/DynamicFormFields';
+import { useSystemStore } from '@/stores/systemStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { PhoneInputGroup } from '@/components/ui/phone-input';
 import { LocationPicker } from '@/components/map/LocationPicker';
 import { IconRenderer } from '@/components/shared/IconRenderer';
 import { useServices } from '@/hooks/useServices';
+import { useVehicleTypes } from '@/hooks/useVehicleTypes';
 import { useServiceRequest } from '@/hooks/useServiceRequest';
 import { formatCurrency, getServiceLabel } from '@/lib/utils';
 import { GeoLocation, ServiceType, ServiceTypeConfig } from '@/types';
 import { ensureGuestAuth } from '@/lib/guestAuth';
 import { guestHelpSchema, GuestHelpFormData } from '@/lib/validators';
+import { getServiceBackgroundImage } from '@/lib/serviceImages';
 
-const CONTACT_METHODS = [
-  { value: 'phone', label: 'Phone call' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'email', label: 'Email' },
-] as const;
-
-const VEHICLE_TYPES = ['Car', 'SUV', 'Bike', 'Van', 'Truck', 'Other'] as const;
-
-function estimateArrival(service: ServiceTypeConfig | null) {
-  if (!service) return '15-25 min';
-  if (service.id === 'towing') return '20-35 min';
-  if (service.id === 'fuelDelivery') return '15-25 min';
-  return '10-20 min';
-}
+type WizardStep = 1 | 2 | 3 | 4;
 
 export default function GetHelp() {
   const navigate = useNavigate();
   const routeLocation = useLocation();
-  const { services, isLoading: isServicesLoading } = useServices();
+  const { services } = useServices();
+  const { activeVehicleTypes } = useVehicleTypes();
   const { createRequest, isLoading } = useServiceRequest();
 
-  const [screen, setScreen] = useState<'form' | 'confirm'>('form');
+  const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [selectedService, setSelectedService] = useState<ServiceTypeConfig | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<GeoLocation | null>(null);
-  const [confirmationNumber, setConfirmationNumber] = useState('');
   const [serviceSearch, setServiceSearch] = useState('');
-  const [serviceMenuOpen, setServiceMenuOpen] = useState(false);
   const [serviceLabelOverride, setServiceLabelOverride] = useState('');
+  const [isChangingService, setIsChangingService] = useState(false);
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isConnectionSlow, setIsConnectionSlow] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    const conn = (navigator as any).connection;
-    if (conn) {
-      const checkSpeed = () => {
-        setIsConnectionSlow(
-          conn.effectiveType === 'slow-2g' ||
-          conn.effectiveType === '2g' ||
-          (conn.rtt && conn.rtt > 1500)
-        );
-      };
-      checkSpeed();
-      conn.addEventListener('change', checkSpeed);
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-        conn.removeEventListener('change', checkSpeed);
-      };
-    }
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -102,18 +72,19 @@ export default function GetHelp() {
 
   const activeServices = useMemo(
     () => services.filter((s) => s.isActive ?? true),
-    [services],
+    [services]
   );
 
   const filteredServices = useMemo(() => {
     const query = serviceSearch.trim().toLowerCase();
     if (!query) return activeServices;
     return activeServices.filter((service) =>
-      [service.name, getServiceLabel(service.id), service.description].join(' ').toLowerCase().includes(query),
+      [service.name, getServiceLabel(service.id), service.description].join(' ').toLowerCase().includes(query)
     );
   }, [activeServices, serviceSearch]);
 
-  const resolveServiceConfig = (serviceId: string) => activeServices.find((service) => service.id === serviceId) ?? activeServices.find((service) => service.id === 'otherService') ?? null;
+  const resolveServiceConfig = (serviceId?: string) =>
+    serviceId ? activeServices.find((service) => service.id === serviceId) ?? null : null;
 
   const form = useForm<GuestHelpFormData>({
     mode: 'onChange',
@@ -136,80 +107,146 @@ export default function GetHelp() {
     },
   });
 
-  const watchedServiceType = form.watch('serviceType');
-  const resolvedServiceType = watchedServiceType || selectedService?.id || (serviceLabelOverride ? 'otherService' : '');
-  const selectedServiceConfig = selectedService
-    ?? activeServices.find((service) => service.id === resolvedServiceType)
-    ?? activeServices.find((service) => service.id === 'otherService')
-    ?? null;
-  const selectedServiceLabel = serviceLabelOverride || (selectedServiceConfig?.id === 'otherService' ? 'Other Service' : selectedServiceConfig ? getServiceLabel(selectedServiceConfig.id) : 'No service selected yet');
+  const { config: serviceRequestFormConfig } = useFormBuilder('getHelp');
 
+  const watchedServiceType = form.watch('serviceType');
+  const resolvedServiceType = watchedServiceType || selectedService?.id || '';
+  const selectedServiceConfig =
+    selectedService ??
+    (resolvedServiceType ? activeServices.find((service) => service.id === resolvedServiceType) ?? null : null);
+
+  const selectedServiceLabel =
+    selectedServiceConfig
+      ? (selectedServiceConfig.id === 'otherService' ? (serviceLabelOverride || 'Other Service') : getServiceLabel(selectedServiceConfig.id))
+      : serviceLabelOverride || '';
+
+  // Handle URL query parameter preselection & SessionStorage restoration
   useEffect(() => {
     const params = new URLSearchParams(routeLocation.search);
     const serviceParam = params.get('service');
-    const draftRaw = sessionStorage.getItem('roadhelp:guestRequestDraft');
+    const problemParam = params.get('problem');
 
-    const applyServiceSelection = (serviceId: string, label?: string) => {
+    if (problemParam) {
+      form.setValue('description', problemParam, { shouldValidate: true, shouldDirty: true });
+    }
+
+    const applyServiceSelection = (serviceId?: string, label?: string) => {
+      if (!serviceId) {
+        setSelectedService(null);
+        setServiceLabelOverride('');
+        form.setValue('serviceType', '' as any);
+        setIsChangingService(true);
+        return;
+      }
       const serviceConfig = resolveServiceConfig(serviceId);
-      const resolvedId = serviceConfig?.id || 'otherService';
       if (serviceConfig) {
         setSelectedService(serviceConfig);
+        setServiceLabelOverride(label || getServiceLabel(serviceConfig.id as ServiceType));
+        form.setValue('serviceType', serviceConfig.id as ServiceType, { shouldValidate: true, shouldDirty: true });
+        setIsChangingService(false);
+      } else {
+        setSelectedService(null);
+        setServiceLabelOverride('');
+        form.setValue('serviceType', '' as any);
+        setIsChangingService(true);
       }
-      setServiceLabelOverride(label || getServiceLabel(resolvedId as ServiceType));
-      form.setValue('serviceType', resolvedId as ServiceType, { shouldValidate: true, shouldDirty: true });
     };
-
-    if (draftRaw) {
-      try {
-        const draft = JSON.parse(draftRaw) as Partial<GuestHelpFormData> & { serviceLabel?: string };
-        if (draft.fullName) form.setValue('fullName', draft.fullName);
-        if (draft.email) form.setValue('email', draft.email);
-        if (draft.phone) form.setValue('phone', draft.phone);
-        if (draft.countryCode) form.setValue('countryCode', draft.countryCode);
-        if (draft.description) form.setValue('description', draft.description);
-        if (draft.notes) form.setValue('notes', draft.notes);
-        if (draft.serviceType) {
-          applyServiceSelection(draft.serviceType, draft.serviceLabel);
-        } else if (draft.serviceLabel) {
-          setServiceLabelOverride(draft.serviceLabel);
-        }
-      } catch {
-        // ignore draft parsing errors
-      } finally {
-        sessionStorage.removeItem('roadhelp:guestRequestDraft');
-      }
-    }
 
     if (serviceParam) {
       applyServiceSelection(serviceParam);
-    } else if (!draftRaw && activeServices.length > 0) {
-      const first = activeServices[0];
-      applyServiceSelection(first.id);
+    } else {
+      // Direct opening via Get Help button or /get-help direct visit:
+      sessionStorage.removeItem('roadhelp:getHelpWizardDraft');
+      setSelectedService(null);
+      setServiceLabelOverride('');
+      form.setValue('serviceType', '' as any);
+      setIsChangingService(true);
     }
-  }, [activeServices, form, routeLocation.search]);
+  }, [activeServices, routeLocation.search]);
 
-  const handleContinue = async () => {
-    if (resolvedServiceType && form.getValues('serviceType') !== resolvedServiceType) {
-      form.setValue('serviceType', resolvedServiceType as ServiceType, { shouldValidate: true, shouldDirty: true });
-    }
 
-    const valid = await form.trigger();
-    if (!resolvedServiceType) {
-      toast.warning('Please choose a service.');
-      return;
-    }
-    if (!selectedLocation) {
-      toast.warning('Please share your location.');
-      return;
-    }
-    if (!valid) {
-      return;
-    }
-    setConfirmationNumber('RH-' + Math.random().toString(36).slice(2, 8).toUpperCase());
-    setScreen('confirm');
+  // Save state to sessionStorage on change
+  useEffect(() => {
+    const values = form.getValues();
+    const draftData = {
+      formValues: values,
+      selectedLocation,
+      step: currentStep,
+      serviceId: resolvedServiceType,
+    };
+    sessionStorage.setItem('roadhelp:getHelpWizardDraft', JSON.stringify(draftData));
+  }, [form, selectedLocation, currentStep, resolvedServiceType]);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSubmit = async () => {
+  const scrollToFirstError = () => {
+    setTimeout(() => {
+      const firstError = document.querySelector('.border-red-500, [aria-invalid="true"]');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (firstError as HTMLElement).focus?.();
+      }
+    }, 100);
+  };
+
+  const handleNext = async () => {
+    if (currentStep === 1) {
+      const isServiceValid = !!resolvedServiceType;
+      const vehicleTypeVal = form.getValues('vehicleType');
+      const isVehicleTypeValid = !!vehicleTypeVal;
+
+      const brandValid = await form.trigger('vehicleBrand');
+      const descValid = await form.trigger('description');
+
+      if (!isServiceValid) {
+        toast.error('Select Service Type');
+      }
+
+      if (!isVehicleTypeValid) {
+        toast.error('Select Vehicle Type');
+      }
+
+      if (!isServiceValid || !isVehicleTypeValid || !brandValid || !descValid) {
+        scrollToFirstError();
+        return;
+      }
+
+      setCurrentStep(2);
+      scrollToTop();
+    } else if (currentStep === 2) {
+      const nameValid = await form.trigger('fullName');
+      const phoneValid = await form.trigger('phone');
+      const emailValid = await form.trigger('email');
+
+      if (!nameValid || !phoneValid || !emailValid) {
+        scrollToFirstError();
+        return;
+      }
+
+      setCurrentStep(3);
+      scrollToTop();
+    } else if (currentStep === 3) {
+      if (!selectedLocation) {
+        toast.error('Please select your breakdown location on the map *');
+        return;
+      }
+      setCurrentStep(4);
+      scrollToTop();
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep((prev) => (prev - 1) as WizardStep);
+      scrollToTop();
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const handleSubmitRequest = async () => {
     if (!selectedServiceConfig || !selectedLocation) return;
 
     try {
@@ -237,342 +274,590 @@ export default function GetHelp() {
         preferredContactMethod: values.preferredContactMethod,
         isEmergency: values.isEmergency,
         vehicleInfo: {
-          make: values.vehicleBrand,
-          model: values.vehicleModel,
-          plateNumber: values.vehicleNumber || 'Not shared',
+          make: values.vehicleBrand || values.vehicleType,
+          model: values.vehicleModel || 'Standard',
+          plateNumber: 'Not specified',
         },
         customerLocation: selectedLocation,
         estimatedPrice: selectedServiceConfig.basePrice,
       });
 
-      toast.success('Your request has been sent.');
+      sessionStorage.removeItem('roadhelp:getHelpWizardDraft');
+      toast.success('Your assistance request has been submitted!');
       navigate(`/track/${requestId}`);
     } catch (err: unknown) {
       const anyErr = err as { message?: string };
-      toast.error(anyErr?.message || 'We could not submit your request.');
+      toast.error(anyErr?.message || 'Failed to submit request. Please try again.');
     }
   };
 
+  const currentBgImage = selectedServiceConfig?.bgImage || getServiceBackgroundImage(resolvedServiceType);
+
   return (
-    <div className="flex-1 bg-[#F5F5F6] min-h-screen overflow-x-hidden relative">
+    <div className="flex-1 bg-[#F5F5F6] min-h-screen overflow-x-hidden relative font-sans pt-12">
+      {/* Sticky Top Scroll Progress Bar & Header Bar */}
+      <div className="fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-200/50">
+        <div
+          className="h-1 bg-gradient-to-r from-blue-600 via-cyan-400 to-green-400 transition-all duration-500 shadow-sm"
+          style={{ width: `${(currentStep / 4) * 100}%` }}
+        />
+        <div className="flex flex-row justify-between items-center px-4 md:px-10 w-full h-11 text-slate-800">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleBack}
+            className="h-8 my-1 px-4 rounded-lg cursor-pointer text-slate-800 hover:text-blue-600 font-black text-xs uppercase tracking-widest gap-2 backdrop-blur-md shadow-sm transition-all active:scale-95"
+          >
+            <ArrowLeft className="w-4 h-4 text-blue-600" />
+            <span>{currentStep === 1 ? 'Home' : 'Back'}</span>
+          </Button>
+          <p className="text-xs sm:text-sm font-black text-slate-800 tracking-tight truncate">
+            {currentStep === 1
+              ? 'Get Help in 4 Easy Steps'
+              : currentStep === 2
+                ? 'Provide Your Contact Information'
+                : currentStep === 3
+                  ? 'Select Your Breakdown Location'
+                  : 'Review Your Request'}
+          </p>
+        </div>
+      </div>
+
       <AnimatePresence>
         {isLoading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/80 backdrop-blur-md"
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/85 backdrop-blur-md"
           >
-            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-6"></div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Processing your request</h2>
-            <p className="text-slate-500 mt-2 font-medium">Please wait while we find nearby providers...</p>
+            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-6" />
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Submitting Request</h2>
+            <p className="text-slate-500 mt-2 font-medium">Notifying nearby verified service providers...</p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="max-w-6xl mx-auto px-6 lg:px-8 py-10 md:py-16 pb-24 ">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-blue-600 mb-3">Book help</p>
-          <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight leading-none mb-4">Tell us what happened and we’ll take care of the rest.</h1>
-          <p className="text-slate-500 font-medium max-w-2xl leading-relaxed">Pick a service, share your location, and review the booking before you confirm.</p>
-        </motion.div>
+      {/* Top Header Banner with Dynamic Background Image */}
+      <div className="relative bg-slate-900 text-white overflow-hidden py-10 md:py-14 border-b border-slate-800">
+        <div className="absolute inset-0 z-0">
+          <img
+            src={currentBgImage}
+            alt=""
+            className="w-full h-full object-cover opacity-30 transition-all duration-700 scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-slate-950/90 to-slate-950" />
+        </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-8 items-start">
-          <AnimatePresence mode="wait">
-            {screen === 'form' ? (
-              <motion.div
-                key="form"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                className="glass-card rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-white/60"
-              >
-                <div className="flex items-start justify-between gap-4 mb-8">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-2">Selected service</p>
-                    <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{selectedServiceLabel}</h2>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">
+            {useSystemStore.getState().pageContent?.getHelpHeadline || 'Get Help in 4 Easy Steps'}
+          </h1>
+          <p className="text-slate-300 font-medium mt-2 text-sm sm:text-base max-w-xl">
+            {useSystemStore.getState().pageContent?.getHelpDescription || 'Complete your breakdown request details to connect with nearby providers.'}
+          </p>
+
+          {/* Step Progress Bar */}
+          <div className="mt-8 grid grid-cols-4 gap-2 sm:gap-4 max-w-full">
+            {[
+              { num: 1, label: 'Service' },
+              { num: 2, label: 'Customer Info' },
+              { num: 3, label: 'Location' },
+              { num: 4, label: 'Confirmation' },
+            ].map((step) => {
+              const isActive = currentStep === step.num;
+              const isDone = currentStep > step.num;
+              return (
+                <div key={step.num} className="flex flex-col gap-2">
+                  <div
+                    className={`h-2 rounded-full transition-all duration-300 ${isActive ? 'bg-cyan-400 shadow-md shadow-cyan-400/30' : isDone ? 'bg-cyan-400/80' : 'bg-white/20'
+                      }`}
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center ${isActive
+                        ? 'bg-cyan-400 text-slate-950'
+                        : isDone
+                          ? 'bg-cyan-900/60 text-cyan-300'
+                          : 'bg-white/10 text-slate-400'
+                        }`}
+                    >
+                      {isDone ? <Check className="w-3 h-3" /> : step.num}
+                    </span>
+                    <span
+                      className={`text-[11px] font-bold uppercase tracking-wider hidden sm:inline ${isActive ? 'text-white font-black' : 'text-slate-400'
+                        }`}
+                    >
+                      {step.label}
+                    </span>
                   </div>
-                  {selectedServiceConfig && (
-                    <div className="hidden md:flex items-center gap-3 px-4 py-3 rounded-2xl bg-blue-600/5 border border-blue-100 text-blue-700">
-                      <IconRenderer name={selectedServiceConfig.icon} size={24} />
-                      <span className="font-black text-sm">{formatCurrency(selectedServiceConfig.basePrice)}+</span>
-                    </div>
-                  )}
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
-                <div className="space-y-8">
-                  {!new URLSearchParams(routeLocation.search).get('service') && (
-                    <div className="space-y-4 pb-6 border-b border-slate-100">
-                      <div>
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Choose a service</Label>
-                        <p className="text-xs text-slate-500 mt-1">Please select the service type that describes your breakdown.</p>
-                      </div>
 
-                      <div className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <Input
-                          value={serviceSearch}
-                          onChange={(e) => setServiceSearch(e.target.value)}
-                          placeholder="Search battery, towing, flat tire..."
-                          className="h-12 rounded-2xl pl-12 bg-slate-50 border-slate-200 font-semibold"
-                        />
-                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
-                        {filteredServices.map((service) => {
-                          const isSelected = selectedService?.id === service.id;
-                          return (
-                            <button
-                              key={service.id}
+
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-24">
+      {!isOnline && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-center gap-3 text-xs font-bold uppercase tracking-wider mb-6">
+          <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
+          No Internet Connection. Please check network connection before proceeding.
+        </div>
+      )}
+
+      {/* STEP CONTENT WIZARD */}
+      <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl shadow-slate-900/5 p-6 sm:p-10 relative">
+        <AnimatePresence mode="wait">
+          {/* STEP 1: SERVICE & VEHICLE TYPE (2-COLUMN DESKTOP SPLIT) */}
+          {currentStep === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                  <Sparkles className="w-6 h-6 text-blue-600" />
+                  Step 1: Choose Service & Vehicle
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">Confirm your service category and vehicle details.</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                {/* Left Column: Service & Vehicle Selection */}
+                <div className="lg:col-span-6 space-y-6">
+                  <AnimatePresence mode="wait">
+                    {selectedServiceConfig && !isChangingService ? (
+                      <motion.div
+                        key="selected-card"
+                        initial={{ opacity: 0, scale: 0.98, y: -8 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.98, y: -8 }}
+                        transition={{ duration: 0.25, ease: 'easeOut' }}
+                        className="relative rounded-3xl overflow-hidden border border-slate-200 shadow-xl bg-slate-900 text-white p-6 sm:p-8"
+                      >
+                        <div className="absolute inset-0 z-0">
+                          <img
+                            src={currentBgImage}
+                            alt=""
+                            className="w-full h-full object-cover opacity-35"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-transparent" />
+                        </div>
+
+                        <div className="relative z-10 flex flex-col items-start  justify-between gap-6">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                              <span className="text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white px-3 py-1 rounded-full">
+                                Selected Service
+                              </span>
+                              <span className="text-xs font-black text-cyan-300 bg-white/10 px-3 py-1 rounded-full border border-white/10">
+                                Base Price: {formatCurrency(selectedServiceConfig.basePrice)}
+                              </span>
+                            </div>
+                            <h3 className="text-2xl font-black text-white tracking-tight flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+                                <IconRenderer name={selectedServiceConfig.icon} size={22} />
+                              </div>
+                              {selectedServiceLabel}
+                            </h3>
+                            <p className="text-slate-300 text-xs font-medium leading-relaxed">
+                              {selectedServiceConfig.description}
+                            </p>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsChangingService(true)}
+                            className="h-10 px-4 rounded-2xl border-white/30 text-white hover:bg-white/20 bg-white/10 backdrop-blur-md font-black text-xs uppercase tracking-widest shrink-0 gap-2 cursor-pointer active:scale-95 transition-all"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            CHANGE
+                          </Button>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="service-picker"
+                        initial={{ opacity: 0, scale: 0.98, y: 8 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.98, y: 8 }}
+                        transition={{ duration: 0.25, ease: 'easeOut' }}
+                        className="space-y-4 border border-blue-100 rounded-3xl p-5 bg-blue-50/40 shadow-md"
+                      >
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Select Service Type *</Label>
+                          {selectedServiceConfig && (
+                            <Button
                               type="button"
-                              onClick={() => {
-                                if (isSelected) {
-                                  setSelectedService(null);
-                                  form.setValue('serviceType', '', { shouldValidate: true, shouldDirty: true });
-                                  setServiceLabelOverride('');
-                                } else {
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIsChangingService(false)}
+                              className="text-xs font-black text-blue-600 hover:bg-blue-100/50 cursor-pointer"
+                            >
+                              Close Picker ({selectedServiceLabel})
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="relative">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <Input
+                            value={serviceSearch}
+                            onChange={(e) => setServiceSearch(e.target.value)}
+                            placeholder="Search battery, towing, flat tire..."
+                            className="h-11 rounded-2xl pl-12 bg-white border-slate-200 font-semibold"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[260px] overflow-y-auto pr-1 scrollbar-thin">
+                          {filteredServices.map((service) => {
+                            const isSelected = selectedService?.id === service.id;
+                            return (
+                              <button
+                                key={service.id}
+                                type="button"
+                                onClick={() => {
                                   setSelectedService(service);
                                   form.setValue('serviceType', service.id, { shouldValidate: true, shouldDirty: true });
                                   setServiceLabelOverride(service.name);
-                                }
-                              }}
-                              onDoubleClick={() => {
-                                setSelectedService(null);
-                                form.setValue('serviceType', '', { shouldValidate: true, shouldDirty: true });
-                                setServiceLabelOverride('');
-                              }}
-                              className={`text-left rounded-2xl border p-4 transition-all flex items-center gap-3 ${
-                                isSelected
-                                  ? 'border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-600/15'
-                                  : 'border-slate-100 bg-slate-50 hover:bg-white hover:border-blue-200'
+                                  setIsChangingService(false);
+                                }}
+                                className={`text-left rounded-2xl border p-3.5 transition-all flex items-center gap-3 cursor-pointer ${isSelected
+                                  ? 'border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-600/20 scale-[1.01]'
+                                  : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/20'
+                                  }`}
+                              >
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'}`}>
+                                  <IconRenderer name={service.icon} size={18} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between">
+                                    <p className={`font-black text-xs leading-tight ${isSelected ? 'text-white' : 'text-slate-900'}`}>{service.name}</p>
+                                    <span className={`text-[10px] font-bold ${isSelected ? 'text-white/90' : 'text-slate-500'}`}>
+                                      {formatCurrency(service.basePrice)}
+                                    </span>
+                                  </div>
+                                  <p className={`text-[10px] truncate mt-0.5 ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>{service.description}</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Vehicle Types Grid */}
+                  <div className="space-y-3 pt-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Select Vehicle Type *</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      {activeVehicleTypes.map((v) => {
+                        const isSelected = form.watch('vehicleType') === v.name;
+                        return (
+                          <button
+                            key={v.id}
+                            type="button"
+                            onClick={() => form.setValue('vehicleType', v.name, { shouldValidate: true, shouldDirty: true })}
+                            className={`p-3 rounded-2xl border text-center font-black text-xs transition-all flex items-center justify-center ${isSelected
+                              ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                              : 'border-slate-200 bg-slate-50 text-slate-800 hover:border-blue-300 hover:bg-white'
                               }`}
-                            >
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? 'bg-white/15 text-white' : 'bg-white text-blue-600 shadow-sm'}`}>
-                                <IconRenderer name={service.icon} size={20} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className={`font-black text-sm leading-tight ${isSelected ? 'text-white' : 'text-slate-900'}`}>{service.name}</p>
-                                <p className={`text-[10px] truncate mt-0.5 ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>{service.description}</p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                          >
+                            <span>{v.name}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
-                  {!isOnline && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
-                      <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
-                      No Internet Connection. Please check your network and avoid multiple attempts.
-                    </div>
-                  )}
-                  {isOnline && isConnectionSlow && (
-                    <div className="bg-amber-50 border border-amber-200 text-amber-700 p-4 rounded-2xl flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
-                      <AlertTriangle className="w-5 h-5 text-amber-500 animate-pulse" />
-                      Weak Connection Detected. Requests may take longer. Please do not tap buttons multiple times.
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1.5 md:col-span-2">
-                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Describe the problem</Label>
-                      <Textarea {...form.register('description')} placeholder="What happened, what you’ve already tried, and anything the provider should know." className={`rounded-2xl min-h-[140px] bg-slate-50 border-slate-200 ${form.formState.errors.description ? 'border-red-500 bg-red-50' : ''}`} />
-                      {form.formState.errors.description && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.description.message}</p>}
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Full name</Label>
-                      <Input {...form.register('fullName')} placeholder="Alex Johnson" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.fullName ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
-                      {form.formState.errors.fullName && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.fullName.message}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Email</Label>
-                      <Input {...form.register('email')} type="email" placeholder="you@example.com" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.email ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
-                      {form.formState.errors.email && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.email.message}</p>}
-                    </div>
-                    <div className="space-y-1.5 md:col-span-2">
-                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact number</Label>
-                      <PhoneInputGroup
-                        countryCode={form.watch('countryCode')}
-                        phone={form.watch('phone')}
-                        onCountryCodeChange={(v) => form.setValue('countryCode', v, { shouldValidate: true, shouldDirty: true })}
-                        onPhoneChange={(v) => form.setValue('phone', v, { shouldValidate: true, shouldDirty: true })}
-                        error={!!form.formState.errors.phone}
-                      />
-                      {form.formState.errors.phone && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.phone.message}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle type</Label>
-                      <Select value={form.watch('vehicleType')} onValueChange={(value) => form.setValue('vehicleType', value, { shouldValidate: true, shouldDirty: true })}>
-                        <SelectTrigger className={`h-12 rounded-2xl font-semibold bg-slate-50 border-slate-200 text-slate-900 shadow-sm focus:ring-slate-200 ${form.formState.errors.vehicleType ? 'border-red-500 bg-red-50 text-red-700' : ''}`}>
-                          <SelectValue placeholder="Select a vehicle type" />
-                        </SelectTrigger>
-                        <SelectContent className="border-slate-100 bg-white">
-                          {VEHICLE_TYPES.map((type) => (
-                            <SelectItem key={type} value={type} className="data-[state=checked]:bg-slate-300 data-[state=checked]:text-slate-700 data-[highlighted]:bg-slate-300/30 data-[highlighted]:text-slate-600">{type}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle brand</Label>
-                      <Input {...form.register('vehicleBrand')} placeholder="Toyota" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.vehicleBrand ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
-                      {form.formState.errors.vehicleBrand && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.vehicleBrand.message}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle model</Label>
-                      <Input {...form.register('vehicleModel')} placeholder="Corolla" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.vehicleModel ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
-                      {form.formState.errors.vehicleModel && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider ml-1">{form.formState.errors.vehicleModel.message}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle number (option)</Label>
-                      <Input {...form.register('vehicleNumber')} placeholder="ABC-1234" className={`h-12 rounded-2xl font-semibold ${form.formState.errors.vehicleNumber ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'}`} />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-6">
-                    <div className="rounded-[1.75rem] border border-slate-100 overflow-hidden bg-white">
-                      <LocationPicker onLocationSelect={setSelectedLocation} initialLocation={selectedLocation ?? undefined} />
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="rounded-[1.75rem] bg-slate-50 border border-slate-100 p-5 flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Emergency request</p>
-                          <p className="text-sm text-slate-500 mt-1">Highlight if the situation is urgent.</p>
-                        </div>
-                        <Switch checked={form.watch('isEmergency')} onCheckedChange={(checked) => form.setValue('isEmergency', checked, { shouldValidate: true, shouldDirty: true })} />
-                      </div>
-
-                      <div className="rounded-[1.75rem] bg-slate-950 text-white p-6 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-36 h-36 bg-cyan-400/10 rounded-full -mr-12 -mt-12 blur-2xl" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-300 mb-2">Current location</p>
-                        <p className="text-sm text-slate-300 leading-relaxed">
-                          {selectedLocation ? selectedLocation.address : 'Use GPS or tap the map to set your location.'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="confirm"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                className="glass-card rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-white/60"
-              >
-                <div className="mb-8">
-                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-green-600 mb-2">Review and confirm</p>
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Please check the details before we send the request.</h2>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6">
-                  <div className="rounded-[1.75rem] bg-slate-950 text-white p-7 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-transparent opacity-60" />
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-4 mb-6">
-                        <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-cyan-300">
-                          {selectedServiceConfig ? <IconRenderer name={selectedServiceConfig.icon} size={28} /> : <Sparkles className="w-7 h-7" />}
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Service</p>
-                          <h3 className="text-2xl font-black tracking-tight">{selectedServiceLabel}</h3>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4 text-sm text-slate-300">
-                        <p><span className="text-slate-400 font-black uppercase tracking-widest text-[10px] mr-2">Estimated cost</span>{selectedServiceConfig ? formatCurrency(selectedServiceConfig.basePrice) : 'N/A'}+</p>
-                        <p><span className="text-slate-400 font-black uppercase tracking-widest text-[10px] mr-2">Estimated arrival</span>{selectedServiceConfig ? estimateArrival(selectedServiceConfig) : 'Estimated arrival'}</p>
-                        <p><span className="text-slate-400 font-black uppercase tracking-widest text-[10px] mr-2">Confirmation number</span>{confirmationNumber}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="rounded-[1.5rem] bg-slate-50 border border-slate-100 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Customer</p>
-                      <p className="font-bold text-slate-900">{form.getValues('fullName') || 'Not provided'}</p>
-                      <p className="text-sm text-slate-500 mt-1">{form.getValues('phone') ? `${form.getValues('countryCode')}${form.getValues('phone')}` : 'No phone number yet'}</p>
-                    </div>
-                    <div className="rounded-[1.5rem] bg-slate-50 border border-slate-100 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Vehicle</p>
-                      <p className="font-bold text-slate-900">{form.getValues('vehicleBrand')} {form.getValues('vehicleModel')}</p>
-                      <p className="text-sm text-slate-500 mt-1">{form.getValues('vehicleType')} {form.getValues('vehicleNumber') ? `• ${form.getValues('vehicleNumber')}` : ''}</p>
-                    </div>
-                    <div className="rounded-[1.5rem] bg-slate-50 border border-slate-100 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Location</p>
-                      <p className="text-sm font-medium text-slate-700">{selectedLocation?.address}</p>
-                    </div>
-                    <div className="rounded-[1.5rem] bg-slate-50 border border-slate-100 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Problem summary</p>
-                      <p className="text-sm text-slate-700 leading-relaxed">{form.getValues('description')}</p>
-                    </div>
-                    {form.getValues('isEmergency') && (
-                      <div className="rounded-[1.5rem] bg-amber-50 border border-amber-200 p-5 flex items-start gap-3">
-                        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
-                        <p className="text-sm text-amber-800 leading-relaxed">This has been marked as urgent. We’ll prioritize the request where possible.</p>
-                      </div>
+                    {form.formState.errors.vehicleType && (
+                      <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{form.formState.errors.vehicleType.message}</p>
                     )}
                   </div>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
-          <aside className="space-y-10 xl:sticky xl:top-24 xl:self-start">
-            <div className="rounded-[2rem] bg-white border border-slate-100 shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <ShieldCheck className="w-5 h-5 text-blue-600" />
-                <h3 className="font-black text-slate-900">Booking summary</h3>
+                {/* Right Column: Make/Model, Description, Emergency & Controls */}
+                <div className="lg:col-span-6 space-y-5">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle Make / Model *</Label>
+                    <Input
+                      {...form.register('vehicleBrand')}
+                      placeholder="e.g. Toyota Corolla / Honda Civic / Ford F-150"
+                      className={`h-12 rounded-2xl font-semibold ${form.formState.errors.vehicleBrand ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'
+                        }`}
+                    />
+                    {form.formState.errors.vehicleBrand && (
+                      <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{form.formState.errors.vehicleBrand.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Problem Description *</Label>
+                    <Textarea
+                      {...form.register('description')}
+                      placeholder="Describe what happened, noise heard, warning lights, engine state..."
+                      className={`rounded-2xl min-h-[120px] font-semibold ${form.formState.errors.description ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'
+                        }`}
+                    />
+                    {form.formState.errors.description && (
+                      <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{form.formState.errors.description.message}</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl bg-amber-50/80 border border-amber-200 p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-black text-amber-900">Mark as Emergency Request?</p>
+                      <p className="text-[11px] text-amber-700 mt-0.5">Use this if your situation involves immediate personal danger or safety risk.</p>
+                    </div>
+                    <Switch
+                      checked={form.watch('isEmergency')}
+                      onCheckedChange={(c) => form.setValue('isEmergency', c, { shouldValidate: true, shouldDirty: true })}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-3 text-sm text-slate-600">
-                <div className="flex items-start gap-3"><User className="w-4 h-4 mt-0.5 text-slate-400" /><span>{form.watch('fullName') || 'Your name'}</span></div>
-                <div className="flex items-start gap-3"><Car className="w-4 h-4 mt-0.5 text-slate-400" /><span>{form.watch('vehicleBrand') || 'Vehicle brand'} {form.watch('vehicleModel') || ''}</span></div>
-                <div className="flex items-start gap-3"><MapPin className="w-4 h-4 mt-0.5 text-slate-400" /><span className="line-clamp-2">{selectedLocation?.address || 'Your current location'}</span></div>
-                <div className="flex items-start gap-3"><Clock3 className="w-4 h-4 mt-0.5 text-slate-400" /><span>{selectedServiceConfig ? estimateArrival(selectedServiceConfig) : 'Estimated arrival'}</span></div>
-                <div className="flex items-start gap-3"><Phone className="w-4 h-4 mt-0.5 text-slate-400" /><span>{form.watch('countryCode')}{form.watch('phone')}</span></div>
+            </motion.div>
+          )}
+
+          {/* STEP 2: CUSTOMER INFORMATION (2-COLUMN DESKTOP SPLIT) */}
+          {currentStep === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                  <User className="w-6 h-6 text-blue-600" />
+                  Step 2: Customer Information
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">Provide your contact details so eligible providers can reach you.</p>
               </div>
-            </div>
 
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div className="lg:col-span-6 space-y-5">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Full Name *</Label>
+                    <Input
+                      {...form.register('fullName')}
+                      placeholder="Alex Johnson"
+                      className={`h-12 rounded-2xl font-semibold ${form.formState.errors.fullName ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'
+                        }`}
+                    />
+                    {form.formState.errors.fullName && (
+                      <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{form.formState.errors.fullName.message}</p>
+                    )}
+                  </div>
 
-            <div className="flex flex-row gap-3 ">
-              <Button type="button" variant="outline" onClick={() => screen === 'confirm' ? setScreen('form') : navigate(-1)} className="flex-1 h-12 rounded-2xl font-black uppercase text-[10px] md:tracking-widest">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back
-              </Button>
-              {screen === 'form' ? (
-                <Button type="button" onClick={handleContinue} disabled={!isOnline} className="flex-1 h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[10px] md:tracking-widest disabled:opacity-50">
-                  Continue <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              ) : (
-                <Button type="button" disabled={isLoading || !isOnline} onClick={handleSubmit} className="flex-1 h-12 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase text-[10px] md:tracking-widest disabled:opacity-50">
-                  {isLoading ? 'Sending...' : 'Confirm'} <Check className="w-4 h-4 ml-2" />
-                </Button>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mobile Phone Number *</Label>
+                    <PhoneInputGroup
+                      countryCode={form.watch('countryCode')}
+                      phone={form.watch('phone')}
+                      onCountryCodeChange={(v) => form.setValue('countryCode', v, { shouldValidate: true, shouldDirty: true })}
+                      onPhoneChange={(v) => form.setValue('phone', v, { shouldValidate: true, shouldDirty: true })}
+                      error={!!form.formState.errors.phone}
+                    />
+                    {form.formState.errors.phone && (
+                      <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{form.formState.errors.phone.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-6 space-y-5">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Email Address *</Label>
+                    <Input
+                      {...form.register('email')}
+                      type="email"
+                      placeholder="you@example.com"
+                      className={`h-12 rounded-2xl font-semibold ${form.formState.errors.email ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200'
+                        }`}
+                    />
+                    {form.formState.errors.email && (
+                      <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{form.formState.errors.email.message}</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl bg-blue-50 border border-blue-100 p-5 text-xs text-blue-800 leading-relaxed space-y-2">
+                    <p className="font-black text-sm text-blue-900 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-600" />
+                      Privacy Guarantee
+                    </p>
+                    <p className="text-slate-600 font-medium">Your contact info is shared strictly with verified nearby providers submitting quotes for this active request.</p>
+                  </div>
+                </div>
+              </div>
+
+              {serviceRequestFormConfig && serviceRequestFormConfig.fields && serviceRequestFormConfig.fields.length > 0 && (
+                <div className="pt-6 border-t border-slate-200 mt-6 max-w-xl mx-auto">
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">Additional Details</h3>
+                  <DynamicFormFields fields={serviceRequestFormConfig.fields} form={form} />
+                </div>
               )}
-            </div>
-          </aside>
+            </motion.div>
+          )}
+
+          {/* STEP 3: LOCATION & ADDITIONAL INFORMATION (2-COLUMN DESKTOP SPLIT) */}
+          {currentStep === 3 && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                  <MapPin className="w-6 h-6 text-blue-600" />
+                  Step 3: Breakdown Location
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">Use GPS or click/drag the marker on the map to pinpoint your location.</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                {/* Map Column */}
+                <div className="lg:col-span-7 space-y-4">
+                  <LocationPicker onLocationSelect={setSelectedLocation} initialLocation={selectedLocation ?? undefined} />
+                </div>
+
+                {/* Address Info & Landmark Column */}
+                <div className="lg:col-span-5 space-y-6">
+                  <div className="rounded-2xl bg-slate-900 text-white p-6 space-y-2 shadow-lg">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Selected Address</p>
+                    <p className="text-sm font-medium leading-relaxed">
+                      {selectedLocation ? selectedLocation.address : 'Please tap the map or click GPS button.'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Additional Instructions / Landmarks (Optional)</Label>
+                    <Textarea
+                      {...form.register('notes')}
+                      placeholder="e.g. Parked near Exit 14, blue highway billboard overhead..."
+                      className="rounded-2xl min-h-[120px] bg-slate-50 border-slate-200 font-semibold"
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 4: CONFIRMATION & SUBMIT (2-COLUMN DESKTOP SPLIT) */}
+          {currentStep === 4 && (
+            <motion.div
+              key="step4"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                  <ShieldCheck className="w-6 h-6 text-green-600" />
+                  Step 4: Review & Confirm Request
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">Check all details below before broadcasting to service providers.</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div className="lg:col-span-6 space-y-4">
+                  <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5 space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Service Type
+                    </p>
+                    <p className="text-base font-black text-slate-900">{selectedServiceLabel}</p>
+                    {selectedServiceConfig && (
+                      <p className="text-xs font-bold text-blue-600">Base Price: {formatCurrency(selectedServiceConfig.basePrice)}</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5 space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                      <Car className="w-3.5 h-3.5 text-blue-600" /> Vehicle
+                    </p>
+                    <p className="text-base font-black text-slate-900">
+                      {form.getValues('vehicleType') || 'Car'} {form.getValues('vehicleBrand') ? `• ${form.getValues('vehicleBrand')}` : ''}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5 space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-blue-600" /> Customer Contact
+                    </p>
+                    <p className="text-base font-black text-slate-900">{form.getValues('fullName')}</p>
+                    <p className="text-xs text-slate-600">{form.getValues('countryCode')}{form.getValues('phone')}</p>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-6 space-y-4">
+                  <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5 space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-blue-600" /> Location
+                    </p>
+                    <p className="text-xs font-medium text-slate-800 line-clamp-2">{selectedLocation?.address}</p>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5 space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-blue-600" /> Problem Description
+                    </p>
+                    <p className="text-xs text-slate-700 leading-relaxed">{form.getValues('description')}</p>
+                  </div>
+
+                  {form.getValues('isEmergency') && (
+                    <div className="rounded-2xl bg-red-50 border border-red-200 p-4 text-xs font-bold text-red-800 flex items-center gap-3">
+                      <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                      High-priority emergency alert attached to this breakdown request.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* WIZARD ACTION BUTTONS */}
+        <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-between gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleBack}
+            className="h-12 px-6 rounded-xl font-black uppercase text-xs tracking-wider border-slate-200 hover:bg-slate-50"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            {currentStep === 1 ? 'Back to Home' : 'Back'}
+          </Button>
+          {currentStep < 4 ? (
+            <Button
+              type="button"
+              onClick={handleNext}
+              disabled={!isOnline}
+              className="h-12 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-xs tracking-widest shadow-lg shadow-blue-600/25"
+            >
+              Next Step <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleSubmitRequest}
+              disabled={isLoading || !isOnline}
+              className="h-12 px-8 rounded-xl bg-slate-900 hover:bg-black text-white font-black uppercase text-xs tracking-widest shadow-xl"
+            >
+              {isLoading ? 'Submitting...' : 'Submit Request Now'} <Check className="w-4 h-4 ml-2" />
+            </Button>
+          )}
         </div>
       </div>
     </div>
+  </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

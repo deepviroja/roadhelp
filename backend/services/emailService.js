@@ -166,27 +166,54 @@ async function sendRequestReceivedEmail({ to, fullName, loginLink }) {
   await sendEmail({ to, subject, text, html });
 }
 
+async function getEmailTemplate(key) {
+  try {
+    const db = admin.firestore();
+    const snap = await db.collection('system').doc('emailTemplates').get();
+    if (snap.exists) {
+      const data = snap.data();
+      if (data && data[key]) {
+        return data[key];
+      }
+    }
+  } catch (err) {
+    console.error(`Failed to fetch email template ${key} from Firestore:`, err);
+  }
+  return null;
+}
+
 async function sendOtpEmail({ to, otp, fullName, type = 'login' }) {
   const appName = await getAppName();
-  const subject = `Your ${appName} Verification Code`;
-  const actionText = type === 'signup' ? 'complete your registration' : 'sign in to your account';
-  const text = `Hi ${fullName || 'there'},\n\nYour 6-digit verification code is: ${otp}\n\nUse this code to ${actionText}. It is valid for 10 minutes.`;
+  const templateKey = type === 'signup' ? 'signupOtp' : 'loginOtp';
+  const customTemplate = await getEmailTemplate(templateKey);
 
-  const html = `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <h2 style="color: #2563eb; font-weight: 800; margin: 0;">${appName} Verification</h2>
-      </div>
-      <p style="font-size: 16px;">Hi ${fullName || 'there'},</p>
-      <p style="font-size: 14px; color: #475569;">Use the following 6-digit verification code to ${actionText}. This code is valid for 10 minutes.</p>
-      <div style="text-align: center; margin: 32px 0;">
-        <div style="display: inline-block; background-color: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 16px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #0f172a;">
-          ${otp}
+  let subject, html, text;
+
+  if (customTemplate && customTemplate.body) {
+    subject = customTemplate.subject || `Your ${appName} Verification Code`;
+    html = customTemplate.body.replace(/\{\{otp\}\}/g, otp);
+    text = html.replace(/<[^>]*>?/gm, ''); // simple strip tags
+  } else {
+    subject = `Your ${appName} Verification Code`;
+    const actionText = type === 'signup' ? 'complete your registration' : 'sign in to your account';
+    text = `Hi ${fullName || 'there'},\n\nYour 6-digit verification code is: ${otp}\n\nUse this code to ${actionText}. It is valid for 10 minutes.`;
+
+    html = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #2563eb; font-weight: 800; margin: 0;">${appName} Verification</h2>
         </div>
+        <p style="font-size: 16px;">Hi ${fullName || 'there'},</p>
+        <p style="font-size: 14px; color: #475569;">Use the following 6-digit verification code to ${actionText}. This code is valid for 10 minutes.</p>
+        <div style="text-align: center; margin: 32px 0;">
+          <div style="display: inline-block; background-color: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 16px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #0f172a;">
+            ${otp}
+          </div>
+        </div>
+        <p style="font-size: 12px; color: #94a3b8; text-align: center;">If you did not make this request, please ignore this email.</p>
       </div>
-      <p style="font-size: 12px; color: #94a3b8; text-align: center;">If you did not make this request, please ignore this email.</p>
-    </div>
-  `;
+    `;
+  }
 
   await sendEmail({ to, subject, text, html });
 }

@@ -20,12 +20,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Logo } from '@/components/shared/Logo';
+import { Footer } from '@/components/layout/Footer';
 import { useServices } from '@/hooks/useServices';
 import { IconRenderer } from '@/components/shared/IconRenderer';
 import { getServiceLabel } from '@/lib/utils';
 import { db } from '@/config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useSystemStore } from '@/stores/systemStore';
+
 
 const TRUST_BADGES = [
   { icon: Clock3, label: 'Fast arrival', desc: 'Average response in under 30 minutes' },
@@ -142,9 +144,17 @@ export default function Landing() {
       description: issue || customIssue,
       notes: issue || customIssue,
     };
-    sessionStorage.setItem('roadhelp:guestRequestDraft', JSON.stringify(draft));
-    navigate(serviceType ? `/get-help?service=${encodeURIComponent(serviceType)}` : '/get-help');
+    const problemText = (issue || customIssue).trim();
+    const problemParam = problemText ? `&problem=${encodeURIComponent(problemText)}` : '';
+    navigate(
+      serviceType
+        ? `/get-help?service=${encodeURIComponent(serviceType)}${problemParam}`
+        : problemText
+        ? `/get-help?problem=${encodeURIComponent(problemText)}`
+        : '/get-help'
+    );
   };
+
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -189,9 +199,9 @@ export default function Landing() {
               <Zap className="w-4 h-4 text-cyan-300" strokeWidth={3} />
               {appName}, ready when your day changes course
             </div>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[0.95] mb-6 max-w-4xl">
-              <span className="block">{config?.heroHeadline || 'Roadside help'}</span>
-              <span className="block text-cyan-300">{config?.heroSubheadline || 'without the stress.'}</span>
+            <h1 className=" font-black tracking-tight leading-[0.95] mb-6 max-w-4xl">
+              <span className="text-4xl  block">{config?.heroHeadline || 'Roadside help'}</span>
+              <span className="text-4xl  block text-cyan-300">{config?.heroSubheadline || 'without the stress.'}</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-300 mb-10 font-medium leading-relaxed max-w-2xl">
               Choose the issue, share your location, and get matched with a verified provider in a few simple steps.
@@ -204,8 +214,9 @@ export default function Landing() {
                 </Link>
               </Button>
               <Button size="lg" variant="outline" className="h-14 px-8 text-base font-black border-white/20 text-white hover:bg-white/10 bg-transparent rounded-full backdrop-blur-md transition-all tracking-widest" asChild>
-                <a href="#services">Browse services</a>
+                <Link to="/services">Browse services</Link>
               </Button>
+
             </div>
           </motion.div>
 
@@ -250,7 +261,7 @@ export default function Landing() {
             <p className="text-base md:text-lg text-slate-500 mt-5 font-medium leading-relaxed">We keep the list short, clear, and focused on the most common roadside problems. If your issue is different, add a short note and we’ll handle it from there.</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.9fr] gap-8 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.9fr] gap-8 items-center">
             <div>
               <div className="flex flex-col sm:flex-row gap-3 mb-6">
                 <div className="relative flex-1">
@@ -400,38 +411,11 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="py-20 md:py-28 border-t border-slate-100 bg-[#F5F5F6]">
-        <div className="max-w-7xl mx-auto px-6  lg:px-8">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-10 mb-16">
-            <Logo size="lg" />
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-x-10 gap-y-8 text-center md:text-left">
-              {[
-                { label: 'How it works', href: '/#how-it-works' },
-                { label: 'Our Services', href: '/#services' },
-                { label: 'Privacy Policy', href: '/privacy' },
-                { label: 'Terms of Service', href: '/terms' },
-                { label: 'Create account', href: '/signup' },
-              ].map((l) => (
-                <a key={l.label} href={l.href} className="text-[10px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-[0.2em] transition-all whitespace-nowrap">{l.label}</a>
-              ))}
-            </div>
-            <div className="flex gap-4">
-              {[Twitter, Instagram, Facebook].map((Icon, i) => (
-                <a key={i} href="#" className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white shadow-sm transition-all" aria-label="Social link">
-                  <Icon className="w-5 h-5" />
-                </a>
-              ))}
-            </div>
-          </div>
-          <div className="text-center pt-10 border-t border-slate-200/50">
-            <p className="text-[11px] font-black text-slate-300 uppercase tracking-[0.4em] leading-relaxed">© 2026 {appName.toUpperCase()} CORP.</p>
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] leading-relaxed mt-2">Demo environment. No real roadside services are dispatched here.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
+
 
 
 

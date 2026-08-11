@@ -328,7 +328,8 @@ export default function PublicTrackRequest() {
                   className="h-16 w-full rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm tracking-widest shadow-lg shadow-green-600/40 transform hover:scale-105 transition-all" 
                   onClick={() => setShowCompletionConfirm(true)}
                 >
-                  SETTLE PROTOCOL — {formatCurrency(request.finalPrice || request.estimatedPrice)}
+                  PAYMENT DETAILS — {formatCurrency(request.finalPrice || request.estimatedPrice)}
+
                 </Button>
               )}
             </div>

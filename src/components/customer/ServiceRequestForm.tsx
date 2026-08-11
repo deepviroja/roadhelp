@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, ShieldCheck, Car, Search, Clock3, ArrowRight, Check, Phone } from 'lucide-react';
+import { MapPin, ShieldCheck, Car, Search, Clock3, ArrowRight, Check, Phone, UserCheck } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { doc, getDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,7 @@ import { useServiceRequest } from '@/hooks/useServiceRequest';
 import { GeoLocation, ServiceTypeConfig } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { useServices } from '@/hooks/useServices';
+import { db } from '@/config/firebase';
 
 function estimateArrival(service: ServiceTypeConfig | null) {
   if (!service) return '15-25 min';
@@ -28,11 +30,36 @@ export function ServiceRequestForm() {
   const [selectedService, setSelectedService] = useState<ServiceTypeConfig | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<GeoLocation | null>(null);
   const [serviceSearch, setServiceSearch] = useState('');
+  const [directedProvider, setDirectedProvider] = useState<any>(null);
   const { services } = useServices();
   const displayServices = services.filter((s) => s.isActive ?? true);
   const { profile } = useAuth();
   const { createRequest, isLoading } = useServiceRequest();
   const navigate = useNavigate();
+
+  // Load directed provider and auto-select service type if present in URL query parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const serviceType = params.get('service');
+    const providerId = params.get('providerId');
+
+    if (serviceType && services.length > 0) {
+      const found = services.find((s) => s.id === serviceType);
+      if (found) {
+        setSelectedService(found);
+      }
+    }
+
+    if (providerId) {
+      getDoc(doc(db, 'users', providerId))
+        .then((snap) => {
+          if (snap.exists()) {
+            setDirectedProvider({ uid: snap.id, ...snap.data() });
+          }
+        })
+        .catch((err) => console.warn('Could not load directed provider details:', err));
+    }
+  }, [services]);
 
   const form = useForm<ServiceRequestFormData>({
     mode: 'onChange',
@@ -48,6 +75,15 @@ export function ServiceRequestForm() {
       locationDetails: '',
     },
   });
+
+  // Keep form value in sync when selectedService changes
+  useEffect(() => {
+    if (selectedService) {
+      form.setValue('serviceType', selectedService.id, { shouldValidate: true });
+    } else {
+      form.setValue('serviceType', '', { shouldValidate: true });
+    }
+  }, [selectedService, form]);
 
   const filteredServices = useMemo(() => {
     const query = serviceSearch.trim().toLowerCase();
@@ -96,9 +132,21 @@ export function ServiceRequestForm() {
         },
         customerLocation: selectedLocation,
         estimatedPrice: selectedService.basePrice,
+        // Pre-assign provider if directed request
+        ...(directedProvider ? {
+          providerId: directedProvider.uid,
+          providerName: directedProvider.fullName,
+          providerPhone: directedProvider.phone || '',
+          providerRating: directedProvider.rating || 5,
+          providerVehicleNumber: directedProvider.vehicleNumber || '',
+        } : {}),
       });
 
-      toast.success('Request submitted. We are looking for a nearby provider now.');
+      toast.success(
+        directedProvider
+          ? `Request sent to ${directedProvider.fullName}! Awaiting their response.`
+          : 'Request submitted. We are looking for a nearby provider now.'
+      );
       navigate(`/customer/track/${requestId}`);
     } catch {
       toast.error('We could not submit your request. Please try again.');
@@ -123,6 +171,20 @@ export function ServiceRequestForm() {
       </AnimatePresence>
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8 space-y-8">
+        {directedProvider && (
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white shrink-0">
+              <UserCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase text-blue-500 tracking-wider">Direct Assignment</p>
+              <p className="text-sm font-black text-slate-800">
+                You are requesting help from <span className="text-blue-600">{directedProvider.fullName}</span>.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-600 mb-2">New request</p>
           <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Choose the service and share the details.</h2>

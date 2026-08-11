@@ -1,12 +1,29 @@
-﻿import { useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { useRef, useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { MapPin, Navigation, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { GeoLocation } from '@/types';
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
+import { reverseGeocodeAddress } from '@/lib/mapService';
 import '@/lib/leaflet-setup';
+
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 100);
+    const t2 = setTimeout(() => map.invalidateSize(), 350);
+    const t3 = setTimeout(() => map.invalidateSize(), 700);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [map]);
+  return null;
+}
 
 interface LocationPickerProps {
   onLocationSelect: (location: GeoLocation) => void;
@@ -17,17 +34,8 @@ function MapClickHandler({ onLocationSelect }: { onLocationSelect: (loc: GeoLoca
   useMapEvents({
     click: async (e) => {
       const { lat, lng } = e.latlng;
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-        const data = await res.json();
-        onLocationSelect({
-          lat,
-          lng,
-          address: data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-        });
-      } catch {
-        onLocationSelect({ lat, lng, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}` });
-      }
+      const address = await reverseGeocodeAddress(lat, lng);
+      onLocationSelect({ lat, lng, address });
     },
   });
   return null;
@@ -63,20 +71,10 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-          const data = await res.json();
-          const loc: GeoLocation = {
-            lat,
-            lng,
-            address: data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-          };
-          handleLocationSelect(loc);
-          mapRef.current?.flyTo([lat, lng], DEFAULT_MAP_ZOOM);
-        } catch {
-          handleLocationSelect({ lat, lng, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}` });
-          mapRef.current?.flyTo([lat, lng], DEFAULT_MAP_ZOOM);
-        }
+        const address = await reverseGeocodeAddress(lat, lng);
+        const loc: GeoLocation = { lat, lng, address };
+        handleLocationSelect(loc);
+        mapRef.current?.flyTo([lat, lng], DEFAULT_MAP_ZOOM);
         setIsGettingLocation(false);
       },
       (err) => {
@@ -84,7 +82,7 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
         if (err.code === 1) {
           toast.error('Location permission denied. Please enable location services in your browser settings.');
         } else {
-          toast.error('Unable to retrieve location. Please check your signal or select manually.');
+          toast.error('Unable to retrieve GPS location. Please select manually on the map.');
         }
       },
       { enableHighAccuracy: true, timeout: 10000 }
@@ -92,35 +90,40 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
   };
 
   return (
-    <div className="space-y-4 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row items-center gap-4 px-4 py-3 bg-white/50 backdrop-blur-md border-b border-slate-100 relative z-20">
+    <div className="space-y-0 w-full h-[400px] sm:h-[480px] flex flex-col rounded-3xl overflow-hidden border border-slate-200 shadow-lg">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 bg-slate-900 text-white relative z-20 shrink-0">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-200">
+            TAP OR DRAG MARKER ON MAP TO SET ADDRESS
+          </p>
+        </div>
         <Button
           type="button"
           variant="outline"
           onClick={handleGetCurrentLocation}
           disabled={isGettingLocation}
-          className="h-10 px-6 rounded-xl border-blue-200 text-blue-600 hover:bg-blue-50 font-bold text-xs tracking-widest shadow-sm active:scale-95 transition-all w-full sm:w-auto"
+          className="h-9 px-4 rounded-xl bg-blue-600 border-blue-500 text-white hover:bg-blue-700 font-black text-[10px] tracking-widest shadow-sm active:scale-95 transition-all w-full sm:w-auto"
         >
-          {isGettingLocation ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Navigation className="w-4 h-4 mr-2" />}
+          {isGettingLocation ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Navigation className="w-3.5 h-3.5 mr-2" />}
           {isGettingLocation ? 'SYNCING GPS...' : 'USE MY LOCATION'}
         </Button>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-          <MapPin className="w-3.5 h-3.5 text-blue-500" />
-          MANUAL OVERRIDE: CLICK ANYWHERE ON MAP
-        </p>
       </div>
 
-      <div className="flex-1 min-h-[400px] md:min-h-[500px] relative z-0">
+      <div className="flex-1 w-full h-full relative z-0 overflow-hidden">
         <MapContainer
           center={initialLocation ? [initialLocation.lat, initialLocation.lng] : [DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng]}
           zoom={DEFAULT_MAP_ZOOM}
-          style={{ height: '100%', width: '100%' }}
+          style={{ height: '100%', width: '100%', minHeight: '350px' }}
           ref={mapRef}
         >
+
+          <MapResizer />
           <TileLayer
             attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+
           <MapClickHandler onLocationSelect={handleLocationSelect} />
           {selectedLocation && (
             <Marker
@@ -131,17 +134,8 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
                 dragend: async (e) => {
                   const marker = e.target as L.Marker;
                   const { lat, lng } = marker.getLatLng();
-                  try {
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-                    const data = await res.json();
-                    handleLocationSelect({
-                      lat,
-                      lng,
-                      address: data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-                    });
-                  } catch {
-                    handleLocationSelect({ lat, lng, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}` });
-                  }
+                  const address = await reverseGeocodeAddress(lat, lng);
+                  handleLocationSelect({ lat, lng, address });
                 },
               }}
             />
@@ -151,3 +145,4 @@ export function LocationPicker({ onLocationSelect, initialLocation }: LocationPi
     </div>
   );
 }
+

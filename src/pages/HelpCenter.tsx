@@ -35,7 +35,8 @@ export default function HelpCenter() {
               <div className="max-w-2xl mx-auto relative group">
                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                  <Input 
-                   placeholder="SEARCH PROTOCOLS..." 
+                   placeholder="Search help topics & articles..." 
+
                    className="h-20 pl-16 rounded-[2rem] border-2 border-slate-100 bg-white shadow-premium text-lg font-bold placeholder:text-slate-300 focus:border-blue-600 transition-all"
                  />
               </div>

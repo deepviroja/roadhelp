@@ -5,7 +5,7 @@ import { SignupForm } from '@/components/auth/SignupForm';
 import { useSystemStore } from '@/stores/systemStore';
 
 export default function Signup() {
-  const { appName } = useSystemStore();
+  const { appName, pageContent } = useSystemStore();
   return (
     <div className="flex-1 bg-[#F5F5F6] flex items-center justify-center p-6 sm:p-12 overflow-hidden relative">
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-3xl -mr-64 -mt-64" />
@@ -21,7 +21,9 @@ export default function Signup() {
           <div className="text-center mb-14">
             <Logo size="lg" className="justify-center mb-10" />
             <h1 className="text-fluid-3xl font-black text-[#1A1A2E] tracking-tighter leading-none mb-4">Create your account</h1>
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.35em] italic">Join {appName} for faster help and a smoother booking flow</p>
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.35em] italic">
+              {pageContent?.authSignupText || `Join ${appName} for faster help and a smoother booking flow`}
+            </p>
           </div>
 
           <SignupForm />

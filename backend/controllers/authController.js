@@ -1,6 +1,7 @@
 const admin = require('../config/firebase');
 const crypto = require('crypto');
 const { getFrontendUrl, sendPasswordResetEmail, sendOtpEmail } = require('../services/emailService');
+const { createLocalCustomToken } = require('../utils/localToken');
 
 const db = admin.firestore();
 const auth = admin.auth();
@@ -141,11 +142,51 @@ exports.loginRequest = async (req, res) => {
 
     let resAuth;
     try {
-      resAuth = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
+      const https = require('https');
+      const bodyStr = JSON.stringify({ email, password, returnSecureToken: true });
+      const apiEndpoint = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
+      const urlObj = new URL(apiEndpoint);
+
+      const requestOptions = {
+        hostname: urlObj.hostname,
+        port: 443,
+        path: urlObj.pathname + urlObj.search,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, returnSecureToken: true }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(bodyStr),
+        },
+        timeout: 10000,
+      };
+
+      const responsePromise = new Promise((resolve, reject) => {
+        const req = https.request(requestOptions, (response) => {
+          let responseData = '';
+          response.on('data', (chunk) => { responseData += chunk; });
+          response.on('end', () => {
+            resolve({
+              ok: response.statusCode >= 200 && response.statusCode < 300,
+              status: response.statusCode,
+              json: async () => {
+                try {
+                  return JSON.parse(responseData);
+                } catch {
+                  return {};
+                }
+              },
+            });
+          });
+        });
+        req.on('error', (err) => { reject(err); });
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Connect Timeout Error'));
+        });
+        req.write(bodyStr);
+        req.end();
       });
+
+      resAuth = await responsePromise;
     } catch (networkError) {
       console.error('Authentication network error:', networkError);
       return res.status(503).json({
@@ -175,7 +216,7 @@ exports.loginRequest = async (req, res) => {
     // Wait, standard login requires OTP challenge always. Guest links bypass OTP via direct token login (/magic-login).
     // So bypassOtp option is disabled or restricted on backend. We only allow bypass if explicitly flagged and they are guest.
     if (bypassOtp && userProfile.isGuest) {
-      const customToken = await auth.createCustomToken(uid);
+      const customToken = createLocalCustomToken(uid);
       return res.status(200).json({ success: true, verified: true, token: customToken });
     }
 
@@ -245,7 +286,7 @@ exports.verifyLoginOtp = async (req, res) => {
     await db.collection('pendingOtps').doc(`login_${cleanEmail}`).delete();
 
     // Create Firebase Custom Auth Token
-    const customToken = await auth.createCustomToken(otpData.uid);
+    const customToken = createLocalCustomToken(otpData.uid);
     res.status(200).json({ success: true, token: customToken });
   } catch (error) {
     console.error('Verify login OTP error:', error);
@@ -265,10 +306,33 @@ exports.signupOtp = async (req, res) => {
 
     // Check if user already exists in Firebase Auth
     try {
-      await auth.getUserByEmail(cleanEmail);
-      return res.status(400).json({ success: false, message: 'That email is already exists. SignIn to access your account' });
+      const existingUser = await auth.getUserByEmail(cleanEmail);
+
+      // Check if this auth user has a real Firestore profile.
+      // If not, it's an orphaned/partial account (e.g. from a previous failed signup).
+      // Safe to delete and allow re-registration.
+      const profileSnap = await db.collection('users').doc(existingUser.uid).get();
+      if (!profileSnap.exists) {
+        // Stale auth record with no profile — clean up and let them re-register
+        console.warn(`[signupOtp] Deleting orphaned auth user: ${existingUser.uid} (${cleanEmail})`);
+        try {
+          await auth.deleteUser(existingUser.uid);
+        } catch (delErr) {
+          console.error('[signupOtp] Could not delete orphaned auth user:', delErr);
+          // Don't block signup even if delete fails
+        }
+        // Also clean any stale pending OTP
+        await db.collection('pendingOtps').doc(`signup_${cleanEmail}`).delete().catch(() => {});
+      } else {
+        // Genuine existing account with a profile
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this email already exists. Please sign in instead.'
+        });
+      }
     } catch (err) {
       if (err.code !== 'auth/user-not-found') throw err;
+      // User not found = good, proceed with signup
     }
 
     // Generate 6-digit OTP (10 minute expiry)
@@ -397,7 +461,7 @@ exports.verifySignupOtp = async (req, res) => {
     await db.collection('pendingOtps').doc(`signup_${cleanEmail}`).delete();
 
     // Create Firebase Custom Auth Token
-    const customToken = await auth.createCustomToken(userRecord.uid);
+    const customToken = createLocalCustomToken(userRecord.uid);
     res.status(200).json({ success: true, token: customToken });
   } catch (error) {
     console.error('Verify signup OTP error:', error);
@@ -429,11 +493,56 @@ exports.verifyMagicToken = async (req, res) => {
     }
 
     const userRecord = await auth.getUserByEmail(tokenData.email);
-    const customToken = await auth.createCustomToken(userRecord.uid);
+    const customToken = createLocalCustomToken(userRecord.uid);
 
     res.status(200).json({ success: true, token: customToken });
   } catch (error) {
     console.error('Verify magic token error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 8. Create Admin (only callable by Super Admins)
+exports.createAdmin = async (req, res) => {
+  try {
+    const { email, password, fullName, permissions } = req.body;
+    if (!email || !password || !fullName) {
+      return res.status(400).json({ success: false, message: 'Email, password, and fullName are required' });
+    }
+
+    // Verify caller is superadmin (enforced via middleware)
+    if (req.userProfile?.role !== 'admin' || !req.userProfile?.permissions?.includes('all')) {
+      return res.status(403).json({ success: false, message: 'Only superadmins can create new admins' });
+    }
+
+    let userRecord;
+    try {
+      userRecord = await auth.createUser({
+        email: email.trim().toLowerCase(),
+        password: password,
+        displayName: fullName,
+      });
+    } catch (err) {
+      if (err.code === 'auth/email-already-in-use') {
+        return res.status(400).json({ success: false, message: 'That email is already in use.' });
+      }
+      throw err;
+    }
+
+    const adminProfile = {
+      uid: userRecord.uid,
+      email: email.trim().toLowerCase(),
+      fullName,
+      role: 'admin',
+      permissions: permissions || [],
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await db.collection('users').doc(userRecord.uid).set(adminProfile);
+
+    res.status(201).json({ success: true, message: 'Admin created successfully', uid: userRecord.uid });
+  } catch (error) {
+    console.error('Create Admin error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

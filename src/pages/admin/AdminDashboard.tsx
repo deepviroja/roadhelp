@@ -94,8 +94,8 @@ export default function AdminDashboard() {
       >
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
           <div>
-            <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight leading-none mb-2">Global Command</h1>
-            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">{appName} Central Intelligence Terminal</p>
+            <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight leading-none mb-2">Dashboard</h1>
+            <p className="text-slate-500 font-medium text-xs mt-1">Manage your platform from here.</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="px-6 py-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
@@ -201,21 +201,21 @@ export default function AdminDashboard() {
                       <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-600/30">
                         <Activity className="w-5 h-5" />
                       </div>
-                      <h2 className="text-lg font-black tracking-tight uppercase">Operational Logs</h2>
+                      <h2 className="text-lg font-black tracking-tight uppercase">Recent Requests</h2>
                     </div>
                     <Button variant="ghost" asChild className="rounded-xl h-10 px-4 font-bold uppercase text-[9px] tracking-widest text-slate-500 hover:text-blue-600">
-                      <Link to="/admin/requests">Full Archives</Link>
+                      <Link to="/admin/requests">View all</Link>
                     </Button>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-100">
-                          <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Protocol ID</th>
-                          <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Subject</th>
-                          <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Mission Type</th>
+                          <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Request ID</th>
+                          <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Customer</th>
+                          <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Service</th>
                           <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
-                          <th className="px-6 py-4 text-right text-[9px] font-bold text-slate-500 uppercase tracking-widest">Yield</th>
+                          <th className="px-6 py-4 text-right text-[9px] font-bold text-slate-500 uppercase tracking-widest">Amount</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -259,8 +259,8 @@ export default function AdminDashboard() {
 
             <div className="mt-10">
               <PageHeader
-                title="Mission Feedback"
-                subtitle="Recent customer ratings and intelligence reports"
+                title="Customer Ratings"
+                subtitle="Recent ratings and feedback from customers"
               />
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                 {recentRequests.filter(r => r.rating).slice(0, 6).map((req) => (
@@ -299,7 +299,7 @@ export default function AdminDashboard() {
                 {recentRequests.filter(r => r.rating).length === 0 && (
                   <div className="col-span-full py-24 bg-white rounded-3xl border-2 border-dashed border-slate-100 flex flex-col items-center">
                     <Star className="w-12 h-12 text-slate-200 mb-4" />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No active feedback telemetry detected</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No ratings yet</p>
                   </div>
                 )}
               </div>

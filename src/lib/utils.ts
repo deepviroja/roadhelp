@@ -39,35 +39,58 @@ export function formatDate(date: Date | { toDate: () => Date } | unknown): strin
   }).format(d);
 }
 
-export function getStatusColor(status: RequestStatus): string {
-  const colors: Record<RequestStatus, string> = {
-    pending: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+export function normalizeStatus(status: string): RequestStatus {
+  const legacyMap: Record<string, RequestStatus> = {
+    pending: 'submitted',
+    bidding: 'offers_received',
+    arriving: 'provider_en_route',
+    inProgress: 'in_progress',
+  };
+  return (legacyMap[status] || status) as RequestStatus;
+}
+
+export function getStatusColor(rawStatus: RequestStatus): string {
+  const status = normalizeStatus(rawStatus);
+  const colors: Record<string, string> = {
+    draft: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
+    submitted: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+    searching_providers: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+    offers_received: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+    provider_selected: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
     accepted: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-    arriving: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
-    inProgress: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+    provider_en_route: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+    provider_arrived: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    in_progress: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
     completed: 'bg-green-500/10 text-green-600 border-green-500/20',
     cancelled: 'bg-red-500/10 text-red-600 border-red-500/20',
-    bidding: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+    expired: 'bg-gray-500/10 text-gray-600 border-gray-500/20',
     pendingUserApproval: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
   };
 
   return colors[status] || 'bg-gray-500/10 text-gray-600 border-gray-500/20';
 }
 
-export function getStatusLabel(status: RequestStatus): string {
-  const labels: Record<RequestStatus, string> = {
-    pending: 'Pending',
-    accepted: 'Accepted',
-    arriving: 'Provider Arriving',
-    inProgress: 'In Progress',
+export function getStatusLabel(rawStatus: RequestStatus): string {
+  const status = normalizeStatus(rawStatus);
+  const labels: Record<string, string> = {
+    draft: 'Draft',
+    submitted: 'Request Submitted',
+    searching_providers: 'Searching Nearby Providers',
+    offers_received: 'Offers Received',
+    provider_selected: 'Provider Selected',
+    accepted: 'Provider Assigned',
+    provider_en_route: 'Provider En Route',
+    provider_arrived: 'Provider Arrived',
+    in_progress: 'Work In Progress',
     completed: 'Completed',
     cancelled: 'Cancelled',
-    bidding: 'Bidding in Progress',
+    expired: 'Request Expired',
     pendingUserApproval: 'Pending Customer Approval',
   };
 
   return labels[status] || status;
 }
+
 
 export function getServiceLabel(type: ServiceType): string {
   const labels: Record<ServiceType, string> = {

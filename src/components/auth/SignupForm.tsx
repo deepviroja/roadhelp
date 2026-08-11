@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2, ShieldCheck, Truck, UserPlus, LocateFixed, ShieldAlert } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ShieldCheck, Truck, UserPlus, LocateFixed, ShieldAlert, MapPin } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -21,11 +21,18 @@ import { useAuth } from '@/hooks/useAuth';
 import { useServices } from '@/hooks/useServices';
 import { PhoneInputGroup } from '@/components/ui/phone-input';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { LocationPicker } from '@/components/map/LocationPicker';
+import { reverseGeocodeAddress } from '@/lib/mapService';
+import { useFormBuilder } from '@/hooks/useFormBuilder';
+import { DynamicFormFields } from '@/components/shared/DynamicFormFields';
 
 export function SignupForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<'customer' | 'provider'>('customer');
+  const [showProviderMapPicker, setShowProviderMapPicker] = useState(false);
+  const [providerAddressName, setProviderAddressName] = useState('');
   const navigate = useNavigate();
+
 
   const { services, isLoading: isServicesLoading } = useServices();
   const {
@@ -35,6 +42,10 @@ export function SignupForm() {
     error: geoError,
     getCurrentLocation,
   } = useGeolocation();
+
+  const { config: customerFormConfig } = useFormBuilder('customerSignup');
+  const { config: providerFormConfig } = useFormBuilder('providerSignup');
+
   // OTP Verification States
   const [showOtpDialog, setShowOtpDialog] = useState(false);
   const [isRequestingOtp, setIsRequestingOtp] = useState(false);
@@ -88,7 +99,7 @@ export function SignupForm() {
       countryCode: '+91',
       phone: '',
       businessHours: 'Mon - Sat, 9:00 AM - 8:00 PM',
-      serviceRadiusKm: 25,
+      serviceRadiusKm: '' as any,
       vehicleNumber: '',
     },
   });
@@ -212,6 +223,16 @@ export function SignupForm() {
 
   const errorClass = (err: unknown) => (err ? 'border-red-500 ring-red-100 bg-red-50' : 'bg-slate-50 border-slate-100 focus:bg-white');
 
+  const scrollToFirstError = () => {
+    setTimeout(() => {
+      const firstError = document.querySelector('.border-red-500, [aria-invalid="true"]');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (firstError as HTMLElement).focus?.();
+      }
+    }, 100);
+  };
+
   return (
     <div className="w-full">
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'customer' | 'provider')} className="space-y-8">
@@ -221,7 +242,8 @@ export function SignupForm() {
         </TabsList>
 
         <TabsContent value="customer" className="mt-0">
-          <form onSubmit={customerForm.handleSubmit(onCustomerSubmit)} className="space-y-8">
+          <form onSubmit={customerForm.handleSubmit(onCustomerSubmit, scrollToFirstError)} className="space-y-8">
+
             <input type="hidden" {...customerForm.register('role')} />
 
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 space-y-6">
@@ -230,45 +252,49 @@ export function SignupForm() {
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">Create your account</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1.5 px-0.5">
-                  <Label htmlFor="fullName-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Full name</Label>
-                  <Input id="fullName-c" placeholder="John Doe" {...customerForm.register('fullName')} className={`h-12 rounded-2xl font-bold ${errorClass(customerForm.formState.errors.fullName)}`} />
-                  {customerForm.formState.errors.fullName && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.fullName.message}</p>}
-                </div>
-                <div className="space-y-1.5 px-0.5">
-                  <Label htmlFor="email-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email address</Label>
-                  <Input id="email-c" type="email" placeholder="you@example.com" {...customerForm.register('email')} className={`h-12 rounded-2xl font-bold ${errorClass(customerForm.formState.errors.email)}`} />
-                  {customerForm.formState.errors.email && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.email.message}</p>}
-                </div>
-                <div className="space-y-1.5 px-0.5 md:col-span-2">
-                  <Label htmlFor="phone-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Mobile number</Label>
-                  <PhoneInputGroup
-                    countryCode={customerForm.watch('countryCode')}
-                    phone={customerForm.watch('phone')}
-                    onCountryCodeChange={(v) => customerForm.setValue('countryCode', v, { shouldValidate: true, shouldDirty: true })}
-                    onPhoneChange={(v) => customerForm.setValue('phone', v, { shouldValidate: true, shouldDirty: true })}
-                    error={!!customerForm.formState.errors.phone}
-                  />
-                  {customerForm.formState.errors.phone && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.phone.message}</p>}
-                </div>
-
-                <div className="space-y-1.5 px-0.5">
-                  <Label htmlFor="password-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Password</Label>
-                  <div className="relative">
-                    <Input id="password-c" type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...customerForm.register('password')} className={`h-12 rounded-2xl font-bold pr-14 ${errorClass(customerForm.formState.errors.password)}`} />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors">
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
+              {customerFormConfig && customerFormConfig.fields && customerFormConfig.fields.length > 0 ? (
+                <DynamicFormFields fields={customerFormConfig.fields} form={customerForm} />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5 px-0.5">
+                    <Label htmlFor="fullName-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Full name</Label>
+                    <Input id="fullName-c" placeholder="John Doe" {...customerForm.register('fullName')} className={`h-12 rounded-2xl font-bold ${errorClass(customerForm.formState.errors.fullName)}`} />
+                    {customerForm.formState.errors.fullName && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.fullName.message}</p>}
                   </div>
-                  {customerForm.formState.errors.password && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.password.message}</p>}
+                  <div className="space-y-1.5 px-0.5">
+                    <Label htmlFor="email-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email address</Label>
+                    <Input id="email-c" type="email" placeholder="you@example.com" {...customerForm.register('email')} className={`h-12 rounded-2xl font-bold ${errorClass(customerForm.formState.errors.email)}`} />
+                    {customerForm.formState.errors.email && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.email.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 px-0.5 md:col-span-2">
+                    <Label htmlFor="phone-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Mobile number</Label>
+                    <PhoneInputGroup
+                      countryCode={customerForm.watch('countryCode')}
+                      phone={customerForm.watch('phone')}
+                      onCountryCodeChange={(v) => customerForm.setValue('countryCode', v, { shouldValidate: true, shouldDirty: true })}
+                      onPhoneChange={(v) => customerForm.setValue('phone', v, { shouldValidate: true, shouldDirty: true })}
+                      error={!!customerForm.formState.errors.phone}
+                    />
+                    {customerForm.formState.errors.phone && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.phone.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5 px-0.5">
+                    <Label htmlFor="password-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Password</Label>
+                    <div className="relative">
+                      <Input id="password-c" type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...customerForm.register('password')} className={`h-12 rounded-2xl font-bold pr-14 ${errorClass(customerForm.formState.errors.password)}`} />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors">
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    {customerForm.formState.errors.password && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.password.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 px-0.5">
+                    <Label htmlFor="confirmPassword-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Confirm password</Label>
+                    <Input id="confirmPassword-c" type="password" placeholder="••••••••" {...customerForm.register('confirmPassword')} className={`h-12 rounded-2xl font-bold ${errorClass(customerForm.formState.errors.confirmPassword)}`} />
+                    {customerForm.formState.errors.confirmPassword && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.confirmPassword.message}</p>}
+                  </div>
                 </div>
-                <div className="space-y-1.5 px-0.5">
-                  <Label htmlFor="confirmPassword-c" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Confirm password</Label>
-                  <Input id="confirmPassword-c" type="password" placeholder="••••••••" {...customerForm.register('confirmPassword')} className={`h-12 rounded-2xl font-bold ${errorClass(customerForm.formState.errors.confirmPassword)}`} />
-                  {customerForm.formState.errors.confirmPassword && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{customerForm.formState.errors.confirmPassword.message}</p>}
-                </div>
-               </div>
+              )}
             </div>
 
             <Button type="submit" size="lg" className="w-full h-16 rounded-[1.5rem] bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-2xl shadow-blue-600/20 group transform active:scale-[0.98] transition-all" disabled={isRequestingOtp}>
@@ -282,7 +308,8 @@ export function SignupForm() {
         </TabsContent>
 
         <TabsContent value="provider" className="mt-0">
-          <form onSubmit={providerForm.handleSubmit(onProviderSubmit)} className="space-y-8">
+          <form onSubmit={providerForm.handleSubmit(onProviderSubmit, scrollToFirstError)} className="space-y-8">
+
             <input type="hidden" {...providerForm.register('role')} />
 
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 space-y-6">
@@ -291,77 +318,192 @@ export function SignupForm() {
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">Business details</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="fullName-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Owner name</Label>
-                  <Input id="fullName-p" placeholder="John Doe" {...providerForm.register('fullName')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.fullName)}`} />
-                  {providerForm.formState.errors.fullName && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.fullName.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="companyName-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Shop name</Label>
-                  <Input id="companyName-p" placeholder="QuickTow Services" {...providerForm.register('companyName')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.companyName)}`} />
-                  {providerForm.formState.errors.companyName && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.companyName.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10 md:col-span-2">
-                  <Label htmlFor="businessAddress-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Business address</Label>
-                  <Input id="businessAddress-p" placeholder="123 Main Street, Near City Mall" {...providerForm.register('businessAddress')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.businessAddress)}`} />
-                  {providerForm.formState.errors.businessAddress && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.businessAddress.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="city-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">City</Label>
-                  <Input id="city-p" placeholder="Mumbai" {...providerForm.register('city')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.city)}`} />
-                  {providerForm.formState.errors.city && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.city.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="state-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">State</Label>
-                  <Input id="state-p" placeholder="Maharashtra" {...providerForm.register('state')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.state)}`} />
-                  {providerForm.formState.errors.state && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.state.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="pin-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">PIN code</Label>
-                  <Input id="pin-p" placeholder="400001" {...providerForm.register('pin')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.pin)}`} />
-                  {providerForm.formState.errors.pin && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.pin.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="businessHours-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Business hours</Label>
-                  <Input id="businessHours-p" placeholder="Mon - Sat, 9:00 AM - 8:00 PM" {...providerForm.register('businessHours')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.businessHours)}`} />
-                  {providerForm.formState.errors.businessHours && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.businessHours.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="serviceRadiusKm-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Service radius (km)</Label>
-                  <Input id="serviceRadiusKm-p" type="number" min="1" max="500" placeholder="25" {...providerForm.register('serviceRadiusKm', { valueAsNumber: true })} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.serviceRadiusKm)}`} />
-                  {providerForm.formState.errors.serviceRadiusKm && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.serviceRadiusKm.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="vehicleNumber-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Vehicle number / License Plate</Label>
-                  <Input id="vehicleNumber-p" placeholder="MH 01 AA 1111" {...providerForm.register('vehicleNumber')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.vehicleNumber)}`} />
-                  {providerForm.formState.errors.vehicleNumber && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.vehicleNumber.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="phone-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Contact number</Label>
-                  <PhoneInputGroup
-                    countryCode={providerForm.watch('countryCode')}
-                    phone={providerForm.watch('phone')}
-                    onCountryCodeChange={(v) => providerForm.setValue('countryCode', v, { shouldValidate: true, shouldDirty: true })}
-                    onPhoneChange={(v) => providerForm.setValue('phone', v, { shouldValidate: true, shouldDirty: true })}
-                    error={!!providerForm.formState.errors.phone}
+              {providerFormConfig && providerFormConfig.fields && providerFormConfig.fields.length > 0 ? (
+                <div className="space-y-6">
+                  <DynamicFormFields
+                    fields={providerFormConfig.fields.filter((f) => !['password', 'confirmPassword'].includes(f.id))}
+                    form={providerForm}
                   />
-                  {providerForm.formState.errors.phone && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.phone.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10 md:col-span-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Current location</Label>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button type="button" variant="outline" className="h-12 rounded-2xl border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-[10px] tracking-widest gap-2" onClick={getCurrentLocation}>
-                      <LocateFixed className="w-4 h-4" />
-                      {geoLoading ? 'Getting location...' : 'Use GPS'}
-                    </Button>
-                    <div className="flex-1 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                      {lat !== null && lng !== null ? `Pinned: ${lat.toFixed(5)}, ${lng.toFixed(5)}` : 'We will store your shop coordinates for future bookings.'}
+
+                  <div className="space-y-1.5 focus-within:z-10 md:col-span-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Shop location *</Label>
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-12 rounded-2xl border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-[10px] tracking-widest gap-2"
+                          onClick={async () => {
+                            getCurrentLocation();
+                            if (lat && lng) {
+                              const addr = await reverseGeocodeAddress(lat, lng);
+                              setProviderAddressName(addr);
+                            }
+                          }}
+                        >
+                          <LocateFixed className="w-4 h-4" />
+                          {geoLoading ? 'Getting GPS...' : 'Use Current GPS'}
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-12 rounded-2xl border-slate-200 text-slate-700 hover:bg-slate-50 font-black uppercase text-[10px] tracking-widest gap-2"
+                          onClick={() => setShowProviderMapPicker(!showProviderMapPicker)}
+                        >
+                          <MapPin className="w-4 h-4 text-blue-600" />
+                          {showProviderMapPicker ? 'Hide Map' : 'Select on Map'}
+                        </Button>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text.sm text-slate-700 font-semibold">
+                        {providerAddressName ? (
+                          <p className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                            <ShieldCheck className="w-4 h-4 text-green-600 shrink-0" />
+                            <span>Shop Location Pinned: {providerAddressName}</span>
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-400">Use GPS button or open map to pinpoint your garage location.</p>
+                        )}
+                      </div>
+
+                      {showProviderMapPicker && (
+                        <div className="rounded-3xl border border-slate-200 overflow-hidden h-[300px] shadow-sm">
+                          <LocationPicker
+                            onLocationSelect={async (loc) => {
+                              providerForm.setValue('latitude', loc.lat, { shouldValidate: true, shouldDirty: true });
+                              providerForm.setValue('longitude', loc.lng, { shouldValidate: true, shouldDirty: true });
+                              setProviderAddressName(loc.address || 'Selected Shop Area');
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
+                    {geoError && <p className="text-[10px] text-amber-600 font-bold uppercase mt-1 ml-1 tracking-wider">{geoError}</p>}
                   </div>
-                  {geoError && <p className="text-[10px] text-amber-600 font-bold uppercase mt-1 ml-1 tracking-wider">{geoError}</p>}
+
+                  <DynamicFormFields
+                    fields={providerFormConfig.fields.filter((f) => ['password', 'confirmPassword'].includes(f.id))}
+                    form={providerForm}
+                  />
                 </div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="fullName-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Owner name</Label>
+                    <Input id="fullName-p" placeholder="John Doe" {...providerForm.register('fullName')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.fullName)}`} />
+                    {providerForm.formState.errors.fullName && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.fullName.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="companyName-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Shop name</Label>
+                    <Input id="companyName-p" placeholder="QuickTow Services" {...providerForm.register('companyName')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.companyName)}`} />
+                    {providerForm.formState.errors.companyName && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.companyName.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10 md:col-span-2">
+                    <Label htmlFor="businessAddress-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Business address</Label>
+                    <Input id="businessAddress-p" placeholder="123 Main Street, Near City Mall" {...providerForm.register('businessAddress')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.businessAddress)}`} />
+                    {providerForm.formState.errors.businessAddress && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.businessAddress.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="city-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">City</Label>
+                    <Input id="city-p" placeholder="Mumbai" {...providerForm.register('city')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.city)}`} />
+                    {providerForm.formState.errors.city && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.city.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="state-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">State</Label>
+                    <Input id="state-p" placeholder="Maharashtra" {...providerForm.register('state')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.state)}`} />
+                    {providerForm.formState.errors.state && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.state.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="pin-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">PIN code</Label>
+                    <Input id="pin-p" placeholder="400001" {...providerForm.register('pin')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.pin)}`} />
+                    {providerForm.formState.errors.pin && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.pin.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="businessHours-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Business hours</Label>
+                    <Input id="businessHours-p" placeholder="Mon - Sat, 9:00 AM - 8:00 PM" {...providerForm.register('businessHours')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.businessHours)}`} />
+                    {providerForm.formState.errors.businessHours && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.businessHours.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="serviceRadiusKm-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Service radius (km)</Label>
+                    <Input id="serviceRadiusKm-p" type="number" min="1" max="500" placeholder="e.g. 25" {...providerForm.register('serviceRadiusKm', { valueAsNumber: true })} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.serviceRadiusKm)}`} />
+                    {providerForm.formState.errors.serviceRadiusKm && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.serviceRadiusKm.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="licenseNumber-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Shop / Garage License Number (Optional)</Label>
+                    <Input id="licenseNumber-p" placeholder="SHOP-LIC-2026" {...providerForm.register('licenseNumber')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.licenseNumber)}`} />
+                    {providerForm.formState.errors.licenseNumber && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.licenseNumber.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="phone-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Contact number</Label>
+                    <PhoneInputGroup
+                      countryCode={providerForm.watch('countryCode')}
+                      phone={providerForm.watch('phone')}
+                      onCountryCodeChange={(v) => providerForm.setValue('countryCode', v, { shouldValidate: true, shouldDirty: true })}
+                      onPhoneChange={(v) => providerForm.setValue('phone', v, { shouldValidate: true, shouldDirty: true })}
+                      error={!!providerForm.formState.errors.phone}
+                    />
+                    {providerForm.formState.errors.phone && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.phone.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10 md:col-span-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Shop location *</Label>
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-12 rounded-2xl border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-[10px] tracking-widest gap-2"
+                          onClick={async () => {
+                            getCurrentLocation();
+                            if (lat && lng) {
+                              const addr = await reverseGeocodeAddress(lat, lng);
+                              setProviderAddressName(addr);
+                            }
+                          }}
+                        >
+                          <LocateFixed className="w-4 h-4" />
+                          {geoLoading ? 'Getting GPS...' : 'Use Current GPS'}
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-12 rounded-2xl border-slate-200 text-slate-700 hover:bg-slate-50 font-black uppercase text-[10px] tracking-widest gap-2"
+                          onClick={() => setShowProviderMapPicker(!showProviderMapPicker)}
+                        >
+                          <MapPin className="w-4 h-4 text-blue-600" />
+                          {showProviderMapPicker ? 'Hide Map' : 'Select on Map'}
+                        </Button>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text.sm text-slate-700 font-semibold">
+                        {providerAddressName ? (
+                          <p className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                            <ShieldCheck className="w-4 h-4 text-green-600 shrink-0" />
+                            <span>Shop Location Pinned: {providerAddressName}</span>
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-400">Use GPS button or open map to pinpoint your garage location.</p>
+                        )}
+                      </div>
+
+                      {showProviderMapPicker && (
+                        <div className="rounded-3xl border border-slate-200 overflow-hidden h-[300px] shadow-sm">
+                          <LocationPicker
+                            onLocationSelect={async (loc) => {
+                              providerForm.setValue('latitude', loc.lat, { shouldValidate: true, shouldDirty: true });
+                              providerForm.setValue('longitude', loc.lng, { shouldValidate: true, shouldDirty: true });
+                              setProviderAddressName(loc.address || 'Selected Shop Area');
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {geoError && <p className="text-[10px] text-amber-600 font-bold uppercase mt-1 ml-1 tracking-wider">{geoError}</p>}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-slate-800 rounded-[2.5rem] p-8 space-y-6 text-white group shadow-xl">
@@ -415,28 +557,36 @@ export function SignupForm() {
             </div>
 
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 space-y-6">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="email-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email address</Label>
-                  <Input id="email-p" type="email" placeholder="you@company.com" {...providerForm.register('email')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.email)}`} />
-                  {providerForm.formState.errors.email && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.email.message}</p>}
-                </div>
-                <div className="space-y-1.5 focus-within:z-10">
-                  <Label htmlFor="password-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Password</Label>
-                  <div className="relative">
-                    <Input id="password-p" type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...providerForm.register('password')} className={`h-12 rounded-2xl pr-14 font-bold ${errorClass(providerForm.formState.errors.password)}`} />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors">
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
+              {!providerFormConfig || !providerFormConfig.fields || providerFormConfig.fields.length === 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="email-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email address</Label>
+                    <Input id="email-p" type="email" placeholder="you@company.com" {...providerForm.register('email')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.email)}`} />
+                    {providerForm.formState.errors.email && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.email.message}</p>}
                   </div>
-                  {providerForm.formState.errors.password && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.password.message}</p>}
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="password-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Password</Label>
+                    <div className="relative">
+                      <Input id="password-p" type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...providerForm.register('password')} className={`h-12 rounded-2xl pr-14 font-bold ${errorClass(providerForm.formState.errors.password)}`} />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors">
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    {providerForm.formState.errors.password && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.password.message}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirmPassword-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Confirm password</Label>
+                    <Input id="confirmPassword-p" type="password" placeholder="••••••••" {...providerForm.register('confirmPassword')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.confirmPassword)}`} />
+                    {providerForm.formState.errors.confirmPassword && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.confirmPassword.message}</p>}
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="confirmPassword-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Confirm password</Label>
-                  <Input id="confirmPassword-p" type="password" placeholder="••••••••" {...providerForm.register('confirmPassword')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.confirmPassword)}`} />
-                  {providerForm.formState.errors.confirmPassword && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.confirmPassword.message}</p>}
+              ) : null}
+              {providerFormConfig && providerFormConfig.fields && providerFormConfig.fields.length > 0 && (
+                <div className="pt-6 mt-6 border-t border-slate-100">
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-4">Additional Information</h4>
+                  <DynamicFormFields fields={providerFormConfig.fields} form={providerForm} />
                 </div>
-              </div>
+              )}
             </div>
 
             <Button type="submit" size="lg" className="w-full h-16 rounded-[1.5rem] bg-indigo-600 hover:bg-black text-white text-lg font-black shadow-2xl shadow-indigo-600/20 group transform active:scale-[0.98] transition-all" disabled={isRequestingOtp}>

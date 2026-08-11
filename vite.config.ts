@@ -10,7 +10,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ["firebase/app", "firebase/firestore", "firebase/auth", "firebase/database"],
+  },
   server: {
+
     proxy: {
       "/api": {
         target: process.env.VITE_API_URL || "http://localhost:5000",

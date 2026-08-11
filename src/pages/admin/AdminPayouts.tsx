@@ -148,13 +148,14 @@ export default function AdminPayouts() {
       >
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-12 gap-8">
           <div>
-            <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
-              Settlement Ledger
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+              Provider Payouts & Commission
             </h1>
-            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
-              Provider Payables & Payout Orchestration
+            <p className="text-slate-500 font-medium text-xs mt-1">
+              Manage provider balances, verify completed payouts, and track platform commissions.
             </p>
           </div>
+
           <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md p-1.5 rounded-[1.75rem] border-2 border-slate-50 shadow-sm">
             {(["pending", "settled", "paid"] as const).map((t) => (
               <Button
@@ -181,13 +182,13 @@ export default function AdminPayouts() {
               <Clock className="w-6 h-6" />
             </div>
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-2">
-              Escrow Reserves
+              Pending Amount
             </p>
             <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
               {formatCurrency(totalPending)}
             </h3>
             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mt-3">
-              awaiting settlement window
+              waiting for payout
             </p>
           </div>
 
@@ -197,13 +198,13 @@ export default function AdminPayouts() {
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-2">
-              Concluded Payouts
+              Paid Out
             </p>
             <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
               {formatCurrency(totalPaid)}
             </h3>
             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mt-3 text-green-600 font-bold">
-              Verified settlements
+              Paid
             </p>
           </div>
 
@@ -213,13 +214,13 @@ export default function AdminPayouts() {
               <TrendingUp className="w-6 h-6" />
             </div>
             <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest leading-none mb-2">
-              Platform Yield
+              Commission Earned
             </p>
             <h3 className="text-4xl font-black text-white tracking-tighter">
               {formatCurrency(totalCommission)}
             </h3>
             <p className="text-[9px] font-bold text-blue-400 uppercase tracking-tight mt-3">
-              Master commission log
+              Platform earnings
             </p>
           </div>
         </div>
@@ -229,7 +230,7 @@ export default function AdminPayouts() {
             <div className="relative flex-1 max-w-xl">
               <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
               <Input
-                placeholder="Search providers or mission IDs..."
+                placeholder="Search providers or request IDs..."
                 className="h-16 pl-16 pr-8 rounded-2xl border-2 border-white bg-white shadow-sm font-bold text-lg focus:border-blue-500/30 transition-all"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -248,13 +249,13 @@ export default function AdminPayouts() {
               <thead>
                 <tr className="bg-slate-50/50">
                   <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-left">
-                    Asset / Provider
+                    Provider
                   </th>
                   <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-left">
                     Job Valuation
                   </th>
                   <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-left">
-                    Cap Fee
+                    Commission
                   </th>
                   <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-left">
                     Net Settlement
@@ -274,9 +275,10 @@ export default function AdminPayouts() {
                       <td colSpan={6} className="p-32 text-center">
                         <div className="flex flex-col items-center">
                           <BarChart3 className="w-12 h-12 text-slate-100 animate-pulse mb-4" />
-                          <p className="text-[10px] font-black uppercase text-slate-300 tracking-[0.3em]">
-                            Synchronizing Financials...
+                          <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                            Loading payout data...
                           </p>
+
                         </div>
                       </td>
                     </tr>
@@ -307,7 +309,7 @@ export default function AdminPayouts() {
                               </div>
                               <div>
                                 <p className="font-black text-slate-900 group-hover:text-blue-600 transition-colors">
-                                  {req.providerName || "Unknown Operator"}
+                                  {req.providerName || "Unknown Provider"}
                                 </p>
                                 <p className="text-[10px] text-slate-400 font-bold font-mono tracking-tighter">
                                   ID-#{req.id.slice(-8).toUpperCase()}

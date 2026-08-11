@@ -16,14 +16,25 @@ export type ServiceType =
   | 'other';
 
 export type RequestStatus =
-  | 'pending'
-  | 'bidding'
+  | 'draft'
+  | 'submitted'
+  | 'searching_providers'
+  | 'offers_received'
+  | 'provider_selected'
   | 'accepted'
-  | 'arriving'
-  | 'inProgress'
+  | 'provider_en_route'
+  | 'provider_arrived'
+  | 'in_progress'
   | 'completed'
   | 'cancelled'
-  | 'pendingUserApproval';
+  | 'expired'
+  | 'pendingUserApproval'
+  // Legacy DB compatibility aliases
+  | 'pending'
+  | 'bidding'
+  | 'arriving'
+  | 'inProgress';
+
 
 export interface RequestProposal {
   id: string;
@@ -60,6 +71,7 @@ export interface UserProfile {
   phoneE164?: string;
   countryCode?: string;
   role: UserRole;
+  permissions?: string[];
   createdAt?: Timestamp | Date | FieldValue;
   profileImage?: string;
   vehicles?: Vehicle[];
@@ -77,7 +89,8 @@ export interface UserProfile {
   rating?: number;
   totalJobs?: number;
   totalEarnings?: number;
-  location?: { lat: number; lng: number };
+  location?: GeoLocation;
+  isSuperAdmin?: boolean;
   stats?: {
     applied: number;
     approved: number;
@@ -90,6 +103,16 @@ export interface GeoLocation {
   lng: number;
   address: string;
 }
+
+export interface VehicleTypeConfig {
+  id: string;
+  name: string;
+  icon?: string;
+  description?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
 
 export interface ServiceRequest {
   id: string;
@@ -150,11 +173,24 @@ export interface ServiceRequest {
   providerArrived?: boolean;
   phone?: string;
   countryCode?: string;
+  directInvite?: boolean;
+  proposalStatus?: string | null;
+  proposalPrice?: number | null;
 }
 
 export interface AppSettings {
+  appName?: string;
+  acceptingNewProviders?: boolean;
+  maintenanceMode?: boolean;
+  baseCommissionRate?: number;
   payoutDelayDays: number;
-  minCommissionPct: number;
+  minCommissionPct?: number;
+  currency?: string;
+  currencySymbol?: string;
+  trackingInterval?: number;
+  requestVisibilityHours?: number;
+  heroHeadline?: string;
+  heroSubheadline?: string;
   heroSlides: {
     id: string;
     image: string;
@@ -168,6 +204,11 @@ export interface AppSettings {
     rating: number;
     text: string;
     date: string;
+  }[];
+  steps?: {
+    idx: string;
+    title: string;
+    desc: string;
   }[];
   sosConfig?: {
     policeNumber: string;
@@ -191,6 +232,7 @@ export interface ServiceTypeConfig {
   id: ServiceType;
   name: string;
   icon: string;
+  bgImage?: string;
   basePrice: number;
   maxPrice: number;
   description: string;
@@ -243,3 +285,5 @@ export interface EarningsEntry {
   commission: number;
   netEarnings: number;
 }
+
+

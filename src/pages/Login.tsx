@@ -1,11 +1,19 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Logo } from '@/components/shared/Logo';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { useSystemStore } from '@/stores/systemStore';
+import { UserRole } from '@/types';
 
 export default function Login() {
-  const { appName } = useSystemStore();
+  const { appName, pageContent } = useSystemStore();
+  const [activeRole, setActiveRole] = useState<UserRole>('customer');
+
+  const greeting = activeRole === 'provider' 
+    ? (pageContent?.authProviderLoginText || 'Welcome back, Provider')
+    : (pageContent?.authCustomerLoginText || 'Welcome back, Customer');
+
   return (
     <div className="flex-1 bg-[#F5F5F6] flex items-center justify-center p-6 sm:p-12 pb-32 overflow-hidden relative min-h-screen">
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-3xl -mr-64 -mt-64" />
@@ -20,11 +28,11 @@ export default function Login() {
         <div className="glass-card rounded-[3.5rem] p-10 sm:p-16">
           <div className="text-center mb-14">
             <Logo size="lg" className="justify-center mb-10" />
-            <h1 className="text-fluid-3xl font-black text-[#1A1A2E] tracking-tighter leading-none mb-4">Welcome back</h1>
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.35em] italic">Sign in with email or mobile number</p>
+            <h1 className="text-fluid-3xl font-black text-[#1A1A2E] tracking-tighter leading-none mb-4">{greeting}</h1>
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.35em] italic">Sign in with email  </p>
           </div>
 
-          <LoginForm />
+          <LoginForm onRoleChange={setActiveRole} />
 
           <div className="mt-14 pt-10 border-t border-slate-100 text-center">
             <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">

@@ -1,7 +1,6 @@
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import app from './firebaseApp';
+import { auth, db } from './firebase';
 
-export const authLite = getAuth(app);
-export const dbLite = getFirestore(app);
+export const authLite = auth;
+export const dbLite = db;
+
 

@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Image as ImageIcon, Upload, X, Loader2, User } from "lucide-react";
-const storage = null; // import { storage } from "@/config/firebase";
+import { storage } from "@/config/firebase";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";

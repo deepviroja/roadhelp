@@ -108,6 +108,7 @@ export default function AdminSettings() {
     currency: "INR",
     currencySymbol: "₹",
     trackingInterval: 5,
+    requestVisibilityHours: 24,
     heroHeadline: "Roadside help",
     heroSubheadline: "without the stress.",
     heroSlides: [] as Slide[],
@@ -165,6 +166,7 @@ export default function AdminSettings() {
           currency: data.currency || "INR",
           currencySymbol: data.currencySymbol || "₹",
           trackingInterval: data.trackingInterval || 5,
+          requestVisibilityHours: Number(data.requestVisibilityHours || 24),
           heroHeadline: data.heroHeadline || "Roadside help",
           heroSubheadline: data.heroSubheadline || "without the stress.",
           heroSlides: data.heroSlides || [],
@@ -367,15 +369,15 @@ export default function AdminSettings() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-6xl mx-auto"
+        className="max-w-6xl mx-auto space-y-8 pb-16"
       >
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
-              System Orchestration
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+              Platform Settings & CMS
             </h1>
-            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
-              Global Governance & Content Management
+            <p className="text-slate-500 font-medium text-xs mt-1">
+              Manage website settings, emergency hotlines, commission rates, and homepage content.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -383,53 +385,54 @@ export default function AdminSettings() {
               <Button
                 variant="ghost"
                 onClick={handleDiscardChanges}
-                className="text-slate-400 hover:text-red-500 font-black text-[10px] uppercase tracking-widest gap-2 h-12 px-6"
+                className="text-slate-500 hover:text-red-600 font-black text-xs uppercase tracking-widest gap-2 h-12 px-6"
               >
-                <RotateCcw className="w-4 h-4" /> Discard
+                <RotateCcw className="w-4 h-4" /> Discard Changes
               </Button>
             )}
             <Button
               onClick={handleSaveConfig}
               disabled={isSavingConfig || !hasChanges}
-              className={`h-14 px-10 rounded-2xl font-black text-sm uppercase tracking-widest gap-3 shadow-2xl transition-all ${
+              className={`h-12 px-8 rounded-2xl font-black text-xs uppercase tracking-widest gap-2 shadow-lg transition-all ${
                 hasChanges
                   ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"
                   : "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed shadow-none"
               }`}
             >
-              <Save className="w-5 h-5" />
-              {isSavingConfig ? "Syncing..." : "Publish Changes"}
+              <Save className="w-4 h-4" />
+              {isSavingConfig ? "Saving..." : "Save Settings"}
             </Button>
           </div>
         </div>
 
-        <Tabs defaultValue="landing" className="space-y-8">
-          <TabsList className="bg-white border-2 border-slate-100 p-1.5 h-16 rounded-[2rem] inline-flex items-center shadow-sm">
+        <Tabs defaultValue="general" className="space-y-8">
+          <TabsList className="bg-white border border-slate-200/80 p-1.5 h-14 rounded-2xl inline-flex items-center shadow-sm">
             <TabsTrigger
               value="general"
-              className="rounded-[1.5rem] h-12 px-8 data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black uppercase text-[10px] tracking-widest transition-all"
+              className="rounded-xl h-11 px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black uppercase text-xs tracking-wider transition-all"
             >
-              Core Config
+              General Settings
             </TabsTrigger>
             <TabsTrigger
               value="landing"
-              className="rounded-[1.5rem] h-12 px-8 data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black uppercase text-[10px] tracking-widest transition-all"
+              className="rounded-xl h-11 px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black uppercase text-xs tracking-wider transition-all"
             >
-              Landing Page
+              Homepage Content
             </TabsTrigger>
             <TabsTrigger
               value="payouts"
-              className="rounded-[1.5rem] h-12 px-8 data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black uppercase text-[10px] tracking-widest transition-all"
+              className="rounded-xl h-11 px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black uppercase text-xs tracking-wider transition-all"
             >
-              Financials
+              Commission & Payouts
             </TabsTrigger>
             <TabsTrigger
-              value="admins"
-              className="rounded-[1.5rem] h-12 px-8 data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black uppercase text-[10px] tracking-widest transition-all"
+              value="request-visibility"
+              className="rounded-xl h-11 px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black uppercase text-xs tracking-wider transition-all"
             >
-              Permissions
+              Request Visibility
             </TabsTrigger>
           </TabsList>
+
 
           <TabsContent value="general" className="space-y-6">
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-10 space-y-10">
@@ -938,6 +941,32 @@ export default function AdminSettings() {
             </div>
           </TabsContent>
 
+          <TabsContent value="request-visibility" className="space-y-6">
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-10 max-w-2xl">
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">Request Visibility Window</h2>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Controls how long a request remains visible to providers before it auto-closes.</p>
+                </div>
+                <div className="flex items-center gap-6 pt-2">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="168"
+                    value={platformConfig.requestVisibilityHours || 24}
+                    onChange={(e) => setPlatformConfig({ ...platformConfig, requestVisibilityHours: Number(e.target.value) || 24 })}
+                    className="h-20 w-40 text-4xl font-black rounded-3xl bg-slate-50 border-slate-100 text-center focus:bg-white focus:border-blue-500 transition-all"
+                  />
+                  <div>
+                    <span className="text-2xl font-black text-slate-900 tracking-tighter block">HOURS</span>
+                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Provider feed TTL</span>
+                  </div>
+                </div>
+                <p className="text-xs font-bold text-slate-400 italic">After this window, requests are marked expired for providers and remain visible to admin history.</p>
+              </div>
+            </div>
+          </TabsContent>
+
           <TabsContent value="payouts" className="space-y-6">
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-10 max-w-2xl overflow-hidden relative group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/5 rounded-full -mr-32 -mt-32 blur-3xl" />
@@ -1133,3 +1162,6 @@ export default function AdminSettings() {
     </AdminLayout>
   );
 }
+
+
+

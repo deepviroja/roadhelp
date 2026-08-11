@@ -27,6 +27,7 @@ export const customerSignupSchema = z
     confirmPassword: z.string().min(1, 'Confirm password is required'),
     role: z.literal('customer'),
   })
+  .catchall(z.any())
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
@@ -39,24 +40,32 @@ export const providerSignupSchema = z
     countryCode: z.string().min(1, 'Select a country code'),
     phone: phoneSchema,
     companyName: z.string().min(2, 'Shop name is required'),
+    licenseNumber: z.string().optional(),
     businessAddress: z.string().min(5, 'Business address is required'),
     city: z.string().min(2, 'City is required'),
     state: z.string().min(2, 'State is required'),
     pin: z.string().min(4, 'Enter a valid PIN code'),
     businessHours: z.string().min(2, 'Add your business hours'),
-    serviceRadiusKm: z.number().min(1, 'Add a service radius').max(500, 'Radius is too large'),
+    serviceRadiusKm: z.preprocess(
+      (val) => (val === '' || val === undefined || val === null || isNaN(Number(val)) ? undefined : Number(val)),
+      z.number({ invalid_type_error: 'Add a service radius', required_error: 'Add a service radius' })
+        .min(1, 'Add a service radius')
+        .max(500, 'Radius is too large')
+    ),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
     serviceTypes: z.array(z.string()).min(1, 'Choose at least one service'),
-    vehicleNumber: z.string().min(2, 'Vehicle number is required'),
+    vehicleNumber: z.string().optional(),
     password: passwordSchema,
     confirmPassword: z.string().min(1, 'Confirm password is required'),
     role: z.literal('provider'),
   })
+  .catchall(z.any())
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   });
+
 
 export const serviceRequestSchema = z.object({
   serviceType: z.string().min(1, 'Select a service'),
@@ -82,12 +91,13 @@ export const guestHelpSchema = z.object({
   notes: z.string().optional(),
   preferredContactMethod: z.enum(['phone', 'email', 'whatsapp']),
   isEmergency: z.boolean(),
-});
+}).catchall(z.any());
 
 export const profileUpdateSchema = z.object({
   fullName: z.string().min(2, 'Please enter your full name'),
   countryCode: z.string().optional(),
   phone: z.string().min(7, 'Enter a valid phone number').max(15, 'Phone number is too long'),
+  serviceRadiusKm: z.union([z.number(), z.string()]).optional(),
 });
 
 export const vehicleSchema = z.object({

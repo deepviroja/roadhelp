@@ -7,8 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { EmptyState } from '@/components/shared/EmptyState';
-import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { db } from '@/config/firebase';
 import { UserProfile } from '@/types';
 import { getServiceLabel } from '@/lib/utils';
@@ -56,7 +54,7 @@ export default function ManageProviders() {
         setFiltered(data);
       } catch (err) {
         console.error('Failed to load providers:', err);
-        toast.error('Failed to synchronize assets');
+        toast.error('Failed to load service providers');
       } finally {
         setIsLoading(false);
       }
@@ -77,9 +75,9 @@ export default function ManageProviders() {
     try {
       await updateDoc(doc(db, 'users', provider.uid), { isVerified: verify });
       setProviders((prev) => prev.map((p) => p.uid === provider.uid ? { ...p, isVerified: verify } : p));
-      toast.success(verify ? `Unit ${provider.fullName} Authorized` : `Unit ${provider.fullName} Access Revoked`);
+      toast.success(verify ? `Provider ${provider.fullName} verified` : `Provider ${provider.fullName} unverified`);
     } catch {
-      toast.error('Protocol Update Failed');
+      toast.error('Failed to update provider status');
     }
   };
 
@@ -88,81 +86,79 @@ export default function ManageProviders() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto pb-20"
+        className="max-w-7xl mx-auto pb-20 space-y-8"
       >
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-full text-blue-400 font-bold text-[10px] tracking-widest mb-4 uppercase">
-               ASSET MANAGEMENT
-            </div>
-            <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight leading-none mb-2">Fleet Units</h1>
-            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Validate and monitor operational field assets</p>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Providers Management</h1>
+            <p className="text-slate-500 font-medium text-xs mt-1">Review, verify, and monitor roadside service provider accounts.</p>
           </div>
-          <div className="w-full md:w-80 relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-blue-600 transition-colors" />
+          <div className="w-full md:w-80 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input 
-                placeholder="SEARCH FLEET UNITS..." 
+                placeholder="Search provider name or email..." 
                 value={search} 
                 onChange={(e) => setSearch(e.target.value)} 
-                className="h-12 pl-12 rounded-xl border-2 border-slate-100 bg-white shadow-sm text-xs font-bold uppercase tracking-widest placeholder:text-slate-400 focus:border-blue-500 transition-all" 
+                className="h-12 pl-12 rounded-2xl bg-white border-slate-200 text-xs font-semibold" 
               />
           </div>
         </div>
 
-        <div className="mb-8">
+        <div>
            <Tabs value={tab} onValueChange={setTab} className="w-full">
-              <TabsList className="h-14 bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm gap-1">
-                <TabsTrigger value="all" className="rounded-xl font-bold uppercase text-[10px] tracking-widest px-6 data-[state=active]:bg-slate-900 data-[state=active]:text-white h-full transition-all">All Assets ({providers.length})</TabsTrigger>
-                <TabsTrigger value="verified" className="rounded-xl font-bold uppercase text-[10px] tracking-widest px-6 data-[state=active]:bg-green-600 data-[state=active]:text-white h-full transition-all">Verified ({providers.filter((p) => p.isVerified).length})</TabsTrigger>
-                <TabsTrigger value="pending" className="rounded-xl font-bold uppercase text-[10px] tracking-widest px-6 data-[state=active]:bg-amber-600 data-[state=active]:text-white h-full transition-all">Pending ({providers.filter((p) => !p.isVerified).length})</TabsTrigger>
-                <TabsTrigger value="online" className="rounded-xl font-bold uppercase text-[10px] tracking-widest px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white h-full transition-all">Online ({providers.filter((p) => p.isOnline).length})</TabsTrigger>
+              <TabsList className="h-12 bg-white p-1 rounded-2xl border border-slate-200/80 shadow-sm gap-1">
+                <TabsTrigger value="all" className="rounded-xl font-black uppercase text-xs tracking-wider px-5 data-[state=active]:bg-blue-600 data-[state=active]:text-white h-full transition-all">All ({providers.length})</TabsTrigger>
+                <TabsTrigger value="verified" className="rounded-xl font-black uppercase text-xs tracking-wider px-5 data-[state=active]:bg-green-600 data-[state=active]:text-white h-full transition-all">Verified ({providers.filter((p) => p.isVerified).length})</TabsTrigger>
+                <TabsTrigger value="pending" className="rounded-xl font-black uppercase text-xs tracking-wider px-5 data-[state=active]:bg-amber-600 data-[state=active]:text-white h-full transition-all">Pending ({providers.filter((p) => !p.isVerified).length})</TabsTrigger>
+                <TabsTrigger value="online" className="rounded-xl font-black uppercase text-xs tracking-wider px-5 data-[state=active]:bg-blue-600 data-[state=active]:text-white h-full transition-all">Online ({providers.filter((p) => p.isOnline).length})</TabsTrigger>
               </TabsList>
             </Tabs>
         </div>
 
-        <div className="glass-card rounded-3xl overflow-hidden">
+        <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl overflow-hidden">
           {isLoading ? (
-            <div className="py-32 flex flex-col items-center">
-               <div className="w-16 h-16 border-4 border-blue-600/10 border-t-blue-600 rounded-2xl animate-spin mb-6" />
-               <p className="text-[10px] font-black uppercase text-slate-300 tracking-[0.4em]">Synchronizing Fleet Telemetry...</p>
+            <div className="py-24 flex flex-col items-center">
+               <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+               <p className="text-xs font-black uppercase tracking-widest text-slate-400">Loading service providers...</p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="py-32 flex flex-col items-center text-center">
-               <Truck className="w-24 h-24 text-slate-50 mb-8" />
-               <h3 className="text-2xl font-black text-slate-900 tracking-tighter mb-4">No Units Detected</h3>
-               <p className="text-slate-400 font-black uppercase text-[10px] tracking-[0.3em] max-w-sm italic">Our scanners found no operational assets matching your search criteria.</p>
+            <div className="py-24 flex flex-col items-center text-center">
+               <Truck className="w-16 h-16 text-slate-200 mb-4" />
+               <h3 className="text-xl font-black text-slate-900 mb-1">No Providers Found</h3>
+               <p className="text-slate-500 text-xs max-w-sm">No service providers matched your search criteria.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Asset Identifier</th>
-                    <th className="px-4 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Capabilities</th>
-                    <th className="px-4 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Efficiency</th>
-                    <th className="px-4 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Missions</th>
-                    <th className="px-4 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Protocol Status</th>
-                    <th className="px-6 py-5 text-right text-[10px] font-bold text-slate-500 uppercase tracking-widest">Actions</th>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Provider</th>
+                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Services Offered</th>
+                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Rating</th>
+                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Jobs Completed</th>
+                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map((p) => (
-                    <tr key={p.uid} className="hover:bg-blue-50/50 transition-all group">
-                      <td className="px-6 py-5">
+                    <tr key={p.uid} className="hover:bg-slate-50/60 transition-all">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white text-base shadow-md shadow-blue-600/20 group-hover:rotate-3 transition-transform">
-                              {p.fullName?.[0]}
+                           <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center font-bold text-white text-sm shadow-md">
+                              {p.fullName?.[0] || 'P'}
                            </div>
                            <div>
-                              <p className="font-bold text-slate-900 leading-none mb-1 text-sm">{p.fullName}</p>
-                              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{p.companyName || 'Independent Unit'}</p>
+                              <p className="font-bold text-slate-900 text-sm leading-tight">{p.fullName}</p>
+                              <p className="text-xs text-slate-500 font-semibold">{p.email}</p>
+                              {p.companyName && <p className="text-[10px] text-slate-400 font-medium">{p.companyName}</p>}
                            </div>
                         </div>
                       </td>
-                      <td className="px-4 py-5">
+                      <td className="px-4 py-4">
                         <div className="flex flex-wrap gap-1">
                           {(p.serviceTypes || []).slice(0, 2).map((s) => (
-                            <span key={s} className="text-[9px] font-bold uppercase tracking-widest bg-slate-900 text-white px-2 py-1 rounded-md">
+                            <span key={s} className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">
                               {getServiceLabel(s)}
                             </span>
                           ))}
@@ -171,42 +167,42 @@ export default function ManageProviders() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-5 text-center">
-                         <div className="flex items-center justify-center gap-1.5">
-                            <span className="font-bold text-slate-900">{p.rating ? p.rating.toFixed(1) : '5.0'}</span>
+                      <td className="px-4 py-4 text-center">
+                         <div className="flex items-center justify-center gap-1">
+                            <span className="font-bold text-slate-900 text-xs">{p.rating ? p.rating.toFixed(1) : '5.0'}</span>
                             <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                          </div>
                       </td>
-                      <td className="px-4 py-5 text-center">
-                         <span className="font-bold text-slate-900">{p.totalJobs || 0}</span>
+                      <td className="px-4 py-4 text-center">
+                         <span className="font-bold text-slate-900 text-xs">{p.totalJobs || 0}</span>
                       </td>
-                      <td className="px-4 py-5">
-                        <div className="flex flex-col gap-1.5">
-                          {p.isVerified ? (
-                            <span className="text-[9px] font-bold uppercase tracking-widest text-green-600 bg-green-50 px-2 py-0.5 rounded-full w-fit">Authorized</span>
-                          ) : (
-                            <span className="text-[9px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full w-fit">In Triage</span>
-                          )}
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${p.isVerified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {p.isVerified ? 'Verified' : 'Pending'}
+                          </span>
                           {p.isOnline && (
-                            <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full w-fit">Uplink Active</span>
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                              Online
+                            </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-right">
+                      <td className="px-6 py-4 text-right">
                         {!p.isVerified ? (
                           <Button 
-                            className="h-10 px-4 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold uppercase text-[10px] tracking-widest gap-2 shadow-sm shadow-green-600/20 active:scale-95 transition-all" 
+                            className="h-9 px-4 rounded-xl bg-green-600 hover:bg-green-700 text-white font-black text-xs uppercase tracking-wider gap-1.5" 
                             onClick={() => handleVerify(p, true)}
                           >
-                            <ShieldCheck className="w-3.5 h-3.5" /> Verified
+                            <ShieldCheck className="w-3.5 h-3.5" /> Verify
                           </Button>
                         ) : (
                           <Button 
                             variant="outline" 
-                            className="h-10 px-4 rounded-xl text-red-600 border-red-100 hover:bg-red-50 font-bold uppercase text-[10px] tracking-widest gap-2 active:scale-95 transition-all" 
+                            className="h-9 px-4 rounded-xl text-red-600 border-red-200 hover:bg-red-50 font-black text-xs uppercase tracking-wider gap-1.5" 
                             onClick={() => handleVerify(p, false)}
                           >
-                            <ShieldX className="w-3.5 h-3.5" /> Unverified
+                            <ShieldX className="w-3.5 h-3.5" /> Unverify
                           </Button>
                         )}
                       </td>

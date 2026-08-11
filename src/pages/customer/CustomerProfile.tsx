@@ -218,7 +218,8 @@ export default function CustomerProfile() {
           onOpenChange={setShowDeleteDialog}
           title="Final Account Termination?"
           description={`You are about to irreversibly delete your ${appName} profile and vehicle garage. Are you absolutely certain you wish to proceed with account removal?`}
-          confirmText="YES, TERMINATE ACCOUNT"
+          confirmText="Yes, Delete My Account"
+
           onConfirm={handleDeleteAccount}
           isDestructive
         />

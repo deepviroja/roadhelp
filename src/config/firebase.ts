@@ -1,18 +1,14 @@
-﻿import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
-import { getFirestore, initializeFirestore } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import app, { firebaseConfig } from './firebaseApp';
 
 export const auth = getAuth(app);
 setPersistence(auth, browserLocalPersistence).catch(() => {});
 
-export const db = (() => {
-  try {
-    return initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
-  } catch {
-    return getFirestore(app);
-  }
-})();
+export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 function isPlaceholderDatabaseUrl(url?: string) {
   if (!url) return true;
