@@ -41,13 +41,41 @@ export default function Earnings() {
           getProviderRequests(profile.uid),
         ]);
 
+        let delay = 7;
         if (configSnap.exists()) {
           const cfg = configSnap.data();
           setCommissionRate((cfg.baseCommissionRate || 15) / 100);
           setPayoutDelay(cfg.payoutDelayDays || 7);
+          delay = cfg.payoutDelayDays || 7;
         }
 
-        setJobs(data.filter((j) => j.status === "completed"));
+        const completedJobs = data.filter((j) => j.status === "completed");
+
+        // Auto-settle completed requests past the delay days
+        const now = new Date().getTime();
+        const expiredJobs = completedJobs.filter((req) => {
+          if (req.payoutStatus !== "pending") return false;
+          const completedAt = req.completedAt ? (typeof (req.completedAt as any).toDate === 'function' ? (req.completedAt as any).toDate() : new Date(req.completedAt as any)) : null;
+          if (!completedAt) return false;
+          const diffDays = (now - completedAt.getTime()) / (1000 * 3600 * 24);
+          return diffDays >= delay;
+        });
+
+        if (expiredJobs.length > 0) {
+          const { writeBatch, serverTimestamp } = await import("firebase/firestore");
+          const batch = writeBatch(db);
+          expiredJobs.forEach((req) => {
+            batch.update(doc(db, "serviceRequests", req.id), {
+              payoutStatus: "paid",
+              paidAt: serverTimestamp(),
+            });
+            req.payoutStatus = "paid";
+            req.paidAt = new Date() as any;
+          });
+          await batch.commit();
+        }
+
+        setJobs(completedJobs);
       } catch (err) {
         console.error("Earnings sync error:", err);
       } finally {
@@ -63,8 +91,14 @@ export default function Earnings() {
     0,
   );
   const totalTips = jobs.reduce((sum, j) => sum + (j.tipAmount || 0), 0);
-  const totalCommission = totalServiceGross * commissionRate;
-  const totalNet = totalServiceGross - totalCommission + totalTips;
+  const totalCommission = jobs.reduce(
+    (sum, j) => sum + (j.adminCommission !== undefined ? j.adminCommission : (j.totalPrice || j.estimatedPrice || 0) * commissionRate),
+    0,
+  );
+  const totalNet = jobs.reduce(
+    (sum, j) => sum + (j.providerEarnings !== undefined ? j.providerEarnings : (j.totalPrice || j.estimatedPrice || 0) * (1 - commissionRate)) + (j.tipAmount || 0),
+    0,
+  );
 
   return (
     <ProviderLayout>
@@ -89,7 +123,7 @@ export default function Earnings() {
             </div>
             <div className="relative z-10">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 leading-none mb-1">
-                Total Career Net
+                Total Earnings
               </p>
               <p className="text-2xl font-black leading-none">
                 {formatCurrency(totalNet)}
@@ -145,7 +179,7 @@ export default function Earnings() {
               Platform Policy
             </p>
             <p className="text-xl font-black text-blue-400 mb-1">
-              {payoutDelay}-Day Escrow
+              {payoutDelay}-Day Hold
             </p>
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
               Current Policy
@@ -156,7 +190,7 @@ export default function Earnings() {
         {isLoading ? (
           <div className="py-32 flex flex-col items-center bg-white rounded-[3rem] border-2 border-slate-50">
             <LoadingSpinner
-              text="Recalculating Career Ledger..."
+              text="Loading Earnings..."
               className="w-12 h-12 text-blue-600 mb-4"
             />
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em]">
@@ -179,7 +213,7 @@ export default function Earnings() {
                  Earnings History
               </h2>
               <div className="px-5 py-2 bg-green-50 rounded-full border border-green-100 text-[9px] font-black text-green-600 uppercase tracking-widest">
-                {jobs.length} Logged
+                {jobs.length} Total Jobs
               </div>
             </div>
 
@@ -210,8 +244,8 @@ export default function Earnings() {
                       const serviceTotal =
                         job.totalPrice || job.estimatedPrice || 0;
                       const tip = job.tipAmount || 0;
-                      const appFee = serviceTotal * commissionRate;
-                      const net = serviceTotal - appFee + tip;
+                      const appFee = job.adminCommission !== undefined ? job.adminCommission : serviceTotal * commissionRate;
+                      const net = job.providerEarnings !== undefined ? (job.providerEarnings + tip) : (serviceTotal - appFee + tip);
                       return (
                         <motion.tr
                           initial={{ opacity: 0 }}
@@ -256,17 +290,22 @@ export default function Earnings() {
                               )}
                             </div>
                           </td>
-                          <td className="px-10 py-8 text-right">
-                            <div className="flex flex-col items-end">
-                              <span className="text-2xl font-black text-slate-900 tracking-tighter leading-none">
-                                {formatCurrency(net)}
-                              </span>
-                              <span className="text-[10px] font-black text-green-600 uppercase tracking-[0.2em] mt-1.5 flex items-center gap-1">
-                                CLEARED{" "}
-                                <ArrowRight className="w-3 h-3 translate-y-[0.5px]" />
-                              </span>
-                            </div>
-                          </td>
+                           <td className="px-10 py-8 text-right">
+                             <div className="flex flex-col items-end">
+                               <span className="text-2xl font-black text-slate-900 tracking-tighter leading-none">
+                                 {formatCurrency(net)}
+                               </span>
+                               {job.payoutStatus === 'paid' ? (
+                                 <span className="text-[10px] font-black text-green-600 uppercase tracking-[0.2em] mt-1.5 flex items-center gap-1">
+                                   CLEARED ✓
+                                 </span>
+                               ) : (
+                                 <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em] mt-1.5 flex items-center gap-1">
+                                   HOLDING
+                                 </span>
+                               )}
+                             </div>
+                           </td>
                         </motion.tr>
                       );
                     })}

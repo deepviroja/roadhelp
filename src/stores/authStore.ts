@@ -84,6 +84,17 @@ export const useAuthStore = create<AuthState>()(
       initialize: () => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
           if (user) {
+            if (user.isAnonymous) {
+              set({
+                user,
+                profile: null,
+                role: 'customer',
+                isAuthenticated: true,
+                initialized: true,
+                isLoading: false,
+              });
+              return;
+            }
             for (let attempt = 1; attempt <= 5; attempt++) {
               try {
                 const userDoc = await getDoc(doc(db, 'users', user.uid));

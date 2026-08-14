@@ -21,6 +21,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { CustomerLayout } from '@/components/layout/CustomerLayout';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useFormBuilder } from '@/hooks/useFormBuilder';
 import { DynamicFormFields } from '@/components/shared/DynamicFormFields';
 import { useSystemStore } from '@/stores/systemStore';
@@ -59,6 +60,56 @@ export default function GetHelp() {
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
+
+  // Popstate listener to prevent browser back button
+  useEffect(() => {
+    if (currentStep <= 1) return;
+
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+      setPendingPath(null);
+      setShowExitDialog(true);
+    };
+
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [currentStep]);
+
+  // Click interceptor to prevent internal link clicks
+  useEffect(() => {
+    if (currentStep <= 1) return;
+
+    const handleLinkClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest('a');
+      if (anchor) {
+        const href = anchor.getAttribute('href');
+        if (href && !href.startsWith('tel:') && !href.startsWith('mailto:') && !href.startsWith('#')) {
+          e.preventDefault();
+          setPendingPath(href);
+          setShowExitDialog(true);
+        }
+      }
+    };
+
+    document.addEventListener('click', handleLinkClick, true);
+    return () => document.removeEventListener('click', handleLinkClick, true);
+  }, [currentStep]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (currentStep > 1) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [currentStep]);
+
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -70,10 +121,31 @@ export default function GetHelp() {
     };
   }, []);
 
-  const activeServices = useMemo(
-    () => services.filter((s) => s.isActive ?? true),
-    [services]
-  );
+  const [directedProvider, setDirectedProvider] = useState<any>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(routeLocation.search);
+    const providerIdParam = params.get('providerId');
+    if (providerIdParam) {
+      import('firebase/firestore').then(({ getDoc, doc }) => {
+        getDoc(doc(db, 'users', providerIdParam))
+          .then((snap) => {
+            if (snap.exists()) {
+              setDirectedProvider({ uid: snap.id, ...snap.data() });
+            }
+          })
+          .catch(console.warn);
+      });
+    }
+  }, [routeLocation.search]);
+
+  const activeServices = useMemo(() => {
+    let list = services.filter((s) => s.isActive ?? true);
+    if (directedProvider?.serviceTypes && Array.isArray(directedProvider.serviceTypes) && directedProvider.serviceTypes.length > 0) {
+      list = list.filter((s) => directedProvider.serviceTypes.includes(s.id));
+    }
+    return list;
+  }, [services, directedProvider]);
 
   const filteredServices = useMemo(() => {
     const query = serviceSearch.trim().toLowerCase();
@@ -107,7 +179,7 @@ export default function GetHelp() {
     },
   });
 
-  const { config: serviceRequestFormConfig } = useFormBuilder('getHelp');
+
 
   const watchedServiceType = form.watch('serviceType');
   const resolvedServiceType = watchedServiceType || selectedService?.id || '';
@@ -154,15 +226,14 @@ export default function GetHelp() {
 
     if (serviceParam) {
       applyServiceSelection(serviceParam);
-    } else {
+    } else if (!selectedService) {
       // Direct opening via Get Help button or /get-help direct visit:
       sessionStorage.removeItem('roadhelp:getHelpWizardDraft');
-      setSelectedService(null);
       setServiceLabelOverride('');
       form.setValue('serviceType', '' as any);
       setIsChangingService(true);
     }
-  }, [activeServices, routeLocation.search]);
+  }, [services, routeLocation.search]);
 
 
   // Save state to sessionStorage on change
@@ -291,7 +362,8 @@ export default function GetHelp() {
     }
   };
 
-  const currentBgImage = selectedServiceConfig?.bgImage || getServiceBackgroundImage(resolvedServiceType);
+  const { heroBgImage } = useSystemStore();
+  const currentBgImage = selectedServiceConfig?.bgImage || getServiceBackgroundImage(resolvedServiceType) || heroBgImage || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=1200&auto=format&fit=crop';
 
   return (
     <div className="flex-1 bg-[#F5F5F6] min-h-screen overflow-x-hidden relative font-sans pt-12">
@@ -697,12 +769,7 @@ export default function GetHelp() {
                 </div>
               </div>
 
-              {serviceRequestFormConfig && serviceRequestFormConfig.fields && serviceRequestFormConfig.fields.length > 0 && (
-                <div className="pt-6 border-t border-slate-200 mt-6 max-w-xl mx-auto">
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">Additional Details</h3>
-                  <DynamicFormFields fields={serviceRequestFormConfig.fields} form={form} />
-                </div>
-              )}
+
             </motion.div>
           )}
 
@@ -857,6 +924,19 @@ export default function GetHelp() {
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={showExitDialog}
+        onOpenChange={setShowExitDialog}
+        title="Leave Request Setup?"
+        description="Your progress will be lost. Are you sure you want to discard this request?"
+        confirmText="Leave and Discard"
+        cancelText="Continue Request Setup"
+        onConfirm={() => {
+          setShowExitDialog(false);
+          navigate(pendingPath || '/');
+        }}
+        isDestructive
+      />
     </div>
   </div>
   );

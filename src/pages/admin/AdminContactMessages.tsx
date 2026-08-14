@@ -11,6 +11,7 @@ import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } fro
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
+import { getAuth } from 'firebase/auth';
 
 import { logAdminAction } from '@/lib/auditLogger';
 
@@ -28,8 +29,11 @@ interface ContactSubmission {
   createdAt: string;
 }
 
+import { useSystemStore } from '@/stores/systemStore';
+
 export default function AdminContactMessages() {
   const { profile } = useAuth();
+  const { appName, supportEmail, smtpFromEmail } = useSystemStore();
   const [messages, setMessages] = useState<ContactSubmission[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'replied'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,7 +69,8 @@ export default function AdminContactMessages() {
 
   const handleOpenReplyModal = (msg: ContactSubmission) => {
     setSelectedMessage(msg);
-    setReplyText(msg.replyText || `Hello ${msg.name},\n\nThank you for contacting RoadHelp Support regarding "${msg.subject || 'your inquiry'}".\n\n\n\nBest regards,\nRoadHelp Admin Support Team`);
+    const activeSender = smtpFromEmail || supportEmail || profile?.email || 'admin@roadhelp.com';
+    setReplyText(msg.replyText || `Hello ${msg.name},\n\nThank you for contacting ${appName} Support regarding "${msg.subject || 'your inquiry'}". We have reviewed your message and would like to assist you.\n\nBest regards,\n${appName} Support Team (${activeSender})`);
   };
 
   const handleSendReply = async () => {
@@ -78,7 +83,7 @@ export default function AdminContactMessages() {
     try {
       const docRef = doc(db, 'contactSubmissions', selectedMessage.id);
       const repliedAt = new Date().toISOString();
-      const repliedBy = profile?.email || 'admin@roadhelp.com';
+      const repliedBy = smtpFromEmail || supportEmail || profile?.email || 'admin@roadhelp.com';
 
       await updateDoc(docRef, {
         status: 'replied',
@@ -96,12 +101,27 @@ export default function AdminContactMessages() {
         targetId: selectedMessage.id,
       });
 
-      // Launch native mailto link with pre-filled reply text
-      const mailtoSubject = encodeURIComponent(`RE: ${selectedMessage.subject || 'RoadHelp Inquiry'}`);
-      const mailtoBody = encodeURIComponent(replyText.trim());
-      window.open(`mailto:${selectedMessage.email}?subject=${mailtoSubject}&body=${mailtoBody}`, '_blank');
+      // Call backend API instead of mailto:
+      const token = await getAuth().currentUser?.getIdToken(true);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/contact/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: selectedMessage.email,
+          subject: `RE: ${selectedMessage.subject || 'RoadHelp Inquiry'}`,
+          replyText: replyText.trim(),
+        }),
+      });
 
-      toast.success(`Reply saved! Email client launched for ${selectedMessage.email}`);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to dispatch email via server');
+      }
+
+      toast.success(`Reply email sent successfully to ${selectedMessage.email}`);
       setSelectedMessage(null);
       setReplyText('');
     } catch (err: any) {

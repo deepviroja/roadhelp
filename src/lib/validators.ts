@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 const passwordSchema = z
   .string()
@@ -9,7 +10,27 @@ const passwordSchema = z
 const phoneSchema = z
   .string()
   .min(1, 'Phone number is required')
-  .regex(/^\d{7,15}$/, 'Enter a valid 7 to 15 digit phone number');
+  .regex(/^\d{4,15}$/, 'Enter a valid phone number (digits only)');
+
+/** Validates a phone number using libphonenumber-js (Google's database).
+ *  `countryCode` should be a dial code string like "+91" or "+1".
+ */
+function isValidInternationalPhone(phone: string, countryCode: string): boolean {
+  try {
+    const cleanCountry = countryCode.trim();
+    if (cleanCountry === '+91' || cleanCountry === '91') {
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length !== 10) {
+        return false;
+      }
+    }
+    const full = `${countryCode}${phone}`;
+    const parsed = parsePhoneNumberFromString(full);
+    return parsed?.isValid() === true;
+  } catch {
+    return false;
+  }
+}
 
 export const loginSchema = z.object({
   identifier: z.string().min(1, 'Email address is required').email('Please enter a valid email address'),
@@ -31,6 +52,10 @@ export const customerSignupSchema = z
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
+  })
+  .refine((data) => isValidInternationalPhone(data.phone, data.countryCode), {
+    message: 'Enter a valid phone number for the selected country',
+    path: ['phone'],
   });
 
 export const providerSignupSchema = z
@@ -59,6 +84,10 @@ export const providerSignupSchema = z
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
+  })
+  .refine((data) => isValidInternationalPhone(data.phone, data.countryCode), {
+    message: 'Enter a valid phone number for the selected country',
+    path: ['phone'],
   });
 
 
@@ -75,7 +104,7 @@ export const serviceRequestSchema = z.object({
 export const guestHelpSchema = z.object({
   fullName: z.string().min(2, 'Please enter your name'),
   email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
-  phone: z.string().min(7, 'Enter a valid phone number').max(15, 'Phone number is too long'),
+  phone: z.string().min(4, 'Enter a valid phone number').max(15, 'Phone number is too long'),
   countryCode: z.string().min(1, 'Select a country code'),
   vehicleType: z.string().min(2, 'Vehicle type is required'),
   vehicleBrand: z.string().min(2, 'Vehicle brand is required'),
@@ -86,21 +115,51 @@ export const guestHelpSchema = z.object({
   notes: z.string().optional(),
   preferredContactMethod: z.enum(['phone', 'email', 'whatsapp']),
   isEmergency: z.boolean(),
-}).catchall(z.any());
+}).catchall(z.any())
+  .refine((data) => isValidInternationalPhone(data.phone, data.countryCode), {
+    message: 'Enter a valid phone number for the selected country',
+    path: ['phone'],
+  });
 
 export const profileUpdateSchema = z.object({
   fullName: z.string().min(2, 'Please enter your full name'),
   countryCode: z.string().optional(),
-  phone: z.string().min(7, 'Enter a valid phone number').max(15, 'Phone number is too long'),
+  phone: z.string().min(4, 'Enter a valid phone number').max(15, 'Phone number is too long'),
   serviceRadiusKm: z.union([z.number(), z.string()]).optional(),
+}).refine((data) => {
+  if (!data.countryCode) return /^\d{7,15}$/.test(data.phone);
+  return isValidInternationalPhone(data.phone, data.countryCode);
+}, {
+  message: 'Enter a valid phone number for the selected country',
+  path: ['phone'],
+});
+
+export const providerProfileUpdateSchema = z.object({
+  fullName: z.string().min(2, 'Please enter your full name'),
+  countryCode: z.string().optional(),
+  phone: z.string().min(4, 'Enter a valid phone number').max(15, 'Phone number is too long'),
+  companyName: z.string().min(2, 'Shop/company name is required'),
+  businessAddress: z.string().min(5, 'Business address is required'),
+  city: z.string().min(2, 'City is required'),
+  state: z.string().min(2, 'State is required'),
+  pin: z.string().min(4, 'Enter a valid PIN code'),
+  businessHours: z.string().min(2, 'Business hours are required'),
+  serviceRadiusKm: z.union([z.number(), z.string()]).optional(),
+  licenseNumber: z.string().optional(),
+  vehicleNumber: z.string().optional(),
+}).refine((data) => {
+  if (!data.countryCode) return /^\d{7,15}$/.test(data.phone);
+  return isValidInternationalPhone(data.phone, data.countryCode);
+}, {
+  message: 'Enter a valid phone number for the selected country',
+  path: ['phone'],
 });
 
 export const vehicleSchema = z.object({
   make: z.string().min(1, 'Make is required'),
   model: z.string().min(1, 'Model is required'),
-  year: z.string().regex(/^\d{4}$/, 'Enter a valid year'),
   plateNumber: z.string().min(1, 'Plate number is required'),
-  color: z.string().min(1, 'Color is required'),
+  type: z.string().optional(),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
@@ -109,4 +168,5 @@ export type ProviderSignupFormData = z.infer<typeof providerSignupSchema>;
 export type ServiceRequestFormData = z.infer<typeof serviceRequestSchema>;
 export type GuestHelpFormData = z.infer<typeof guestHelpSchema>;
 export type ProfileUpdateFormData = z.infer<typeof profileUpdateSchema>;
+export type ProviderProfileUpdateFormData = z.infer<typeof providerProfileUpdateSchema>;
 export type VehicleFormData = z.infer<typeof vehicleSchema>;

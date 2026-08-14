@@ -44,6 +44,7 @@ export default function ProviderDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [calculatedEarnings, setCalculatedEarnings] = useState(profile?.totalEarnings || 0);
   const [calculatedJobs, setCalculatedJobs] = useState(profile?.totalJobs || 0);
+  const [calculatedRating, setCalculatedRating] = useState<number | null>(profile?.rating || null);
   // Track provider's current serviceTypes to detect changes
   const [providerServiceTypes, setProviderServiceTypes] = useState<string[]>(profile?.serviceTypes || []);
 
@@ -83,8 +84,16 @@ export default function ProviderDashboard() {
       getDocs(q).then((snapshot) => {
         const jobs = snapshot.docs.map(doc => doc.data() as ServiceRequest);
         const totalNet = jobs.reduce((sum, job) => sum + (job.providerEarnings || 0) + (job.tipAmount || 0), 0);
+        const ratedJobs = jobs.filter((j) => j.rating && j.rating > 0);
+        const avg = ratedJobs.length > 0
+          ? (ratedJobs.reduce((sum, j) => sum + (j.rating || 0), 0) / ratedJobs.length)
+          : (profile?.rating || 0);
+
         setCalculatedEarnings(totalNet);
         setCalculatedJobs(jobs.length);
+        if (avg > 0) {
+          setCalculatedRating(avg);
+        }
       }).catch(console.error);
     });
 
@@ -195,7 +204,7 @@ export default function ProviderDashboard() {
             <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight leading-none mb-2">
               {useSystemStore.getState().pageContent?.dashboardProviderWelcome || profile?.fullName}
             </h1>
-            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">{profile?.email} • Fleet ID: {profile?.companyName || 'Company'}</p>
+            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">{profile?.email} • Shop: {profile?.companyName || 'Verified Provider'}</p>
           </div>
           <div className="flex items-center gap-4">
              <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm pr-6">
@@ -243,7 +252,7 @@ export default function ProviderDashboard() {
           />
           <StatCard
             label="Trust Score"
-            value={profile?.rating ? profile.rating.toFixed(1) : "5.0"}
+            value={(calculatedRating ?? profile?.rating) ? `${(calculatedRating ?? profile?.rating ?? 0).toFixed(1)} / 5.0 ⭐` : "New Provider"}
             icon={Star}
             color="amber"
           />
@@ -293,11 +302,11 @@ export default function ProviderDashboard() {
                     <div className="flex items-center justify-between border-b border-slate-100 pb-6">
                       <div className="flex items-center gap-3">
                         <Activity className="w-6 h-6 text-blue-600" />
-                        <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">Satellite Triage</h2>
+                        <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">Incoming Requests</h2>
                       </div>
                       <div className="px-4 py-1.5 bg-slate-900 rounded-full">
                         <span className="text-[9px] font-bold uppercase text-blue-400 tracking-widest animate-pulse">
-                          Scanning Frequencies...
+                          Scanning Nearby...
                         </span>
                       </div>
                     </div>
@@ -305,14 +314,14 @@ export default function ProviderDashboard() {
                     {isLoading ? (
                       <div className="py-24 flex flex-col items-center glass-card rounded-3xl">
                         <div className="animate-spin w-10 h-10 border-4 border-blue-100 border-t-blue-600 rounded-xl mb-4" />
-                        <p className="text-[10px] font-bold uppercase text-slate-500 tracking-widest">Decoding Telemetry...</p>
+                        <p className="text-[10px] font-bold uppercase text-slate-500 tracking-widest">Loading Requests...</p>
                       </div>
                     ) : pendingRequests.length === 0 ? (
                       <div className="py-24 glass-card rounded-3xl border-dashed flex flex-col items-center">
                         <EmptyState
                           icon={<Search className="w-16 h-16 text-slate-200" />}
-                          title="Frequencies Clear"
-                          description="Awaiting incoming distress telemetry in your operational perimeter."
+                          title="No Active Requests"
+                          description="Waiting for new roadside assistance requests near your area."
                         />
                       </div>
                     ) : (
@@ -340,7 +349,7 @@ export default function ProviderDashboard() {
                     </div>
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4">Unavailable to Take Requests</h2>
                     <p className="text-slate-500 font-semibold text-xs max-w-xs leading-relaxed italic">
-                      Turn on the receiver to start receiving requests
+                      Turn on the switch to start receiving customer requests
                     </p>
                     <Button
                       onClick={() => handleToggleOnline(true)}
@@ -358,28 +367,28 @@ export default function ProviderDashboard() {
            <div className="lg:col-span-4">
               <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-xl h-full relative overflow-hidden group">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full blur-2xl -mr-16 -mt-16 group-hover:scale-125 transition-all duration-700" />
-                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8 border-b border-white/10 pb-3 relative z-10">Operational Overview</h3>
+                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8 border-b border-white/10 pb-3 relative z-10">Dashboard Summary</h3>
                  
                  <div className="space-y-8 relative z-10 mt-6">
                     <div className="space-y-6">
                        <div className="flex items-center justify-between">
                           <div>
-                             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Missions Completed</p>
+                             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Jobs Completed</p>
                              <p className="text-xl font-black tracking-tight">{profile?.totalJobs || 0}</p>
                           </div>
                           <Briefcase className="w-6 h-6 text-blue-500" />
                        </div>
                        <div className="flex items-center justify-between">
                           <div>
-                             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Yield</p>
+                             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Payout</p>
                              <p className="text-xl font-black tracking-tight">{formatCurrency(profile?.totalEarnings || 0)}</p>
                           </div>
                           <TrendingUp className="w-6 h-6 text-green-500" />
                        </div>
                        <div className="flex items-center justify-between">
                           <div>
-                             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Fleet Trust Score</p>
-                             <p className="text-xl font-black tracking-tight">{profile?.rating ? profile.rating.toFixed(1) : "5.0"}</p>
+                             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Provider Rating</p>
+                             <p className="text-xl font-black tracking-tight">{(calculatedRating ?? profile?.rating) ? `${(calculatedRating ?? profile?.rating ?? 0).toFixed(1)} / 5.0 ⭐` : "New Provider"}</p>
                           </div>
                           <Star className="w-6 h-6 text-amber-500" />
                        </div>

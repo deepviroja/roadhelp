@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Shield,
   AlertTriangle,
+  Mail,
 } from "lucide-react";
 
 import { Logo } from "@/components/shared/Logo";
@@ -41,12 +42,11 @@ const ADMIN_LINKS = [
   { to: "/admin/vehicles", label: "Vehicle Types", icon: Car },
   { to: "/admin/forms", label: "Form Builder", icon: FormInput },
   { to: "/admin/pages", label: "Page CMS", icon: FileText },
+  { to: "/admin/email-templates", label: "Email Templates", icon: Mail },
   { to: "/admin/admins", label: "Admins & Roles", icon: Shield },
   { to: "/admin/logs", label: "Audit Logs", icon: History },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
-
-
 
 const ROUTE_PERMISSION_MAP: Record<string, string> = {
   "/admin/dashboard": "all_admins",
@@ -61,6 +61,7 @@ const ROUTE_PERMISSION_MAP: Record<string, string> = {
   "/admin/vehicles": "services",
   "/admin/forms": "cms",
   "/admin/pages": "cms",
+  "/admin/email-templates": "cms",
   "/admin/admins": "all",
   "/admin/logs": "settings",
   "/admin/settings": "settings",

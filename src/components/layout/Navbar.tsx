@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Menu, X, ChevronRight } from 'lucide-react';
+import { LogOut, Menu, X, ChevronRight, ChevronDown, User } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/shared/Logo';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useSystemStore } from '@/stores/systemStore';
 
 interface NavLink {
@@ -24,8 +24,12 @@ export function Navbar({ links = [], extra }: NavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileMobileOpen, setProfileMobileOpen] = useState(false);
   const user = profile?.role;
   const { appName } = useSystemStore();
+
+  const profilePath = user === 'customer' ? '/customer/profile' : user === 'provider' ? '/provider/profile' : '/admin/settings';
 
   const handleLogout = async () => {
     await logout();
@@ -120,6 +124,11 @@ export function Navbar({ links = [], extra }: NavbarProps) {
 
   const allPublicNavItems = [...primaryNavItems, ...secondaryNavItems];
 
+  const filteredLinks = links.filter((l) => l.label.toLowerCase() !== 'profile');
+  const filteredMobileLinks = profile
+    ? links.filter((l) => l.label.toLowerCase() !== 'profile')
+    : allPublicNavItems;
+
   return (
     <header className="sticky top-0 z-50 glass-effect border-b border-white/10 shadow-lg shadow-black/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 md:h-24 flex items-center justify-between">
@@ -127,7 +136,7 @@ export function Navbar({ links = [], extra }: NavbarProps) {
 
         {profile ? (
           <nav className="hidden md:flex items-center gap-2">
-            {links.map((link) => (
+            {filteredLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
@@ -147,15 +156,36 @@ export function Navbar({ links = [], extra }: NavbarProps) {
           {profile ? (
             <div className="hidden md:flex items-center gap-6">
               {extra}
-              <div className="flex items-center gap-5 pl-6 border-l border-slate-200/50">
-                <Link to={user === 'customer' ? '/customer/dashboard' : user === 'provider' ? '/provider/dashboard' : '/admin/dashboard'} className="flex flex-col items-end">
+              <div 
+                className="relative pl-6 border-l border-slate-200/50"
+                onMouseEnter={() => setProfileOpen(true)}
+                onMouseLeave={() => setProfileOpen(false)}
+              >
+                <button
+                  type="button"
+                  className="flex items-center gap-2 cursor-pointer py-2 px-3 rounded-xl hover:bg-slate-100 transition-all select-none min-h-[48px]"
+                >
                   <p className="text-sm font-black text-slate-900 leading-tight">{profile?.fullName}</p>
-                  <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest">{profile?.role}</p>
-                </Link>
-                <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-500 hover:text-red-600 font-black uppercase tracking-widest text-[10px] min-h-[48px]">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
-                </Button>
+                  <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${profileOpen ? 'rotate-180 text-blue-600' : ''}`} />
+                </button>
+
+                {profileOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <Link
+                      to={profilePath}
+                      onClick={() => setProfileOpen(false)}
+                      className="block w-full px-4 py-2.5 rounded-xl text-xs font-black tracking-wider transition-all text-slate-700 hover:bg-blue-600 hover:text-white cursor-pointer"
+                    >
+                      PROFILE
+                    </Link>
+                    <button
+                      onClick={() => { setProfileOpen(false); handleLogout(); }}
+                      className="w-full text-left block px-4 py-2.5 rounded-xl text-xs font-black tracking-wider transition-all text-slate-700 hover:bg-red-600 hover:text-white cursor-pointer"
+                    >
+                      LOGOUT
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -179,13 +209,17 @@ export function Navbar({ links = [], extra }: NavbarProps) {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-full sm:max-w-md p-0 border-none bg-slate-50/95 backdrop-blur-2xl">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Navigation Menu</SheetTitle>
+                <SheetDescription>Navigation links for mobile screens</SheetDescription>
+              </SheetHeader>
               <div className="flex flex-col h-full p-8 md:p-12 overflow-y-auto">
                 <div className="flex items-center justify-between mb-10">
                   <Logo size="lg" />
                 </div>
                 
                 <nav className="flex flex-col gap-5">
-                  {(profile ? links.map(l => ({ label: l.label, to: l.to })) : allPublicNavItems).map((item) => (
+                  {filteredMobileLinks.map((item) => (
                     <Link
                       key={item.label}
                       to={item.to}
@@ -199,15 +233,40 @@ export function Navbar({ links = [], extra }: NavbarProps) {
 
                 <div className="mt-auto pt-10 border-t border-slate-200/50 space-y-4">
                   {profile ? (
-                    <Button
-                      variant="destructive"
-                      size="lg"
-                      className="w-full rounded-2xl text-base font-black uppercase tracking-widest min-h-[48px]"
-                      onClick={() => { setMobileOpen(false); handleLogout(); }}
-                    >
-                      <LogOut className="w-5 h-5 mr-3" />
-                      Sign Out
-                    </Button>
+                    <div className="space-y-3">
+                      <div className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-base shadow-sm">
+                            {profile?.fullName?.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-black text-slate-900 leading-tight truncate">{profile?.fullName}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{profile?.email}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button
+                          variant="outline"
+                          className="h-12 rounded-2xl border-slate-200 text-slate-800 hover:bg-blue-600 hover:text-white font-black text-xs uppercase tracking-widest gap-2 shadow-sm transition-all"
+                          asChild
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          <Link to={profilePath}>
+                            <User className="w-4 h-4 text-blue-600 group-hover:text-white" /> Profile
+                          </Link>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="h-12 rounded-2xl border-red-200 bg-red-50/80 text-red-600 hover:bg-red-600 hover:text-white font-black text-xs uppercase tracking-widest gap-2 shadow-sm cursor-pointer transition-all"
+                          onClick={() => { setMobileOpen(false); handleLogout(); }}
+                        >
+                          <LogOut className="w-4 h-4" /> Logout
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
                     <>
                       <Button variant="outline" size="lg" className="w-full rounded-2xl text-base font-black tracking-widest border-2 min-h-[48px]" asChild onClick={() => setMobileOpen(false)}>

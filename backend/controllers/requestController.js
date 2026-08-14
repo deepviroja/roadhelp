@@ -56,7 +56,7 @@ exports.selectProposal = async (req, res) => {
   try {
     const { id } = req.params;
     const { proposalId } = req.body;
-    const customerUid = req.userProfile?.uid || req.body.customerId;
+    const customerUid = req.userProfile?.uid || req.user?.uid || req.body.customerId;
     await requestService.selectProposal(id, proposalId || req.body.proposal?.id, customerUid);
     res.status(200).json({ success: true });
   } catch (error) {
@@ -67,7 +67,7 @@ exports.selectProposal = async (req, res) => {
 exports.rejectProposal = async (req, res) => {
   try {
     const { id, proposalId } = req.params;
-    const customerUid = req.userProfile?.uid;
+    const customerUid = req.userProfile?.uid || req.user?.uid;
     await requestService.rejectProposal(id, proposalId, customerUid);
     res.status(200).json({ success: true });
   } catch (error) {
@@ -78,7 +78,7 @@ exports.rejectProposal = async (req, res) => {
 exports.autoAssignProposal = async (req, res) => {
   try {
     const { id } = req.params;
-    const customerUid = req.userProfile?.uid;
+    const customerUid = req.userProfile?.uid || req.user?.uid;
     const result = await requestService.autoAssignProposal(id, customerUid);
     res.status(200).json({ success: true, data: result });
   } catch (error) {
@@ -90,7 +90,7 @@ exports.updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, extras } = req.body;
-    await requestService.updateRequestStatus(id, status, extras, req.userProfile);
+    await requestService.updateRequestStatus(id, status, extras, req.userProfile || req.user);
     res.status(200).json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -100,7 +100,7 @@ exports.updateStatus = async (req, res) => {
 exports.acceptRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const profile = req.userProfile || req.body.profile;
+    const profile = req.userProfile || req.user || req.body.profile;
     await requestService.acceptRequest(id, profile);
     res.status(200).json({ success: true });
   } catch (error) {
@@ -111,7 +111,7 @@ exports.acceptRequest = async (req, res) => {
 exports.declineRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const providerUid = req.userProfile?.uid;
+    const providerUid = req.userProfile?.uid || req.user?.uid;
     await requestService.declineRequest(id, providerUid);
     res.status(200).json({ success: true });
   } catch (error) {
@@ -226,6 +226,17 @@ exports.approveAdditionalCosts = async (req, res) => {
     res.status(200).json({ success: true, message: 'Additional costs approved successfully' });
   } catch (error) {
     console.error('Approve Additional Costs Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.rejectAdditionalCosts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await requestService.rejectAdditionalCosts(id);
+    res.status(200).json({ success: true, message: 'Additional costs rejected successfully' });
+  } catch (error) {
+    console.error('Reject Additional Costs Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

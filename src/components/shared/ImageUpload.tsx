@@ -1,7 +1,5 @@
 import { useState, useRef } from "react";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Image as ImageIcon, Upload, X, Loader2, User } from "lucide-react";
-import { storage } from "@/config/firebase";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,8 +22,11 @@ export function ImageUpload({ currentImage, onUploadComplete, onRemove, folder =
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image file.");
+    const allowedExtensions = ["png", "jpg", "jpeg", "webp", "gif"];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+    if (!file.type.startsWith("image/") || !fileExtension || !allowedExtensions.includes(fileExtension)) {
+      toast.error("Please select a valid image file (.png, .jpg, .jpeg, .webp, .gif).");
       return;
     }
 
@@ -38,42 +39,55 @@ export function ImageUpload({ currentImage, onUploadComplete, onRemove, folder =
   };
 
   const uploadFile = (file: File) => {
-    if (!storage) {
-      toast.error("Storage is not configured correctly.");
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !cloudName.trim() || cloudName === 'YOUR_CLOUD_NAME' || !uploadPreset || !uploadPreset.trim() || uploadPreset === 'YOUR_UPLOAD_PRESET') {
+      toast.error("Please configure your Cloudinary environment variables in the .env file.");
       return;
     }
 
     setIsUploading(true);
     setProgress(0);
 
-    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-    const storageRef = ref(storage, `${folder}/${fileName}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset);
 
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        const p = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const p = Math.round((event.loaded / event.total) * 100);
         setProgress(p);
-      },
-      (error) => {
-        console.error("Upload error:", error);
-        toast.error("Failed to upload image. Please check your storage rules.");
-        setIsUploading(false);
-      },
-      async () => {
+      }
+    };
+
+    xhr.onload = () => {
+      setIsUploading(false);
+      if (xhr.status === 200) {
         try {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          onUploadComplete(downloadURL);
+          const response = JSON.parse(xhr.responseText);
+          onUploadComplete(response.secure_url);
           toast.success("Image uploaded successfully!");
         } catch (err) {
-          toast.error("Failed to retrieve image URL.");
-        } finally {
-          setIsUploading(false);
-          if (fileInputRef.current) fileInputRef.current.value = "";
+          toast.error("Failed to parse Cloudinary response.");
         }
+      } else {
+        console.error("Cloudinary upload error:", xhr.responseText);
+        toast.error("Cloudinary upload failed. Check cloud name or upload preset.");
       }
-    );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    xhr.onerror = () => {
+      setIsUploading(false);
+      toast.error("Network error during Cloudinary upload.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    xhr.send(formData);
   };
 
   return (
@@ -82,7 +96,7 @@ export function ImageUpload({ currentImage, onUploadComplete, onRemove, folder =
         type="file"
         ref={fileInputRef}
         onChange={handleFileSelect}
-        accept="image/*"
+        accept=".png,.jpg,.jpeg,.webp,.gif"
         className="hidden"
       />
 

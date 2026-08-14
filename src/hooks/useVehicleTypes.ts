@@ -3,14 +3,30 @@ import { fetchVehicleTypes, saveVehicleType, deleteVehicleType } from '@/lib/veh
 import { VehicleTypeConfig } from '@/types';
 
 export function useVehicleTypes() {
-  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeConfig[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const cacheKey = 'cached:vehicleTypes';
+  
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeConfig[]>(() => {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  
+  const [isLoading, setIsLoading] = useState(vehicleTypes.length > 0 ? false : true);
 
   const loadTypes = async () => {
     setIsLoading(true);
-    const data = await fetchVehicleTypes();
-    setVehicleTypes(data);
-    setIsLoading(false);
+    try {
+      const data = await fetchVehicleTypes();
+      setVehicleTypes(data);
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+    } catch (err) {
+      console.error('Failed to fetch vehicle types:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {

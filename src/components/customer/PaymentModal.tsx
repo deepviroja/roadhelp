@@ -71,7 +71,7 @@ export function PaymentModal({
           <DialogHeader>
             <DialogTitle className="text-white text-xl sm:text-2xl font-black tracking-tight flex items-center gap-3">
               <ShieldCheck className="w-6 h-6 text-blue-500" />
-              Settlement Authorization
+              Secure Payment
             </DialogTitle>
           </DialogHeader>
           <div className="mt-6 sm:mt-8 flex items-end justify-between gap-4">
@@ -193,7 +193,7 @@ export function PaymentModal({
           {/* Payment Method */}
           <div className="space-y-4">
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Mission Settlement Terminal
+              Payment Method
             </Label>
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {[
@@ -277,7 +277,7 @@ export function PaymentModal({
               >
                 <Banknote className="w-12 h-12 text-emerald-600 mx-auto mb-3" />
                 <p className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em] mb-1">
-                  Cash Settlement Required
+                  Cash Payment Required
                 </p>
                 <p className="text-xl font-black text-emerald-900 tracking-tighter">
                   {formatCurrency(totalAmount)}
@@ -302,11 +302,11 @@ export function PaymentModal({
                     ease: "linear",
                   }}
                 />
-                <span className="uppercase tracking-widest text-sm">Authorizing Mission End...</span>
+                <span className="uppercase tracking-widest text-sm">Processing Payment...</span>
               </span>
             ) : (
               <span className="flex items-center justify-center gap-3 uppercase tracking-widest text-sm">
-                Authorize {formatCurrency(totalAmount)}
+                Pay {formatCurrency(totalAmount)}
                 <IndianRupee className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </span>
             )}

@@ -56,11 +56,11 @@ export default function AdminRevenue() {
           (doc) => ({ id: doc.id, ...doc.data() }) as ServiceRequest,
         );
         const completed = reqs.filter(
-          (r) => r.status === "completed" && r.finalPrice != null,
+          (r) => r.status === "completed" && (r.totalPrice != null || r.finalPrice != null || r.estimatedPrice != null),
         );
 
         const total = completed.reduce(
-          (sum, r) => sum + r.finalPrice! * rate,
+          (sum, r) => sum + (r.totalPrice || r.finalPrice || r.estimatedPrice || 0) * rate,
           0,
         );
 
@@ -77,12 +77,11 @@ export default function AdminRevenue() {
             const date = ensureDate(r.createdAt);
             return date.getTime() > firstOfCurrentMonth;
           })
-
-          .reduce((sum, r) => sum + r.finalPrice! * rate, 0);
+          .reduce((sum, r) => sum + (r.totalPrice || r.finalPrice || r.estimatedPrice || 0) * rate, 0);
 
         const avg =
           completed.length > 0
-            ? completed.reduce((sum, r) => sum + (r.finalPrice || 0), 0) /
+            ? completed.reduce((sum, r) => sum + (r.totalPrice || r.finalPrice || r.estimatedPrice || 0), 0) /
               completed.length
             : 0;
 
@@ -214,9 +213,9 @@ export default function AdminRevenue() {
                   <tbody className="divide-y divide-slate-50">
                     <AnimatePresence>
                       {transactions.map((req, idx) => {
-                        const total = req.finalPrice || 0;
+                        const total = req.totalPrice || req.finalPrice || req.estimatedPrice || 0;
                         const fee = total * commissionRate;
-                        const providerEarned = total - fee;
+                        const providerEarned = (total - fee) + (req.tipAmount || 0);
                         return (
                           <motion.tr
                             initial={{ opacity: 0 }}
@@ -242,6 +241,11 @@ export default function AdminRevenue() {
                                     .replace(/([A-Z])/g, " $1")
                                     .trim()}
                               </span>
+                              {req.additionalFees && req.additionalFees > 0 ? (
+                                <span className="block text-[9px] font-bold text-green-600">
+                                  +{formatCurrency(req.additionalFees)} extra fee
+                                </span>
+                              ) : null}
                             </td>
                             <td className="px-6 py-6">
                               <span className="font-bold text-slate-600">
@@ -263,6 +267,11 @@ export default function AdminRevenue() {
                               <span className="font-bold text-slate-900">
                                 {formatCurrency(providerEarned)}
                               </span>
+                              {req.tipAmount && req.tipAmount > 0 ? (
+                                <span className="block text-[9px] font-bold text-amber-600">
+                                  incl. +{formatCurrency(req.tipAmount)} tip
+                                </span>
+                              ) : null}
                             </td>
                             <td className="px-10 py-6 text-right">
                               <span className="text-[11px] font-black text-slate-400 group-hover:text-slate-900 transition-colors uppercase tracking-widest">

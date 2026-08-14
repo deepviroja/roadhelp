@@ -60,8 +60,8 @@ export default function JobHistory() {
                     {job.status === 'completed' && (
                       job.isPaid && job.finalPrice ? (
                         <>
-                          <p className="text-sm font-semibold text-green-600">{formatCurrency(job.finalPrice * (1 - COMMISSION_RATE))}</p>
-                          <p className="text-xs text-gray-400">After 15% fee</p>
+                          <p className="text-sm font-semibold text-green-600">{formatCurrency(job.providerEarnings !== undefined ? job.providerEarnings : job.finalPrice * (1 - COMMISSION_RATE))}</p>
+                          <p className="text-xs text-gray-400">{job.adminCommission !== undefined ? `Fee: -${formatCurrency(job.adminCommission)}` : 'After platform fee'}</p>
                         </>
                       ) : (
                         <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">

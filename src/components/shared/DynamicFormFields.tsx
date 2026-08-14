@@ -35,14 +35,16 @@ export function DynamicFormFields({ fields, form }: DynamicFormFieldsProps) {
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
 
   return (
-    <div className="space-y-4 w-full">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
       {fields.map((field) => {
         const hasError = !!errors[field.id];
         const errorMessage = errors[field.id]?.message as string;
+        const isFullWidth = ['businessAddress', 'phone', 'licenseNumber', 'address', 'message', 'description', 'businessHours'].includes(field.id) || (field.type as string) === 'textarea' || (field.type as string) === 'checkbox';
+        const colSpanClass = isFullWidth ? 'md:col-span-2' : '';
 
         if (field.type === 'select') {
           return (
-            <div key={field.id} className="space-y-1.5 w-full">
+            <div key={field.id} className={`space-y-1.5 w-full ${colSpanClass}`}>
               <Label htmlFor={field.id} className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                 {field.label} {field.required && '*'}
               </Label>
@@ -66,7 +68,7 @@ export function DynamicFormFields({ fields, form }: DynamicFormFieldsProps) {
 
         if (field.type === ('textarea' as any)) {
           return (
-            <div key={field.id} className="space-y-1.5 w-full">
+            <div key={field.id} className={`space-y-1.5 w-full ${colSpanClass}`}>
               <Label htmlFor={field.id} className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                 {field.label} {field.required && '*'}
               </Label>
@@ -83,7 +85,7 @@ export function DynamicFormFields({ fields, form }: DynamicFormFieldsProps) {
 
         if (field.type === ('checkbox' as any)) {
           return (
-            <div key={field.id} className="flex items-center space-x-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 w-full">
+            <div key={field.id} className={`flex items-center space-x-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 w-full ${colSpanClass}`}>
               <input
                 id={field.id}
                 type="checkbox"
@@ -100,7 +102,7 @@ export function DynamicFormFields({ fields, form }: DynamicFormFieldsProps) {
 
         if (field.type === 'tel' || field.id === 'phone') {
           return (
-            <div key={field.id} className="space-y-1.5 w-full">
+            <div key={field.id} className={`space-y-1.5 w-full ${colSpanClass}`}>
               <Label htmlFor={field.id} className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                 {field.label} {field.required && '*'}
               </Label>
@@ -122,7 +124,7 @@ export function DynamicFormFields({ fields, form }: DynamicFormFieldsProps) {
         if (field.id === 'password' || field.id === 'confirmPassword') {
           const isVisible = !!showPasswords[field.id];
           return (
-            <div key={field.id} className="space-y-1.5 w-full relative">
+            <div key={field.id} className={`space-y-1.5 w-full relative ${colSpanClass}`}>
               <Label htmlFor={field.id} className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                 {field.label} {field.required && '*'}
               </Label>
@@ -148,7 +150,7 @@ export function DynamicFormFields({ fields, form }: DynamicFormFieldsProps) {
         }
 
         return (
-          <div key={field.id} className="space-y-1.5 w-full">
+          <div key={field.id} className={`space-y-1.5 w-full ${colSpanClass}`}>
             <Label htmlFor={field.id} className="text-[10px] font-black uppercase tracking-widest text-slate-500">
               {field.label} {field.required && '*'}
             </Label>

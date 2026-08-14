@@ -29,6 +29,7 @@ router.put('/:id/rating', authMiddleware, requestController.submitRating);
 router.put('/:id/verify-arrival-otp', authMiddleware, requestController.verifyArrivalOtp);
 router.post('/:id/propose-additional-costs', authMiddleware, requestController.proposeAdditionalCosts);
 router.put('/:id/approve-additional-costs', authMiddleware, requestController.approveAdditionalCosts);
+router.put('/:id/reject-additional-costs', authMiddleware, requestController.rejectAdditionalCosts);
 
 module.exports = router;
 

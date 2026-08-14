@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Phone, XCircle, Navigation, Map, SendHorizonal, Clock, IndianRupee, MessageSquare, Edit3 } from 'lucide-react';
+import { MapPin, Phone, XCircle, Navigation, Map, SendHorizonal, Clock, IndianRupee, MessageSquare, Edit3, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { ServiceRequest } from '@/types';
 import { getServiceLabel, calculateDistance, formatCurrency } from '@/lib/utils';
 import { SERVICE_MAP } from '@/lib/constants';
 import { useAuth } from '@/hooks/useAuth';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ProviderLocationMap } from '@/components/map/ProviderLocationMap';
 import { toast } from 'sonner';
 
@@ -25,12 +25,19 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
   const { profile } = useAuth();
   const [showMap, setShowMap] = useState(false);
   const [showOfferForm, setShowOfferForm] = useState(false);
+  const isDirectInvitePendingQuote = request.directInvite && (request.proposalPrice === 0 || request.proposalPrice == null);
+  const [offerSent, setOfferSent] = useState(request.proposalStatus === 'offered' && !isDirectInvitePendingQuote);
   const [isSending, setIsSending] = useState(false);
-  const [offerSent, setOfferSent] = useState(false);
 
   const [quote, setQuote] = useState<string>(String(request.estimatedPrice || ''));
   const [eta, setEta] = useState<string>('');
   const [message, setMessage] = useState<string>('');
+
+
+  useEffect(() => {
+    setOfferSent(request.proposalStatus === 'offered' && !isDirectInvitePendingQuote);
+    setQuote(String(request.estimatedPrice || ''));
+  }, [request, isDirectInvitePendingQuote]);
 
   const distance = profile?.location
     ? calculateDistance(
@@ -44,8 +51,17 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
   const estimatedEta = distance != null ? Math.ceil(distance * 3) : null;
 
   const handleSendOffer = async () => {
-    if (!quote || Number(quote) <= 0) {
+    const numQuote = Number(quote);
+    if (!quote || isNaN(numQuote) || numQuote <= 0) {
       toast.error('Please enter a valid price quote');
+      return;
+    }
+    if (request.serviceBasePrice && numQuote < request.serviceBasePrice) {
+      toast.error(`Price quote must be at least ${formatCurrency(request.serviceBasePrice)}`);
+      return;
+    }
+    if (request.serviceMaxPrice && numQuote > request.serviceMaxPrice) {
+      toast.error(`Price quote must be less than ${formatCurrency(request.serviceMaxPrice)}`);
       return;
     }
     if (!eta || Number(eta) <= 0) {
@@ -120,7 +136,7 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
               {request.isEmergency 
                 ? 'URGENT — Emergency Request' 
                 : request.directInvite 
-                  ? '⚡ Direct Customer Request' 
+                  ? <span className="flex items-center gap-1"><Zap className="w-3.5 h-3.5 fill-white text-white shrink-0" /> Direct Customer Request</span>
                   : 'New Request!'}
             </p>
           </div>
@@ -140,10 +156,7 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
         {/* Customer Info */}
         <div>
           <p className="font-semibold text-gray-900">{request.customerName}</p>
-          <div className="flex items-center gap-1 mt-0.5">
-            <Phone className="w-3.5 h-3.5 text-gray-400" />
-            <p className="text-sm text-gray-500">{request.customerPhone}</p>
-          </div>
+          
         </div>
 
         <div className="flex items-start gap-2">
@@ -192,14 +205,39 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
             <p className="text-xs text-green-600 font-semibold">
               Your quote of {formatCurrency(Number(quote))} has been sent. The customer will review all offers and choose the best one.
             </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setOfferSent(false); setShowOfferForm(true); }}
-              className="text-xs text-green-700 hover:bg-green-100 gap-1 h-8"
-            >
-              <Edit3 className="w-3 h-3" /> Edit Offer
-            </Button>
+            <div className="flex justify-center gap-2 mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setOfferSent(false); setShowOfferForm(true); }}
+                className="text-xs text-green-700 hover:bg-green-100 gap-1 h-8"
+              >
+                <Edit3 className="w-3 h-3" /> Edit Offer
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const token = await (await import('firebase/auth')).getAuth().currentUser?.getIdToken(true);
+                    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/requests/${request.id}/decline`, {
+                      method: 'PUT',
+                      headers: token ? { Authorization: `Bearer ${token}` } : {},
+                    });
+                    if (!res.ok) throw new Error();
+                    setOfferSent(false);
+                    setShowOfferForm(false);
+                    toast.success('Offer cancelled successfully.');
+                    onDecline();
+                  } catch {
+                    toast.error('Could not cancel offer');
+                  }
+                }}
+                className="text-xs text-red-600 hover:bg-red-50 gap-1 h-8"
+              >
+                <XCircle className="w-3 h-3" /> Cancel Offer
+              </Button>
+            </div>
           </div>
         ) : (
           <>
@@ -213,7 +251,18 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
                   className="overflow-hidden"
                 >
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 mt-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Your Offer</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Your Custom Offer</p>
+                    </div>
+
+                    {request.serviceBasePrice ? (
+                      <div className="flex items-center justify-between bg-blue-50/90 border border-blue-200/80 rounded-xl p-2.5 text-xs">
+                        <span className="font-bold text-blue-900">Suggested Service Rate</span>
+                        <span className="font-black text-blue-700 bg-white px-2.5 py-1 rounded-lg border border-blue-200 shadow-sm">
+                          {formatCurrency(request.serviceBasePrice)} {request.serviceMaxPrice ? `— ${formatCurrency(request.serviceMaxPrice)}` : ''}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">

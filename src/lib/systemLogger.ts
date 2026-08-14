@@ -38,8 +38,17 @@ export function parseErrorStack(stack?: string) {
 export async function logSystemEvent(entry: Omit<SystemLogEntry, 'pagePath'>) {
   try {
     const pagePath = window.location.pathname + window.location.search;
+    const cleanEntry: Record<string, any> = {};
+    
+    Object.keys(entry).forEach((key) => {
+      const val = (entry as any)[key];
+      if (val !== undefined) {
+        cleanEntry[key] = val;
+      }
+    });
+
     await addDoc(collection(db, 'systemLogs'), {
-      ...entry,
+      ...cleanEntry,
       pagePath,
       createdAt: new Date().toISOString(),
       timestamp: serverTimestamp(),

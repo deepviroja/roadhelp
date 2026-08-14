@@ -255,7 +255,7 @@ export function LoginForm({ onRoleChange }: { onRoleChange?: (role: UserRole) =>
             {isRequestingOtp ? (
               <span className="flex items-center gap-3">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Requesting OTP...
+                Loading...
               </span>
             ) : (
               <span className="flex items-center gap-3">

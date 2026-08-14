@@ -9,7 +9,7 @@ interface LogoProps {
 }
 
 export function Logo({ size = 'md', className = '' }: LogoProps) {
-  const { appName, initialized } = useSystemStore();
+  const { appName, logoUrl, initialized } = useSystemStore();
   const sizes = {
     sm: 'text-lg',
     md: 'text-xl font-extrabold',
@@ -59,13 +59,23 @@ export function Logo({ size = 'md', className = '' }: LogoProps) {
 
   return (
     <Link to="/" className={`flex items-center gap-2.5 group ${className}`}>
-      <motion.div
-        whileHover={{ rotate: 10, scale: 1.05 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 10 }}
-        className={`flex items-center justify-center rounded-xl bg-blue-600 shadow-lg shadow-blue-600/20 text-white ${iconSizes[size]}`}
-      >
-        <ShieldCheck className="w-2/3 h-2/3" strokeWidth={3} />
-      </motion.div>
+      {initialized && logoUrl ? (
+        <img
+          src={logoUrl}
+          alt={appName}
+          className={`object-contain rounded-xl ${
+            size === 'sm' ? 'h-8' : size === 'md' ? 'h-10' : 'h-14'
+          }`}
+        />
+      ) : (
+        <motion.div
+          whileHover={{ rotate: 10, scale: 1.05 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+          className={`flex items-center justify-center rounded-xl bg-blue-600 shadow-lg shadow-blue-600/20 text-white ${iconSizes[size]}`}
+        >
+          <ShieldCheck className="w-2/3 h-2/3" strokeWidth={3} />
+        </motion.div>
+      )}
       <span className={`${sizes[size]} tracking-tight transition-colors`}>
         {initialized ? (
           getStyledName()

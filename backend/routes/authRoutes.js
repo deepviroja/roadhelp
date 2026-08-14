@@ -13,5 +13,6 @@ router.post('/verify-magic-token', authController.verifyMagicToken);
 
 // Admin routes
 router.post('/admin', requireAuth, authController.createAdmin);
+router.post('/contact/reply', requireAuth, authController.sendContactReply);
 
 module.exports = router;

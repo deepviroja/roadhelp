@@ -168,14 +168,18 @@ export default function NearbyProviders() {
                     {Array.from({ length: 5 }).map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-3.5 h-3.5 ${i < Math.round(provider.rating || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'}`}
+                        className={`w-3.5 h-3.5 ${
+                          provider.totalJobs && provider.totalJobs > 0 && i < Math.round(provider.rating || 0)
+                            ? 'text-amber-400 fill-amber-400' 
+                            : 'text-gray-200 fill-gray-200'
+                        }`}
                       />
                     ))}
                   </div>
                   <span className="text-sm font-medium text-gray-700">
-                    {provider.rating?.toFixed(1) || 'New'}
+                    {(!provider.totalJobs || provider.totalJobs === 0) ? 'N/A' : (provider.rating || 0.0).toFixed(1)}
                   </span>
-                  {provider.totalJobs !== undefined && (
+                  {provider.totalJobs !== undefined && provider.totalJobs > 0 && (
                     <span className="text-xs text-gray-400">({provider.totalJobs} jobs)</span>
                   )}
                 </div>
@@ -240,20 +244,9 @@ export default function NearbyProviders() {
 
                 {/* Vehicle / Actions */}
                 <div className="flex items-center justify-between pt-3 border-t border-gray-100 gap-2">
-                  {provider.vehicleNumber && (
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{provider.vehicleNumber}</p>
-                  )}
                   <div className="flex items-center gap-2 ml-auto">
-                    {provider.phone && (
-                      <Button variant="outline" size="sm" asChild className="border-blue-200 text-blue-600 hover:bg-blue-50 h-8 px-3 text-xs gap-1.5">
-                        <a href={`tel:${provider.phone}`}>
-                          <Phone className="w-3 h-3" />
-                          Call
-                        </a>
-                      </Button>
-                    )}
                     <Button size="sm" asChild className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 text-xs font-bold">
-                      <Link to={`/customer/new-request?service=${selectedServiceType !== 'all' ? selectedServiceType : (provider.serviceTypes?.[0] || 'towing')}&providerId=${provider.uid}`}>
+                      <Link to={`/customer/new-request?${selectedServiceType !== 'all' ? `service=${selectedServiceType}&` : ''}providerId=${provider.uid}`}>
                         Request Help
                       </Link>
                     </Button>

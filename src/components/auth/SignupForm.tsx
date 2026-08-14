@@ -136,12 +136,22 @@ export function SignupForm() {
       const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/signup-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, fullName: data.fullName }),
+        body: JSON.stringify({ email: cleanEmail, fullName: data.fullName, signupData: { ...data, email: cleanEmail } }),
       });
 
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.message || 'Verification code request failed.');
+      }
+
+      // Bypass OTP if disableOtp is enabled on admin side
+      if (result.verified && result.token) {
+        const { signInWithCustomToken } = await import('firebase/auth');
+        const { auth } = await import('@/config/firebase');
+        await signInWithCustomToken(auth, result.token);
+        toast.success('Registration complete! Welcome aboard.');
+        navigate('/customer/dashboard');
+        return;
       }
 
       setPendingEmail(cleanEmail);
@@ -159,11 +169,18 @@ export function SignupForm() {
   const onProviderSubmit = async (data: ProviderSignupFormData) => {
     setIsRequestingOtp(true);
     const cleanEmail = data.email.trim().toLowerCase();
+    const fullSignupData = {
+      ...data,
+      email: cleanEmail,
+      serviceRadiusKm: Number(data.serviceRadiusKm) || 25,
+      latitude: lat ?? undefined,
+      longitude: lng ?? undefined
+    };
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/signup-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, fullName: data.fullName }),
+        body: JSON.stringify({ email: cleanEmail, fullName: data.fullName, signupData: fullSignupData }),
       });
 
       const result = await response.json();
@@ -171,14 +188,18 @@ export function SignupForm() {
         throw new Error(result.message || 'Verification code request failed.');
       }
 
+      // Bypass OTP if disableOtp is enabled on admin side
+      if (result.verified && result.token) {
+        const { signInWithCustomToken } = await import('firebase/auth');
+        const { auth } = await import('@/config/firebase');
+        await signInWithCustomToken(auth, result.token);
+        toast.success('Registration complete! Welcome aboard.');
+        navigate('/provider/dashboard');
+        return;
+      }
+
       setPendingEmail(cleanEmail);
-      setPendingSignupData({ 
-        ...data, 
-        email: cleanEmail, 
-        serviceRadiusKm: Number(data.serviceRadiusKm) || 25,
-        latitude: lat ?? undefined, 
-        longitude: lng ?? undefined 
-      });
+      setPendingSignupData(fullSignupData);
       setShowOtpDialog(true);
       setResendCountdown(30);
       toast.success('Verification code sent to your email.');
@@ -305,7 +326,7 @@ export function SignupForm() {
 
             <Button type="submit" size="lg" className="w-full h-16 rounded-[1.5rem] bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-2xl shadow-blue-600/20 group transform active:scale-[0.98] transition-all" disabled={isRequestingOtp}>
               {isRequestingOtp ? (
-                <span className="flex items-center gap-3"><Loader2 className="w-5 h-5 animate-spin" />Requesting OTP...</span>
+                <span className="flex items-center gap-3"><Loader2 className="w-5 h-5 animate-spin" />Loading...</span>
               ) : (
                 <span className="flex items-center gap-3 uppercase tracking-widest text-sm"><UserPlus className="w-5 h-5 group-hover:scale-110 transition-transform" />Create account</span>
               )}
@@ -432,7 +453,7 @@ export function SignupForm() {
                   </div>
                   <div className="space-y-1.5 focus-within:z-10">
                     <Label htmlFor="serviceRadiusKm-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Service radius (km)</Label>
-                    <Input id="serviceRadiusKm-p" type="number" min="1" max="500" placeholder="e.g. 25" {...providerForm.register('serviceRadiusKm', { valueAsNumber: true })} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.serviceRadiusKm)}`} />
+                    <Input id="serviceRadiusKm-p" type="number" min="1" max="500" placeholder="e.g. 25" {...providerForm.register('serviceRadiusKm', { setValueAs: (v) => (v === "" ? undefined : Number(v)) })} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.serviceRadiusKm)}`} />
                     {providerForm.formState.errors.serviceRadiusKm && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.serviceRadiusKm.message}</p>}
                   </div>
                   <div className="space-y-1.5 focus-within:z-10">
@@ -513,53 +534,51 @@ export function SignupForm() {
             </div>
 
             <div className="bg-slate-800 rounded-[2.5rem] p-8 space-y-6 text-white group shadow-xl">
-               <div className="flex items-center gap-3 mb-2">
-                  <ShieldCheck className="w-6 h-6 text-blue-400" />
-                  <h3 className="text-xl font-black tracking-tight">Services offered</h3>
-               </div>
+              <div className="flex items-center gap-3 mb-2">
+                <ShieldCheck className="w-6 h-6 text-blue-400" />
+                <h3 className="text-xl font-black tracking-tight">Services offered</h3>
+              </div>
 
-               {isServicesLoading ? (
-                  <div className="py-10 text-center font-black text-[10px] uppercase tracking-[0.5em] text-slate-500 animate-pulse">Loading service list...</div>
-               ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {activeServices.map((opt) => {
-                      const isSelected = watchedServiceTypes.includes(opt.id);
-                      return (
-                        <div
-                          key={opt.id}
-                          className={`flex items-center space-x-4 p-5 rounded-2xl border-2 transition-all cursor-pointer group/opt relative overflow-hidden ${
-                            isSelected
-                              ? 'border-blue-600 bg-white/5 shadow-2xl ring-4 ring-blue-600/5'
-                              : 'border-white/5 bg-white/10 hover:border-white/20'
+              {isServicesLoading ? (
+                <div className="py-10 text-center font-black text-[10px] uppercase tracking-[0.5em] text-slate-500 animate-pulse">Loading service list...</div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {activeServices.map((opt) => {
+                    const isSelected = watchedServiceTypes.includes(opt.id);
+                    return (
+                      <div
+                        key={opt.id}
+                        className={`flex items-center space-x-4 p-5 rounded-2xl border-2 transition-all cursor-pointer group/opt relative overflow-hidden ${isSelected
+                          ? 'border-blue-600 bg-white/5 shadow-2xl ring-4 ring-blue-600/5'
+                          : 'border-white/5 bg-white/10 hover:border-white/20'
                           }`}
-                          onClick={() => handleServiceTypeToggle(opt.id, !isSelected)}
-                        >
-                          <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${
-                            isSelected
-                              ? 'bg-blue-600 border-blue-600 shadow-lg shadow-blue-600/30'
-                              : 'border-white/20 group-hover/opt:border-white/40'
+                        onClick={() => handleServiceTypeToggle(opt.id, !isSelected)}
+                      >
+                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${isSelected
+                          ? 'bg-blue-600 border-blue-600 shadow-lg shadow-blue-600/30'
+                          : 'border-white/20 group-hover/opt:border-white/40'
                           }`}>
-                            {isSelected && <ShieldCheck className="w-4 h-4 text-white" />}
-                          </div>
-                          <div className="min-w-0 flex-1 relative z-10">
-                             <Label className="text-[10px] font-black text-white uppercase tracking-[0.2em] block cursor-pointer truncate">
-                               {opt.name}
-                             </Label>
-                             <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tight truncate mt-0.5">{opt.description}</p>
-                          </div>
-                          {isSelected && (
-                            <div className="absolute top-2 right-2">
-                               <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-                            </div>
-                          )}
+                          {isSelected && <ShieldCheck className="w-4 h-4 text-white" />}
                         </div>
-                      );
-                    })}
-                  </div>
-               )}
-               {providerForm.formState.errors.serviceTypes && (
-                 <p className="text-[10px] text-red-400 font-bold uppercase ml-1 tracking-wider">{providerForm.formState.errors.serviceTypes.message as string}</p>
-               )}
+                        <div className="min-w-0 flex-1 relative z-10">
+                          <Label className="text-[10px] font-black text-white uppercase tracking-[0.2em] block cursor-pointer truncate">
+                            {opt.name}
+                          </Label>
+                          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tight truncate mt-0.5">{opt.description}</p>
+                        </div>
+                        {isSelected && (
+                          <div className="absolute top-2 right-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {providerForm.formState.errors.serviceTypes && (
+                <p className="text-[10px] text-red-400 font-bold uppercase ml-1 tracking-wider">{providerForm.formState.errors.serviceTypes.message as string}</p>
+              )}
             </div>
 
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 space-y-6">
@@ -587,17 +606,11 @@ export function SignupForm() {
                   </div>
                 </div>
               ) : null}
-              {providerFormConfig && providerFormConfig.fields && providerFormConfig.fields.length > 0 && (
-                <div className="pt-6 mt-6 border-t border-slate-100">
-                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-4">Additional Information</h4>
-                  <DynamicFormFields fields={providerFormConfig.fields} form={providerForm} />
-                </div>
-              )}
             </div>
 
             <Button type="submit" size="lg" className="w-full h-16 rounded-[1.5rem] bg-indigo-600 hover:bg-black text-white text-lg font-black shadow-2xl shadow-indigo-600/20 group transform active:scale-[0.98] transition-all" disabled={isRequestingOtp}>
               {isRequestingOtp ? (
-                <span className="flex items-center gap-3"><Loader2 className="w-5 h-5 animate-spin" />Requesting OTP...</span>
+                <span className="flex items-center gap-3"><Loader2 className="w-5 h-5 animate-spin" />Loading...</span>
               ) : (
                 <span className="flex items-center gap-3 uppercase tracking-widest text-sm"><UserPlus className="w-5 h-5 group-hover:scale-110 transition-transform" />Create provider account</span>
               )}

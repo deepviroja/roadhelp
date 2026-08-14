@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ClipboardList, Zap, Eye, Star, AlertTriangle } from 'lucide-react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
@@ -12,11 +13,46 @@ import { ServiceRequest } from '@/types';
 import { formatDate, getServiceLabel, formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
+function toMillis(value: unknown): number {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'string') {
+    const t = Date.parse(value);
+    return Number.isNaN(t) ? 0 : t;
+  }
+  if (typeof value === 'object' && value !== null) {
+    const withToMillis = value as { toMillis?: unknown };
+    if (typeof withToMillis.toMillis === 'function') {
+      return (withToMillis.toMillis as () => number)();
+    }
+    const withSeconds = value as { seconds?: unknown };
+    if (typeof withSeconds.seconds === 'number') {
+      return withSeconds.seconds * 1000;
+    }
+  }
+  return 0;
+}
+
+const TABS = [
+  { value: 'all', label: 'All Requests' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'active', label: 'Active' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'expired', label: 'Expired' },
+];
+
+const PENDING_STATUSES = ['pending', 'submitted', 'searching_providers', 'offers_received', 'bidding', 'provider_selected'];
+const ACTIVE_STATUSES = ['accepted', 'provider_en_route', 'provider_arrived', 'in_progress', 'inProgress', 'arriving', 'pendingUserApproval'];
+
 export default function ManageRequests() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filterCustomerId = searchParams.get('customerId') || '';
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('all');
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'price-desc' | 'price-asc'>('date-desc');
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
 
   useEffect(() => {
@@ -33,19 +69,37 @@ export default function ManageRequests() {
       r.serviceName?.toLowerCase().includes(search.toLowerCase()) ||
       r.id.toLowerCase().includes(search.toLowerCase())
     );
-    if (tab !== 'all') {
+    if (filterCustomerId) {
+      data = data.filter((r) => r.customerId === filterCustomerId);
+    }
+    if (tab === 'pending') {
+      data = data.filter((r) => PENDING_STATUSES.includes(r.status));
+    } else if (tab === 'active') {
+      data = data.filter((r) => ACTIVE_STATUSES.includes(r.status));
+    } else if (tab !== 'all') {
       data = data.filter((r) => r.status === tab);
     }
+    
+    data.sort((a, b) => {
+      if (sortBy === 'date-desc') return toMillis(b.createdAt) - toMillis(a.createdAt);
+      if (sortBy === 'date-asc') return toMillis(a.createdAt) - toMillis(b.createdAt);
+      if (sortBy === 'price-desc') {
+        const valA = a.finalPrice || a.totalPrice || a.estimatedPrice || 0;
+        const valB = b.finalPrice || b.totalPrice || b.estimatedPrice || 0;
+        return valB - valA;
+      }
+      if (sortBy === 'price-asc') {
+        const valA = a.finalPrice || a.totalPrice || a.estimatedPrice || 0;
+        const valB = b.finalPrice || b.totalPrice || b.estimatedPrice || 0;
+        return valA - valB;
+      }
+      return 0;
+    });
+    
     return data;
-  }, [search, requests, tab]);
+  }, [search, requests, tab, filterCustomerId, sortBy]);
 
-  const TABS = [
-    { value: 'all', label: 'All Requests' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'inProgress', label: 'In Progress' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' },
-  ];
+
 
   return (
     <AdminLayout>
@@ -59,16 +113,40 @@ export default function ManageRequests() {
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Service Requests Management</h1>
             <p className="text-slate-500 font-medium text-xs mt-1">Real-time oversight of customer assistance requests and assigned providers.</p>
           </div>
-          <div className="w-full md:w-80 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input 
-                placeholder="Search by customer, service or ID..." 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                className="h-12 pl-12 rounded-2xl bg-white border-slate-200 text-xs font-semibold" 
-              />
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+            <div className="w-full sm:w-80 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input 
+                  placeholder="Search by customer, service or ID..." 
+                  value={search} 
+                  onChange={(e) => setSearch(e.target.value)} 
+                  className="h-12 pl-12 rounded-2xl bg-white border-slate-200 text-xs font-semibold w-full" 
+                />
+            </div>
+            <select
+              value={sortBy}
+              onChange={(e: any) => setSortBy(e.target.value)}
+              className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto cursor-pointer"
+            >
+              <option value="date-desc">Newest First</option>
+              <option value="date-asc">Oldest First</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="price-asc">Price: Low to High</option>
+            </select>
           </div>
         </div>
+
+        {filterCustomerId && (
+          <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-2xl px-5 py-3 w-fit text-blue-700 font-bold text-xs">
+            <span>Filtering requests by Customer ID: {filterCustomerId.slice(-8).toUpperCase()}</span>
+            <button 
+              onClick={() => setSearchParams({})}
+              className="text-blue-500 hover:text-blue-800 font-black uppercase text-[10px] tracking-wider"
+            >
+              Clear Filter
+            </button>
+          </div>
+        )}
 
         <div>
            <Tabs value={tab} onValueChange={setTab} className="w-full">
@@ -159,8 +237,18 @@ export default function ManageRequests() {
                       </td>
                       <td className="px-4 py-4 text-right">
                          <span className="font-black text-slate-900 text-sm">
-                            {req.finalPrice ? formatCurrency(req.finalPrice) : req.estimatedPrice ? formatCurrency(req.estimatedPrice) : '—'}
+                            {formatCurrency((req.totalPrice || req.finalPrice || req.estimatedPrice || 0))}
                          </span>
+                         {req.additionalFees && req.additionalFees > 0 ? (
+                           <span className="block text-[10px] font-bold text-green-600">
+                             +{formatCurrency(req.additionalFees)} fee
+                           </span>
+                         ) : null}
+                         {req.tipAmount && req.tipAmount > 0 ? (
+                           <span className="block text-[10px] font-bold text-amber-600">
+                             +{formatCurrency(req.tipAmount)} tip
+                           </span>
+                         ) : null}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className="text-xs text-slate-500 font-medium">{formatDate(req.createdAt)}</span>
@@ -262,12 +350,40 @@ export default function ManageRequests() {
                    </div>
                  )}
 
-                 <div className="bg-slate-900 rounded-2xl p-6 text-white flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-black uppercase text-slate-400">Total Price</p>
-                      <p className="text-2xl font-black text-blue-400">{formatCurrency(selectedRequest.finalPrice || selectedRequest.totalPrice || selectedRequest.estimatedPrice || 0)}</p>
+                 {/* Financial Breakdown Card */}
+                 <div className="bg-slate-900 rounded-2xl p-6 text-white space-y-4">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                       <p className="text-xs font-black uppercase text-slate-400">Financial Summary</p>
+                       <StatusBadge status={selectedRequest.status} />
                     </div>
-                    <StatusBadge status={selectedRequest.status} />
+
+                    <div className="space-y-2 text-xs font-medium">
+                       <div className="flex justify-between text-slate-300">
+                          <span>Base Service Price</span>
+                          <span>{formatCurrency(selectedRequest.serviceBasePrice || selectedRequest.estimatedPrice || 0)}</span>
+                       </div>
+                       {selectedRequest.additionalFees && selectedRequest.additionalFees > 0 ? (
+                         <div className="flex justify-between text-green-400 font-bold">
+                            <span>Approved Additional Fees ({selectedRequest.additionalFeeReason || 'Parts / Labour'})</span>
+                            <span>+{formatCurrency(selectedRequest.additionalFees)}</span>
+                         </div>
+                       ) : null}
+                       {selectedRequest.tipAmount && selectedRequest.tipAmount > 0 ? (
+                         <div className="flex justify-between text-amber-400 font-bold">
+                            <span>Provider Tip (100% to Provider)</span>
+                            <span>+{formatCurrency(selectedRequest.tipAmount)}</span>
+                         </div>
+                       ) : null}
+                    </div>
+
+                    <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+                       <div>
+                         <p className="text-[10px] font-black uppercase text-slate-400">Total Customer Charge</p>
+                         <p className="text-2xl font-black text-blue-400">
+                           {formatCurrency((selectedRequest.totalPrice || selectedRequest.finalPrice || selectedRequest.estimatedPrice || 0) + (selectedRequest.tipAmount || 0))}
+                         </p>
+                       </div>
+                    </div>
                  </div>
 
                  <Button 

@@ -212,12 +212,12 @@ exports.loginRequest = async (req, res) => {
 
     const uid = authData.localId;
 
-    // Check if OTP challenge is bypassed (e.g. for guest direct tracks with token, not URL parameters)
-    // Wait, standard login requires OTP challenge always. Guest links bypass OTP via direct token login (/magic-login).
-    // So bypassOtp option is disabled or restricted on backend. We only allow bypass if explicitly flagged and they are guest.
-    if (bypassOtp && userProfile.isGuest) {
+    const configSnap = await db.collection('system').doc('config').get();
+    const disableOtp = configSnap.exists ? !!configSnap.data().disableOtp : false;
+
+    if (disableOtp || (bypassOtp && userProfile.isGuest)) {
       const customToken = createLocalCustomToken(uid);
-      return res.status(200).json({ success: true, verified: true, token: customToken });
+      return res.status(200).json({ success: true, verified: true, token: customToken, email });
     }
 
     // Generate 6-digit OTP (10 minute expiry)
@@ -249,7 +249,7 @@ exports.loginRequest = async (req, res) => {
       });
     }
 
-    res.status(200).json({ success: true, verified: false, message: 'Verification code sent to your email.' });
+    res.status(200).json({ success: true, verified: false, email, message: 'Verification code sent to your email.' });
   } catch (error) {
     console.error('Login request error:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -303,6 +303,74 @@ exports.signupOtp = async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+
+    const configSnap = await db.collection('system').doc('config').get();
+    const disableOtp = configSnap.exists ? !!configSnap.data().disableOtp : false;
+
+    if (disableOtp) {
+      if (!req.body.signupData) {
+        return res.status(400).json({ success: false, message: 'Registration data is required' });
+      }
+      const signupData = req.body.signupData;
+      let userRecord;
+      try {
+        userRecord = await auth.createUser({
+          email: cleanEmail,
+          password: signupData.password,
+          displayName: signupData.fullName,
+        });
+      } catch (err) {
+        if (err.code === 'auth/email-already-in-use') {
+          return res.status(400).json({ success: false, message: 'That email is already in use.' });
+        }
+        throw err;
+      }
+
+      const phoneDigits = normalizeDigits(signupData.phone);
+      const countryCode = signupData.countryCode || '+91';
+      const phoneE164 = `${countryCode}${phoneDigits}`;
+
+      const baseProfile = {
+        uid: userRecord.uid,
+        fullName: signupData.fullName,
+        email: cleanEmail,
+        phone: signupData.phone,
+        phoneDigits,
+        phoneE164,
+        countryCode,
+        role: signupData.role,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      let fullProfile = { ...baseProfile };
+      if (signupData.role === 'provider') {
+        fullProfile = {
+          ...baseProfile,
+          companyName: signupData.companyName,
+          businessAddress: signupData.businessAddress,
+          city: signupData.city,
+          state: signupData.state,
+          pin: signupData.pin,
+          businessHours: signupData.businessHours || 'Mon - Sat, 9:00 AM - 8:00 PM',
+          serviceRadiusKm: Number(signupData.serviceRadiusKm) || 25,
+          location: signupData.latitude && signupData.longitude ? {
+            lat: Number(signupData.latitude),
+            lng: Number(signupData.longitude),
+          } : null,
+          serviceTypes: signupData.serviceTypes || [],
+          vehicleNumber: signupData.vehicleNumber,
+          isVerified: false,
+          isOnline: false,
+          rating: 0,
+          totalJobs: 0,
+          totalEarnings: 0,
+        };
+      }
+
+      await db.collection('users').doc(userRecord.uid).set(fullProfile);
+      const customToken = createLocalCustomToken(userRecord.uid);
+      return res.status(200).json({ success: true, verified: true, token: customToken });
+    }
 
     // Check if user already exists in Firebase Auth
     try {
@@ -543,6 +611,40 @@ exports.createAdmin = async (req, res) => {
     res.status(201).json({ success: true, message: 'Admin created successfully', uid: userRecord.uid });
   } catch (error) {
     console.error('Create Admin error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 9. Send Contact Reply Email (admin action)
+exports.sendContactReply = async (req, res) => {
+  try {
+    const { email, subject, replyText } = req.body;
+    if (!email || !replyText) {
+      return res.status(400).json({ success: false, message: 'Email and reply text are required' });
+    }
+
+    if (req.userProfile?.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admins can reply to contact inquiries' });
+    }
+
+    const { sendEmail } = require('../services/emailService');
+    await sendEmail({
+      to: email,
+      subject: subject || 'Reply from RoadHelp Support',
+      text: replyText,
+      html: `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+          <h2 style="color: #2563eb; margin-top: 0;">RoadHelp Support</h2>
+          <div style="white-space: pre-wrap; font-size: 14px; color: #444; margin-bottom: 20px;">${replyText}</div>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="font-size: 11px; color: #999; margin: 0;">This email was sent in response to your support request. Please do not reply directly to this message.</p>
+        </div>
+      `
+    });
+
+    res.status(200).json({ success: true, message: 'Reply email sent successfully!' });
+  } catch (error) {
+    console.error('Send Contact Reply error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

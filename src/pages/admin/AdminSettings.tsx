@@ -84,11 +84,12 @@ interface Step {
 
 interface FeaturedReview {
   id: string;
-  requestId: string;
+  requestId?: string;
   name: string;
   rating: number;
   text: string;
   date: string;
+  serviceName?: string;
 }
 
 export default function AdminSettings() {
@@ -96,13 +97,47 @@ export default function AdminSettings() {
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [admins, setAdmins] = useState<any[]>([]);
   const [recentReviews, setRecentReviews] = useState<ServiceRequest[]>([]);
+  const [showManualReviewForm, setShowManualReviewForm] = useState(false);
+  const [manualReview, setManualReview] = useState({
+    name: '',
+    rating: 5,
+    text: '',
+    serviceName: '',
+  });
+
+  const handleAddManualReview = () => {
+    if (!manualReview.name.trim() || !manualReview.text.trim()) {
+      toast.error('Please enter name and review content.');
+      return;
+    }
+    const newReview = {
+      id: crypto.randomUUID(),
+      name: manualReview.name,
+      rating: manualReview.rating,
+      text: manualReview.text,
+      serviceName: manualReview.serviceName || 'Roadside Assistance',
+      date: new Date().toLocaleDateString(),
+    };
+    setPlatformConfig({
+      ...platformConfig,
+      featuredReviews: [...platformConfig.featuredReviews, newReview].slice(0, 5),
+    });
+    setShowManualReviewForm(false);
+    setManualReview({ name: '', rating: 5, text: '', serviceName: '' });
+    toast.success('Manual review featured successfully!');
+  };
+
   const { register, handleSubmit, reset } = useForm();
 
   // Platform settings state
   const [platformConfig, setPlatformConfig] = useState({
     appName: "RoadHelp",
+    logoUrl: "",
+    smtpFromEmail: "noreply@roadhelp.com",
+    smtpFromName: "RoadHelp Team",
     acceptingNewProviders: true,
     maintenanceMode: false,
+    disableOtp: false,
     baseCommissionRate: 15,
     payoutDelayDays: 7,
     currency: "INR",
@@ -159,8 +194,12 @@ export default function AdminSettings() {
         const data = docSnap.data();
         const config = {
           appName: data.appName || "RoadHelp",
+          logoUrl: data.logoUrl || "",
+          smtpFromEmail: data.smtpFromEmail || "noreply@roadhelp.com",
+          smtpFromName: data.smtpFromName || "RoadHelp Team",
           acceptingNewProviders: data.acceptingNewProviders !== false,
           maintenanceMode: data.maintenanceMode || false,
+          disableOtp: data.disableOtp || false,
           baseCommissionRate: data.baseCommissionRate || 15,
           payoutDelayDays: data.payoutDelayDays || 7,
           currency: data.currency || "INR",
@@ -437,20 +476,22 @@ export default function AdminSettings() {
           <TabsContent value="general" className="space-y-6">
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-10 space-y-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="space-y-2">
-                  <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Platform Brand Identity
-                  </Label>
-                  <Input
-                    value={platformConfig.appName}
-                    onChange={(e) =>
-                      setPlatformConfig({
-                        ...platformConfig,
-                        appName: e.target.value,
-                      })
-                    }
-                    className="h-14 text-xl font-black rounded-2xl bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 transition-all"
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Platform Brand Identity
+                    </Label>
+                    <Input
+                      value={platformConfig.appName}
+                      onChange={(e) =>
+                        setPlatformConfig({
+                          ...platformConfig,
+                          appName: e.target.value,
+                        })
+                      }
+                      className="h-14 text-xl font-black rounded-2xl bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 transition-all"
+                    />
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Landing hero headline</Label>
@@ -469,23 +510,63 @@ export default function AdminSettings() {
                       />
                     </div>
                   </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">SMTP Sender Email</Label>
+                      <Input
+                        value={platformConfig.smtpFromEmail || ''}
+                        onChange={(e) => setPlatformConfig({ ...platformConfig, smtpFromEmail: e.target.value })}
+                        className="font-black rounded-2xl h-14 bg-slate-50 border-slate-100"
+                        placeholder="noreply@roadhelp.com"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">SMTP Sender Name</Label>
+                      <Input
+                        value={platformConfig.smtpFromName || ''}
+                        onChange={(e) => setPlatformConfig({ ...platformConfig, smtpFromName: e.target.value })}
+                        className="font-black rounded-2xl h-14 bg-slate-50 border-slate-100"
+                        placeholder="RoadHelp Team"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Real-time Telemetry Sync (Seconds)
-                  </Label>
-                  <Input
-                    type="number"
-                    value={platformConfig.trackingInterval === undefined ? '' : platformConfig.trackingInterval}
-                    onChange={(e) =>
-                      setPlatformConfig({
-                        ...platformConfig,
-                        // @ts-expect-error - allow empty string
-                        trackingInterval: e.target.value === '' ? '' : Number(e.target.value),
-                      })
-                    }
-                    className="h-14 text-xl font-black rounded-2xl bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 transition-all"
-                  />
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 ml-1">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Real-time Telemetry Sync (Seconds)
+                      </Label>
+                      <span 
+                        title="Interval in seconds for the provider's GPS tracker to send coordinates to the database. Lower values provide more precise tracking but increase read/write operations."
+                        className="cursor-help text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold"
+                      >
+                        i
+                      </span>
+                    </div>
+                    <Input
+                      type="number"
+                      value={platformConfig.trackingInterval === undefined ? '' : platformConfig.trackingInterval}
+                      onChange={(e) =>
+                        setPlatformConfig({
+                          ...platformConfig,
+                          // @ts-expect-error - allow empty string
+                          trackingInterval: e.target.value === '' ? '' : Number(e.target.value),
+                        })
+                      }
+                      className="h-14 text-xl font-black rounded-2xl bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Platform Web Logo
+                    </Label>
+                    <ImageUrlInput
+                      currentImage={platformConfig.logoUrl}
+                      onImageChange={(url) => setPlatformConfig({ ...platformConfig, logoUrl: url })}
+                      onRemove={() => setPlatformConfig({ ...platformConfig, logoUrl: '' })}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -530,6 +611,26 @@ export default function AdminSettings() {
                     className="data-[state=checked]:bg-amber-500 scale-125"
                   />
                 </div>
+                <div className="flex items-center justify-between p-4 bg-white rounded-3xl border border-purple-100/50 shadow-sm">
+                  <div>
+                    <Label className="text-sm font-black text-slate-900 leading-none">
+                      Disable Email OTP Verification
+                    </Label>
+                    <p className="text-[9px] text-purple-600 font-bold uppercase tracking-tight mt-1">
+                      Allow direct login / signup without OTP email
+                    </p>
+                  </div>
+                  <Switch
+                    checked={(platformConfig as any).disableOtp || false}
+                    onCheckedChange={(c) =>
+                      setPlatformConfig({
+                        ...platformConfig,
+                        disableOtp: c,
+                      } as any)
+                    }
+                    className="data-[state=checked]:bg-purple-500 scale-125"
+                  />
+                </div>
               </div>
             </div>
           </TabsContent>
@@ -540,11 +641,10 @@ export default function AdminSettings() {
               <div className="flex items-center justify-between mb-10 pb-6 border-b border-slate-50">
                 <div>
                   <h2 className="text-2xl font-black flex items-center gap-3">
-                    <ImageIcon className="w-6 h-6 text-blue-600" /> Cinematic
-                    Hero Slider
+                    <ImageIcon className="w-6 h-6 text-blue-600" /> Homepage Slideshow Banner
                   </h2>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                    Deploy stunning visuals and high-impact messaging
+                    Manage slideshow images and text on the main landing page
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -702,11 +802,10 @@ export default function AdminSettings() {
               <div className="flex items-center justify-between mb-10 pb-6 border-b border-slate-50">
                 <div>
                   <h2 className="text-2xl font-black flex items-center gap-3">
-                    <List className="w-6 h-6 text-indigo-600" /> Operational
-                    Protocol Steps
+                    <List className="w-6 h-6 text-indigo-600" /> How It Works Steps
                   </h2>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                    Define the customer journey in chronological order
+                    Define the customer journey in order
                   </p>
                 </div>
                 <Button
@@ -806,16 +905,83 @@ export default function AdminSettings() {
                 <div>
                   <h2 className="text-2xl font-black flex items-center gap-3">
                     <Star className="w-6 h-6 text-amber-500" /> Curated
-                    Testimonials
+                    Customer Reviews
                   </h2>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                    Select elite driver feedback to establish platform trust
+                    Select customer feedback to display on the home page
                   </p>
                 </div>
-                <div className="px-5 py-2 bg-amber-50 rounded-full border border-amber-100 text-[10px] font-black text-amber-600 uppercase tracking-widest">
-                  {platformConfig.featuredReviews.length} / 5 Slots Active
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={() => setShowManualReviewForm(!showManualReviewForm)}
+                    variant="outline"
+                    className="h-10 px-4 gap-2 rounded-xl border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-[10px] tracking-widest transition-all"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Manual Review
+                  </Button>
+                  <div className="px-5 py-2 bg-amber-50 rounded-full border border-amber-100 text-[10px] font-black text-amber-600 uppercase tracking-widest">
+                    {platformConfig.featuredReviews.length} / 5 Slots Active
+                  </div>
                 </div>
               </div>
+
+              {showManualReviewForm && (
+                <div className="bg-slate-50 border border-slate-200 rounded-[2.5rem] p-8 mb-8 space-y-4 max-w-2xl">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Add Manual Review</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Customer Name</Label>
+                      <Input
+                        value={manualReview.name}
+                        onChange={(e) => setManualReview({ ...manualReview, name: e.target.value })}
+                        placeholder="e.g. John Doe"
+                        className="bg-white border-slate-200 rounded-xl font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Service/Vehicle (Optional)</Label>
+                      <Input
+                        value={manualReview.serviceName}
+                        onChange={(e) => setManualReview({ ...manualReview, serviceName: e.target.value })}
+                        placeholder="e.g. Flat Tire / Towing"
+                        className="bg-white border-slate-200 rounded-xl font-bold"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Rating (1 to 5)</Label>
+                      <select
+                        value={manualReview.rating}
+                        onChange={(e) => setManualReview({ ...manualReview, rating: Number(e.target.value) })}
+                        className="w-full h-10 bg-white border border-slate-200 rounded-xl px-3 font-semibold text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="5">5 Stars</option>
+                        <option value="4">4 Stars</option>
+                        <option value="3">3 Stars</option>
+                        <option value="2">2 Stars</option>
+                        <option value="1">1 Star</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Review Content</Label>
+                    <Textarea
+                      value={manualReview.text}
+                      onChange={(e) => setManualReview({ ...manualReview, text: e.target.value })}
+                      placeholder="e.g. Incredible service! The provider arrived in 10 minutes and solved my problem cleanly."
+                      rows={3}
+                      className="bg-white border-slate-200 rounded-xl text-xs font-semibold"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end pt-2">
+                    <Button variant="ghost" onClick={() => setShowManualReviewForm(false)} className="rounded-xl">Cancel</Button>
+                    <Button onClick={handleAddManualReview} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold px-6">
+                      Add Review
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
                 <div className="space-y-6">
@@ -987,7 +1153,7 @@ export default function AdminSettings() {
               <div className="space-y-12 relative z-10">
                 <div className="space-y-4">
                   <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Escrow Settlement Delay
+                    Payout Hold Delay
                   </Label>
                   <p className="text-xs font-medium text-slate-500 leading-relaxed italic">
                     Minimum hold period before job earnings transition to
@@ -1019,7 +1185,7 @@ export default function AdminSettings() {
                   <div className="bg-emerald-50/50 border border-emerald-100 p-6 rounded-[2rem] mt-6 flex items-start gap-3">
                     <HelpCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-emerald-700 leading-relaxed font-bold uppercase tracking-tight">
-                      Escrow period safeguards against chargebacks and
+                      Hold period safeguards against chargebacks and
                       post-service disputes. Recommendations: 3-7 days.
                     </p>
                   </div>
@@ -1103,10 +1269,10 @@ export default function AdminSettings() {
                 <div className="bg-slate-900 rounded-[3rem] p-10 sticky top-24 shadow-2xl relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-indigo-500/10 transition-all" />
                   <h2 className="text-2xl font-black text-white mb-2 tracking-tight">
-                    Provision Access
+                    Add Admin
                   </h2>
                   <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-10 leading-relaxed">
-                    Initiate clearance for new high-privilege user account.
+                    Create a new administrator account.
                   </p>
                   <form
                     onSubmit={handleSubmit(onAddAdmin)}
@@ -1124,7 +1290,7 @@ export default function AdminSettings() {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="ml-1 text-[9px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                        Secure Email Terminal
+                        Email Address
                       </Label>
                       <Input
                         type="email"
@@ -1135,7 +1301,7 @@ export default function AdminSettings() {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="ml-1 text-[9px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                        Master Encryption Key
+                        Password
                       </Label>
                       <Input
                         type="password"
@@ -1150,7 +1316,7 @@ export default function AdminSettings() {
                       className="w-full bg-blue-600 hover:bg-white hover:text-blue-600 text-white mt-4 h-16 rounded-[1.5rem] font-black shadow-2xl shadow-blue-600/30 group transform active:scale-95 transition-all text-xs uppercase tracking-[0.1em]"
                     >
                       <Plus className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
-                      {isAdminCreating ? "PROCESSING..." : "REGISTER HANDLER"}
+                      {isAdminCreating ? "PROCESSING..." : "REGISTER ADMIN"}
                     </Button>
                   </form>
                 </div>

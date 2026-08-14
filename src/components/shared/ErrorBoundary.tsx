@@ -24,6 +24,12 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): Partial<State> {
+    const str = String(error?.stack || error?.message || error || '');
+    const isFirestoreAssertion = str.includes('INTERNAL ASSERTION FAILED') || (str.includes('FIRESTORE') && str.includes('Unexpected state'));
+    if (isFirestoreAssertion) {
+      console.warn('[Firestore] Suppressed internal WatchStream assertion in React ErrorBoundary.');
+      return { hasError: false, error: null };
+    }
     return { hasError: true, error };
   }
 

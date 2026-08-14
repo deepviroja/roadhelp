@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Trash2, Eye, Users } from 'lucide-react';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -38,8 +39,9 @@ function toMillis(value: unknown): number {
 }
 
 export default function ManageUsers() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [filtered, setFiltered] = useState<UserProfile[]>([]);
+  const navigate = useNavigate();
+  const [users, setUsers] = useState<any[]>([]);
+  const [filtered, setFiltered] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -47,9 +49,21 @@ export default function ManageUsers() {
   useEffect(() => {
     const load = async () => {
       try {
-        const snap = await getDocs(collection(db, 'users'));
-        const data = snap.docs
-          .map((d) => ({ uid: d.id, ...d.data() }) as UserProfile)
+        const [usersSnap, requestsSnap] = await Promise.all([
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'serviceRequests'))
+        ]);
+        const requestsData = requestsSnap.docs.map(doc => doc.data() as any);
+        const data = usersSnap.docs
+          .map((d) => {
+            const u = { uid: d.id, ...d.data() } as any;
+            const userRequests = requestsData.filter(r => r.customerId === u.uid);
+            return {
+              ...u,
+              vehiclesCount: u.vehicles?.length || 0,
+              requestsCount: userRequests.length,
+            };
+          })
           .filter((u) => u.role === 'customer')
           .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
         setUsers(data);
@@ -104,7 +118,7 @@ export default function ManageUsers() {
           </div>
 
           {isLoading ? <div className="p-8"><LoadingSpinner /></div> : filtered.length === 0 ? (
-            <EmptyState icon="👥" title="No customers found" />
+            <EmptyState icon={<Users className="w-16 h-16 text-gray-300 mx-auto" />} title="No customers found" />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -113,6 +127,8 @@ export default function ManageUsers() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Email</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Phone</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Vehicles</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Requests</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Joined</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
                   </tr>
@@ -122,17 +138,30 @@ export default function ManageUsers() {
                     <tr key={user.uid} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 font-medium text-gray-900">{user.fullName}</td>
                       <td className="px-4 py-3 text-gray-600">{user.email}</td>
-                      <td className="px-4 py-3 text-gray-600">{user.phone}</td>
+                      <td className="px-4 py-3 text-gray-600">{user.phone || '—'}</td>
+                      <td className="px-4 py-3 font-bold text-slate-700">{user.vehiclesCount}</td>
+                      <td className="px-4 py-3 font-bold text-slate-700">{user.requestsCount}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(user.createdAt)}</td>
                       <td className="px-4 py-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => setDeleteId(user.uid)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-bold gap-1 text-[11px] h-8 rounded-lg"
+                            onClick={() => navigate(`/admin/requests?customerId=${user.uid}`)}
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            View Requests
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0 rounded-lg"
+                            onClick={() => setDeleteId(user.uid)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

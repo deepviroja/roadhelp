@@ -10,6 +10,7 @@ import { UserRole } from '@/types';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { Button } from '@/components/ui/button';
 import { logSystemEvent } from '@/lib/systemLogger';
+import { logAdminAction } from '@/lib/auditLogger';
 
 const ServicesPage = lazy(() => import('@/pages/ServicesPage'));
 const HowItWorksPage = lazy(() => import('@/pages/HowItWorksPage'));
@@ -68,8 +69,27 @@ function ScrollToTop() {
   useEffect(() => {
     window.scrollTo(0, 0);
 
-    // Log page navigation event
     const profile = useAuthStore.getState().profile;
+
+    // Log admin page visits to the Activity History (auditLogs)
+    if (pathname.startsWith('/admin')) {
+      if (profile && profile.role === 'admin') {
+        const adminModule = pathname.replace('/admin/', '').split('/')[0] || 'Dashboard';
+        // Exclude logs page to avoid database recursion loops
+        if (adminModule !== 'logs') {
+          logAdminAction({
+            adminEmail: profile.email,
+            adminName: profile.fullName,
+            action: `Visited Page`,
+            module: adminModule.charAt(0).toUpperCase() + adminModule.slice(1),
+            details: `Admin navigated to ${pathname}${search}`,
+          }).catch(console.warn);
+        }
+      }
+      return;
+    }
+
+    // Log general page navigation event to system logs
     logSystemEvent({
       type: 'navigation',
       message: `Navigated to ${pathname}${search}`,

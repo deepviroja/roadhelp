@@ -4,7 +4,7 @@ import { Phone, Mail, MapPin, ShieldCheck, Heart, ArrowRight } from 'lucide-reac
 import { useSystemStore } from '@/stores/systemStore';
 
 export function Footer() {
-  const { appName } = useSystemStore();
+  const { appName, supportPhone } = useSystemStore();
 
   return (
     <footer className="bg-slate-900 text-white pt-16 pb-12 border-t border-slate-800">
@@ -22,7 +22,7 @@ export function Footer() {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">24/7 Emergency Hotline</p>
-                <p className="text-lg font-black text-white">+1 (800) 555-ROAD</p>
+                <p className="text-lg font-black text-white">{supportPhone || '+1 (800) 555-ROAD'}</p>
               </div>
             </div>
           </div>

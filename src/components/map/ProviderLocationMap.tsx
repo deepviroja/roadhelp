@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { GeoLocation } from '@/types';
 import { DEFAULT_MAP_ZOOM } from '@/lib/constants';
+import { fetchOSRMRoute, RouteResult } from '@/lib/mapService';
 import '@/lib/leaflet-setup';
 
 const customerDivIcon = L.divIcon({
@@ -22,61 +23,6 @@ const providerDivIcon = L.divIcon({
   iconSize: [40, 40],
   iconAnchor: [20, 20],
 });
-
-interface RoutingLayerProps {
-  from: [number, number];
-  to: [number, number];
-  onRouteFound?: (info: { distance: string; time: string }) => void;
-}
-
-function RoutingLayer({ from, to, onRouteFound }: RoutingLayerProps) {
-  const map = useMap();
-  const routingRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const onRouteFoundRef = useRef(onRouteFound);
-
-  useEffect(() => {
-    onRouteFoundRef.current = onRouteFound;
-  }, [onRouteFound]);
-
-  useEffect(() => {
-    if (!map || !(L as any).Routing) return; // eslint-disable-line @typescript-eslint/no-explicit-any
-
-    if (!routingRef.current) {
-      routingRef.current = (L as any).Routing.control({ // eslint-disable-line @typescript-eslint/no-explicit-any
-        waypoints: [L.latLng(from[0], from[1]), L.latLng(to[0], to[1])],
-        router: (L as any).Routing.osrmv1({
-          serviceUrl: 'https://router.project-osrm.org/route/v1',
-        }),
-        lineOptions: {
-          styles: [{ color: '#2563EB', weight: 4, opacity: 0.8 }],
-          extendToWaypoints: true,
-          missingRouteTolerance: 0,
-        },
-        show: false,
-        addWaypoints: false,
-        fitSelectedRoutes: true,
-        routeWhileDragging: false,
-      }).addTo(map);
-
-      routingRef.current.on('routesfound', function (e: any) {
-        const routes = e.routes;
-        if (routes && routes[0]) {
-          const summary = routes[0].summary;
-          if (onRouteFoundRef.current) {
-            onRouteFoundRef.current({
-              distance: (summary.totalDistance / 1000).toFixed(1) + ' km',
-              time: Math.round(summary.totalTime / 60) + ' min',
-            });
-          }
-        }
-      });
-    } else {
-      routingRef.current.getPlan().setWaypoints([L.latLng(from[0], from[1]), L.latLng(to[0], to[1])]);
-    }
-  }, [map, from, to]);
-
-  return null;
-}
 
 function MapRecenter({ providerLoc, customerLoc }: { providerLoc: [number, number], customerLoc: [number, number] }) {
   const map = useMap();
@@ -100,6 +46,30 @@ interface ProviderLocationMapProps {
 
 export function ProviderLocationMap({ providerLocation, customerLocation }: ProviderLocationMapProps) {
   const [routeInfo, setRouteInfo] = useState<{ distance: string; time: string } | null>(null);
+  const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
+
+  useEffect(() => {
+    if (!providerLocation || !customerLocation) return;
+    let active = true;
+    fetchOSRMRoute(
+      providerLocation.lat,
+      providerLocation.lng,
+      customerLocation.lat,
+      customerLocation.lng
+    ).then((result) => {
+      if (!active || !result) return;
+      setRouteInfo({
+        distance: String(result.distanceKm),
+        time: String(result.durationMinutes),
+      });
+      setRouteCoordinates(result.geometry);
+    }).catch(err => {
+      console.warn('Map routing error:', err);
+    });
+    return () => {
+      active = false;
+    };
+  }, [providerLocation.lat, providerLocation.lng, customerLocation.lat, customerLocation.lng]);
 
   return (
     <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm relative z-0 h-[280px] sm:h-[360px] lg:h-[420px]">
@@ -116,11 +86,14 @@ export function ProviderLocationMap({ providerLocation, customerLocation }: Prov
         <Marker position={[providerLocation.lat, providerLocation.lng]} icon={providerDivIcon} />
         <Marker position={[customerLocation.lat, customerLocation.lng]} icon={customerDivIcon} />
 
-        <RoutingLayer
-          from={[providerLocation.lat, providerLocation.lng]}
-          to={[customerLocation.lat, customerLocation.lng]}
-          onRouteFound={setRouteInfo}
-        />
+        {routeCoordinates.length > 0 && (
+          <Polyline 
+            positions={routeCoordinates} 
+            color="#2563EB" 
+            weight={4} 
+            opacity={0.8} 
+          />
+        )}
         <MapRecenter providerLoc={[providerLocation.lat, providerLocation.lng]} customerLoc={[customerLocation.lat, customerLocation.lng]} />
       </MapContainer>
 

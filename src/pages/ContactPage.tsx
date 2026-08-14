@@ -11,7 +11,10 @@ import { motion } from 'framer-motion';
 import { db } from '@/config/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 
+import { useSystemStore } from '@/stores/systemStore';
+
 export default function ContactPage() {
+  const { supportPhone, supportEmail } = useSystemStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -82,7 +85,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Emergency Helpline</p>
-                  <p className="font-bold text-white text-base mt-0.5">+1 (800) 555-ROAD / 1800-ROAD-HELP</p>
+                  <p className="font-bold text-white text-base mt-0.5">{supportPhone || '+1 (800) 555-ROAD / 1800-ROAD-HELP'}</p>
                 </div>
               </div>
 
@@ -92,7 +95,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Email Support</p>
-                  <p className="font-bold text-white text-base mt-0.5">support@roadhelp.com</p>
+                  <p className="font-bold text-white text-base mt-0.5">{supportEmail || 'support@roadhelp.com'}</p>
                 </div>
               </div>
 

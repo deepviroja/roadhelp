@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Plus, Trash2, Car, Check } from 'lucide-react';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { toast } from 'sonner';
@@ -9,35 +9,47 @@ import { db } from '@/config/firebase';
 import { Vehicle, UserProfile } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { useVehicleTypes } from '@/hooks/useVehicleTypes';
+
 interface VehicleManagerProps {
   profile: UserProfile;
   onRefresh: () => Promise<void>;
 }
 
 type VehicleDraft = Partial<Vehicle>;
-type VehicleErrors = Partial<Record<'make' | 'model' | 'year' | 'plateNumber' | 'color', string>>;
+type VehicleErrors = Partial<Record<'make' | 'model' | 'plateNumber' | 'type', string>>;
+
+const FALLBACK_VEHICLE_TYPES = [
+  { value: 'Car', label: 'Car' },
+  { value: 'SUV', label: 'SUV / MUV' },
+  { value: 'Motorcycle', label: 'Motorcycle' },
+  { value: 'Truck', label: 'Truck / HCV' },
+  { value: 'Van', label: 'Van / Minivan' },
+  { value: 'Other', label: 'Other' },
+];
 
 function validateVehicleDraft(draft: VehicleDraft): VehicleErrors {
   const errors: VehicleErrors = {};
-
   if (!draft.make?.trim()) errors.make = 'Vehicle brand is required';
   if (!draft.model?.trim()) errors.model = 'Vehicle model is required';
-  if (!draft.year?.trim()) errors.year = 'Vehicle year is required';
   if (!draft.plateNumber?.trim()) errors.plateNumber = 'Vehicle number is required';
-  if (!draft.color?.trim()) errors.color = 'Vehicle color is required';
-
+  if (!draft.type?.trim()) errors.type = 'Vehicle type is required';
   return errors;
 }
 
 export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
+  const { activeVehicleTypes } = useVehicleTypes();
   const [isAdding, setIsAdding] = useState(false);
   const [newVehicle, setNewVehicle] = useState<VehicleDraft>({
     make: '',
     model: '',
-    year: new Date().getFullYear().toString(),
     plateNumber: '',
-    color: '',
+    type: '',
   });
+
+  const vehicleTypeOptions = activeVehicleTypes.length > 0
+    ? activeVehicleTypes.map((v) => ({ value: v.name, label: v.name }))
+    : FALLBACK_VEHICLE_TYPES;
   const [errors, setErrors] = useState<VehicleErrors>({});
 
   const updateDraft = (next: VehicleDraft) => {
@@ -59,9 +71,8 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
         id: crypto.randomUUID(),
         make: newVehicle.make!,
         model: newVehicle.model!,
-        year: newVehicle.year!,
         plateNumber: newVehicle.plateNumber!,
-        color: newVehicle.color || '',
+        type: newVehicle.type || 'Car',
       };
 
       await updateDoc(doc(db, 'users', profile.uid), {
@@ -70,7 +81,7 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
 
       await onRefresh();
       setIsAdding(false);
-      setNewVehicle({ make: '', model: '', year: new Date().getFullYear().toString(), plateNumber: '', color: '' });
+      setNewVehicle({ make: '', model: '', plateNumber: '', type: '' });
       setErrors({});
       toast.success('Vehicle added to your garage!');
     } catch {
@@ -91,20 +102,20 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 md:p-8 overflow-hidden">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Saved vehicles</h2>
-          <p className="text-sm text-gray-500">Manage the vehicles you use most often</p>
+          <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase">My Garage</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Manage vehicles for quick request setup</p>
         </div>
         {!isAdding && (
           <Button
             onClick={() => setIsAdding(true)}
             variant="outline"
-            className="border-blue-200 text-blue-600 hover:bg-blue-50 gap-2 h-9"
+            className="border-blue-200 text-blue-600 hover:bg-blue-50 gap-2 h-9 rounded-xl font-bold text-xs uppercase tracking-wider"
           >
             <Plus className="w-4 h-4" />
-            Add vehicle
+            Add Vehicle
           </Button>
         )}
       </div>
@@ -116,65 +127,73 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4 mb-6"
+              className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4 mb-6 overflow-hidden"
             >
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Vehicle brand</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Vehicle Type */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Vehicle Type <span className="text-red-500">*</span></Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {vehicleTypeOptions.map((t) => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => updateDraft({ ...newVehicle, type: t.value })}
+                        className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                          newVehicle.type === t.value
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  {errors.type && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.type}</p>}
+                </div>
+
+                {/* Brand */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Vehicle Brand <span className="text-red-500">*</span></Label>
                   <Input
-                    placeholder="Toyota"
+                    placeholder="e.g. Toyota, Honda"
                     value={newVehicle.make || ''}
                     onChange={(e) => updateDraft({ ...newVehicle, make: e.target.value })}
-                    className={errors.make ? 'border-red-500 bg-red-50' : ''}
+                    className={`h-11 rounded-xl font-bold ${errors.make ? 'border-red-500 bg-red-50' : 'bg-white'}`}
                   />
                   {errors.make && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.make}</p>}
                 </div>
+
+                {/* Model */}
                 <div className="space-y-1.5">
-                  <Label>Vehicle model</Label>
+                  <Label className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Model <span className="text-red-500">*</span></Label>
                   <Input
-                    placeholder="Camry"
+                    placeholder="e.g. Camry, Civic"
                     value={newVehicle.model || ''}
                     onChange={(e) => updateDraft({ ...newVehicle, model: e.target.value })}
-                    className={errors.model ? 'border-red-500 bg-red-50' : ''}
+                    className={`h-11 rounded-xl font-bold ${errors.model ? 'border-red-500 bg-red-50' : 'bg-white'}`}
                   />
                   {errors.model && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.model}</p>}
                 </div>
+
+                {/* Plate */}
                 <div className="space-y-1.5">
-                  <Label>Vehicle year</Label>
+                  <Label className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Plate Number <span className="text-red-500">*</span></Label>
                   <Input
-                    placeholder="2023"
-                    value={newVehicle.year || ''}
-                    onChange={(e) => updateDraft({ ...newVehicle, year: e.target.value })}
-                    className={errors.year ? 'border-red-500 bg-red-50' : ''}
-                  />
-                  {errors.year && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.year}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Vehicle number</Label>
-                  <Input
-                    placeholder="ABC-1234"
+                    placeholder="e.g. GJ-01-AB-1234"
                     value={newVehicle.plateNumber || ''}
                     onChange={(e) => updateDraft({ ...newVehicle, plateNumber: e.target.value })}
-                    className={errors.plateNumber ? 'border-red-500 bg-red-50' : ''}
+                    className={`h-11 rounded-xl font-bold ${errors.plateNumber ? 'border-red-500 bg-red-50' : 'bg-white'}`}
                   />
                   {errors.plateNumber && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.plateNumber}</p>}
                 </div>
-                <div className="space-y-1.5 col-span-2">
-                  <Label>Vehicle color</Label>
-                  <Input
-                    placeholder="White"
-                    value={newVehicle.color || ''}
-                    onChange={(e) => updateDraft({ ...newVehicle, color: e.target.value })}
-                    className={errors.color ? 'border-red-500 bg-red-50' : ''}
-                  />
-                  {errors.color && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{errors.color}</p>}
-                </div>
               </div>
+
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-                <Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>Cancel</Button>
-                <Button size="sm" className="bg-blue-600 text-white" onClick={handleAddVehicle}>
+                <Button variant="ghost" size="sm" onClick={() => { setIsAdding(false); setErrors({}); }}>Cancel</Button>
+                <Button size="sm" className="bg-blue-600 text-white rounded-xl" onClick={handleAddVehicle}>
                   <Check className="w-4 h-4 mr-1.5" />
-                  Save vehicle
+                  Save Vehicle
                 </Button>
               </div>
             </motion.div>
@@ -196,19 +215,24 @@ export function VehicleManager({ profile, onRefresh }: VehicleManagerProps) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {profile.vehicles?.map((vehicle) => (
-              <div key={vehicle.id} className="group relative bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-200 hover:shadow-md transition-all">
+              <div key={vehicle.id} className="group relative bg-white p-4 rounded-2xl border border-slate-200 hover:border-blue-200 hover:shadow-md transition-all">
                 <div className="flex items-start gap-3">
-                  <div className="bg-slate-100 p-3 rounded-xl group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                  <div className="bg-slate-100 p-3 rounded-xl group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors flex-shrink-0">
                     <Car className="w-5 h-5" />
                   </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-slate-900">{vehicle.year} {vehicle.make} {vehicle.model}</p>
-                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Plate: {vehicle.plateNumber}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-900 truncate">{vehicle.make} {vehicle.model}</p>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Plate: {vehicle.plateNumber}</p>
+                    {vehicle.type && (
+                      <span className="inline-block mt-1.5 text-[9px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100">
+                        {vehicle.type}
+                      </span>
+                    )}
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 -mt-1 -mr-1"
+                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 -mt-1 -mr-1 flex-shrink-0"
                     onClick={() => handleDeleteVehicle(vehicle)}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

@@ -5,8 +5,18 @@ import { FormConfig, FormField } from '@/components/shared/DynamicFormFields';
 import * as z from 'zod';
 
 export function useFormBuilder(formId: string) {
-  const [config, setConfig] = useState<FormConfig | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `formBuilderFields:${formId}`;
+  
+  const [config, setConfig] = useState<FormConfig | null>(() => {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  
+  const [loading, setLoading] = useState(config ? false : true);
 
   useEffect(() => {
     const q = query(
@@ -15,7 +25,18 @@ export function useFormBuilder(formId: string) {
       where('isVisible', '==', true)
     );
 
+    let hasData = false;
+
+    // Timeout unblock: if data isn't received within 2.5s, unblock loading
+    const timer = setTimeout(() => {
+      if (!hasData) {
+        setLoading(false);
+      }
+    }, 2500);
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      hasData = true;
+      clearTimeout(timer);
       const dbFields = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
       // Sort by sortOrder
@@ -46,19 +67,30 @@ export function useFormBuilder(formId: string) {
         };
       });
 
-      setConfig({
+      const newConfig = {
         id: formId,
         title: formId,
         description: '',
         fields: mappedFields
-      });
+      };
+
+      setConfig(newConfig);
       setLoading(false);
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(newConfig));
+      } catch (err) {
+        console.error('Failed to write form builder cache:', err);
+      }
     }, (err) => {
       console.error('Failed to load form config from Firestore collection:', err);
+      clearTimeout(timer);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, [formId]);
 
   return { config, loading };

@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, Circle } from
 import L from 'leaflet';
 import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
-import { AlertCircle, Clock, Phone, Star, Navigation, UserCheck } from 'lucide-react';
+import { AlertCircle, Clock, Star, Navigation, UserCheck, ChevronDown, Zap, MapPin, Truck, Ruler, Timer } from 'lucide-react';
 import { db, rtdb } from '@/config/firebase';
 import { TrackingData, GeoLocation } from '@/types';
 import { DEFAULT_MAP_ZOOM } from '@/lib/constants';
@@ -68,15 +68,17 @@ interface LiveTrackingMapProps {
   customerLocation: GeoLocation;
   showNearbyProviders?: boolean;
   requestServiceType?: string;
+  isProviderAccepted?: boolean;
 }
 
-export function LiveTrackingMap({ requestId, customerLocation, showNearbyProviders, requestServiceType }: LiveTrackingMapProps) {
+export function LiveTrackingMap({ requestId, customerLocation, showNearbyProviders, requestServiceType, isProviderAccepted }: LiveTrackingMapProps) {
   const [trackingData, setTrackingData] = useState<TrackingData | null>(null);
   const [fallbackLocation, setFallbackLocation] = useState<GeoLocation | null>(null);
   const [osrmRoute, setOsrmRoute] = useState<RouteResult | null>(null);
   const [trackingError, setTrackingError] = useState<string | null>(null);
   const [nearbyProviders, setNearbyProviders] = useState<NearbyProvider[]>([]);
   const [askingProviderId, setAskingProviderId] = useState<string | null>(null);
+  const [cardExpanded, setCardExpanded] = useState(true);
   const mapRef = useRef<L.Map | null>(null);
 
   // RTDB live tracking
@@ -210,7 +212,7 @@ export function LiveTrackingMap({ requestId, customerLocation, showNearbyProvide
           providerId: provider.uid,
           providerName: provider.fullName,
           providerPhone: provider.phone || '',
-          providerRating: provider.rating || 5,
+          providerRating: provider.rating || 0.0,
           estimatedPrice: 0, // provider will set a real price from their end
           estimatedTime: etaMinutes,
           message: 'Customer has directly requested your assistance.',
@@ -245,7 +247,7 @@ export function LiveTrackingMap({ requestId, customerLocation, showNearbyProvide
         {/* Customer Marker */}
         <Marker position={[customerLocation.lat, customerLocation.lng]} icon={customerDivIcon}>
           <Popup className="leaflet-popup-custom">
-            <div className="text-xs font-bold text-slate-700 p-1">📍 Your Location</div>
+            <div className="flex items-center gap-1 text-xs font-bold text-slate-700 p-1"><MapPin className="w-3 h-3 text-red-500" /> Your Location</div>
           </Popup>
         </Marker>
 
@@ -254,11 +256,11 @@ export function LiveTrackingMap({ requestId, customerLocation, showNearbyProvide
           <Marker position={[activeProviderLat as number, activeProviderLng as number]} icon={providerDivIcon}>
             <Popup>
               <div className="text-xs font-bold text-blue-700 space-y-1 p-1">
-                <p>🚗 Your Service Provider</p>
-                {osrmRoute && (
+                <div className="flex items-center gap-1"><Truck className="w-3 h-3" /> Your Service Provider</div>
+                {osrmRoute && isProviderAccepted && (
                   <>
-                    <p>📏 {osrmRoute.distanceKm} km away</p>
-                    <p>⏱ ETA: ~{osrmRoute.durationMinutes} min</p>
+                    <div className="flex items-center gap-1"><Ruler className="w-3 h-3" /> {osrmRoute.distanceKm} km away</div>
+                    <div className="flex items-center gap-1"><Timer className="w-3 h-3" /> ETA: ~{osrmRoute.durationMinutes} min</div>
                   </>
                 )}
               </div>
@@ -267,7 +269,7 @@ export function LiveTrackingMap({ requestId, customerLocation, showNearbyProvide
         )}
 
         {/* OSRM Route — animated dashed blue line */}
-        {osrmRoute?.geometry && osrmRoute.geometry.length > 0 && (
+        {osrmRoute?.geometry && osrmRoute.geometry.length > 0 && isProviderAccepted && (
           <>
             <Polyline positions={osrmRoute.geometry} pathOptions={{ color: '#bfdbfe', weight: 8, opacity: 0.6 }} />
             <Polyline positions={osrmRoute.geometry} pathOptions={{ color: '#2563EB', weight: 4, opacity: 0.9, dashArray: '10 8' }} />
@@ -304,16 +306,7 @@ export function LiveTrackingMap({ requestId, customerLocation, showNearbyProvide
                     </div>
                   )}
 
-                  {/* Phone */}
-                  {provider.phone && (
-                    <a
-                      href={`tel:${provider.phone}`}
-                      className="flex items-center gap-1 text-xs text-slate-600 font-semibold hover:text-blue-600"
-                    >
-                      <Phone className="w-3 h-3" />
-                      {provider.phone}
-                    </a>
-                  )}
+
 
                   {/* Ask Button */}
                   <button
@@ -336,7 +329,7 @@ export function LiveTrackingMap({ requestId, customerLocation, showNearbyProvide
                       justifyContent: 'center',
                     }}
                   >
-                    {askingProviderId === provider.uid ? 'Sending...' : '⚡ Ask This Provider'}
+                    {askingProviderId === provider.uid ? 'Sending...' : <><Zap className="w-3 h-3 inline-block" /> Ask This Provider</>}
                   </button>
                 </div>
               </Popup>
@@ -346,8 +339,8 @@ export function LiveTrackingMap({ requestId, customerLocation, showNearbyProvide
       </MapContainer>
 
       {/* Floating Tracking Card */}
-      <div className="absolute bottom-4 left-4 right-4 sm:right-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl p-4 z-[999] text-xs border border-slate-100 max-w-sm">
-        <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 mb-3">
+      <div className="absolute w-fit bottom-4 left-4 right-4 sm:right-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl p-4 z-[999] text-xs border border-slate-100 max-w-sm transition-all duration-300">
+        <div className={`flex items-center justify-between gap-3 ${cardExpanded ? 'pb-3 border-b border-slate-100 mb-3' : ''}`}>
           <div className="flex items-center gap-2">
             <div className={`w-2.5 h-2.5 rounded-full ${isStale ? 'bg-amber-500 animate-pulse' : hasActiveProvider ? 'bg-green-500 animate-ping' : 'bg-slate-300'}`} />
             <span className="font-black text-slate-900 uppercase text-[10px] tracking-wider">
@@ -356,39 +349,57 @@ export function LiveTrackingMap({ requestId, customerLocation, showNearbyProvide
                 : isStale ? `Updated ${minutesAgo}m ago` : hasActiveProvider ? 'Live Provider GPS' : 'Awaiting Provider'}
             </span>
           </div>
-          {trackingData?.lastUpdated && (
-            <span className="text-[10px] text-slate-400 font-medium">
-              {new Date(trackingData.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {trackingData?.lastUpdated && (
+              <span className="text-[10px] text-slate-400 font-medium">
+                {new Date(trackingData.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setCardExpanded(!cardExpanded)}
+              className="text-slate-400 hover:text-slate-700 transition-colors p-1 cursor-pointer"
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${!cardExpanded ? 'rotate-180 text-blue-600' : ''}`} />
+            </button>
+          </div>
         </div>
 
-        {osrmRoute ? (
-          <div className="grid grid-cols-2 gap-3 text-slate-700">
-            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-              <p className="text-[9px] font-black uppercase text-slate-400">Road Distance</p>
-              <p className="text-sm font-black text-blue-600 mt-0.5">{osrmRoute.distanceKm} km</p>
-            </div>
-            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-              <p className="text-[9px] font-black uppercase text-slate-400">Est. Driving Time</p>
-              <p className="text-sm font-black text-blue-600 mt-0.5">{osrmRoute.durationMinutes} min</p>
-            </div>
-          </div>
-        ) : showNearbyProviders && nearbyProviders.length > 0 ? (
-          <p className="text-slate-500 text-xs font-semibold">
-            Tap a provider marker to view details and request help directly.
-          </p>
-        ) : (
-          <div className="text-slate-400 text-xs italic">
-            {hasActiveProvider ? 'Calculating OSRM route...' : 'Waiting for provider assignment...'}
-          </div>
-        )}
+        {cardExpanded && (
+          <>
+            {osrmRoute ? (
+              <div className="grid grid-cols-2 gap-3 text-slate-700 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <p className="text-[9px] font-black uppercase text-slate-400">Road Distance</p>
+                  <p className="text-sm font-black text-blue-600 mt-0.5">{osrmRoute.distanceKm} km</p>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <p className="text-[9px] font-black uppercase text-slate-400">Est. Driving Time</p>
+                  <p className="text-sm font-black text-blue-600 mt-0.5">{osrmRoute.durationMinutes} min</p>
+                </div>
+              </div>
+            ) : showNearbyProviders && nearbyProviders.length > 0 ? (
+              <p className="text-slate-500 text-xs font-semibold animate-in fade-in duration-200">
+                Tap a provider marker to view details and request help directly.
+              </p>
+            ) : hasActiveProvider && !isProviderAccepted ? (
+              <div className="text-slate-500 text-xs font-semibold animate-in fade-in duration-200 flex items-center gap-2">
+                <UserCheck className="w-3.5 h-3.5 text-blue-500" />
+                Waiting for provider to accept your request...
+              </div>
+            ) : (
+              <div className="text-slate-400 text-xs italic animate-in fade-in duration-200">
+                {hasActiveProvider ? 'Calculating route...' : 'Waiting for provider assignment...'}
+              </div>
+            )}
 
-        {isStale && (
-          <div className="mt-3 bg-amber-50 border border-amber-200 text-amber-800 p-2.5 rounded-xl text-[10px] font-bold flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-            Provider location was last updated {minutesAgo} minutes ago. Signal may be weak.
-          </div>
+            {isStale && (
+              <div className="mt-3 bg-amber-50 border border-amber-200 text-amber-800 p-2.5 rounded-xl text-[10px] font-bold flex items-center gap-2 animate-in fade-in duration-200">
+                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                Provider location was last updated {minutesAgo} minutes ago. Signal may be weak.
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -42,10 +42,27 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Audit logs — admin read, backend writes via Admin SDK (bypasses rules)
+    match /formBuilderFields/{fieldId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Audit logs — admin read, admin client writes
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      allow write: if false; // only backend Admin SDK writes here
+      allow write: if isAdmin();
+    }
+
+    // Vehicle Types config
+    match /vehicleTypes/{typeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // System diagnostics logs — public create (guest crash logging), admin full access
+    match /systemLogs/{logId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
     }
 
     // Profiles
@@ -73,7 +90,7 @@ service cloud.firestore {
 
       // Customer/provider/admin can read a specific request after authenticating,
       // including anonymous guest sessions used by public tracking links.
-      allow get: if isSignedIn();
+      allow get: if true;
 
       // List / queries are evaluated per-document (resource is each doc returned).
       allow list: if isAdmin()
@@ -100,12 +117,22 @@ service cloud.firestore {
           && request.resource.data.customerId == resource.data.customerId
           && request.resource.data.serviceType == resource.data.serviceType
         );
-    }
+
+        match /proposals/{proposalId} {
+          allow read, write: if isSignedIn();
+        }
+      }
 
     // SOS Distress Alerts
     match /sosAlerts/{alertId} {
       allow create, update: if true;
       allow read: if isAdmin();
+    }
+
+    // Support Contacts submissions
+    match /contactSubmissions/{submissionId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
     }
   }
 }

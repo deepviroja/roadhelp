@@ -81,6 +81,32 @@ export default function AdminPayouts() {
           const tB = toMillis(b.completedAt);
           return tB - tA;
         });
+
+      // Auto-settle completed requests past the delay days
+      const now = new Date().getTime();
+      const expiredRequests = data.filter((req) => {
+        if (req.payoutStatus !== "pending") return false;
+        const completedAt = toJsDate(req.completedAt);
+        if (!completedAt) return false;
+        const diffDays = (now - completedAt.getTime()) / (1000 * 3600 * 24);
+        return diffDays >= delay;
+      });
+
+      if (expiredRequests.length > 0) {
+        const { writeBatch } = await import("firebase/firestore");
+        const batch = writeBatch(db);
+        expiredRequests.forEach((req) => {
+          batch.update(doc(db, "serviceRequests", req.id), {
+            payoutStatus: "paid",
+            paidAt: serverTimestamp(),
+          });
+          req.payoutStatus = "paid";
+          req.paidAt = new Date() as any;
+        });
+        await batch.commit();
+        toast.success(`Auto-settled ${expiredRequests.length} payout(s) based on ${delay}-day policy.`);
+      }
+
       setRequests(data);
     } catch (err) {
       console.error("Payout sync error:", err);
@@ -373,7 +399,7 @@ export default function AdminPayouts() {
                             {req.payoutStatus === "paid" && (
                               <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center justify-end gap-2 pr-4">
                                 <CheckCircle2 className="w-4 h-4 text-green-500" />{" "}
-                                Disbursed
+                                Paid
                               </div>
                             )}
                           </td>

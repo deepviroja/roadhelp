@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,12 +23,15 @@ import { useSystemStore } from "@/stores/systemStore";
 export default function CustomerProfile() {
   const { profile, logout, refreshProfile } = useAuth();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const { appName } = useSystemStore();
 
   const initialCountryCode = profile?.countryCode || (profile?.phone?.startsWith("+91") ? "+91" : profile?.phone?.startsWith("+1") ? "+1" : "+91");
   const initialPhone = profile?.phone ? (profile.phone.startsWith(initialCountryCode) ? profile.phone.slice(initialCountryCode.length) : profile.phone) : "";
 
   const form = useForm<ProfileUpdateFormData>({
+    mode: "onChange",
+    reValidateMode: "onChange",
     resolver: zodResolver(profileUpdateSchema),
     defaultValues: {
       fullName: profile?.fullName || "",
@@ -36,6 +39,22 @@ export default function CustomerProfile() {
       phone: initialPhone,
     },
   });
+
+  useEffect(() => {
+    if (profile && !hasInitialized) {
+      const currentCountryCode = profile.countryCode || (profile.phone?.startsWith("+91") ? "+91" : profile.phone?.startsWith("+1") ? "+1" : "+91");
+      const currentPhone = profile.phone ? (profile.phone.startsWith(currentCountryCode) ? profile.phone.slice(currentCountryCode.length) : profile.phone) : "";
+
+      setTimeout(() => {
+        form.reset({
+          fullName: profile.fullName || "",
+          countryCode: currentCountryCode,
+          phone: currentPhone,
+        });
+        setHasInitialized(true);
+      }, 0);
+    }
+  }, [profile, hasInitialized, form]);
 
   const onSubmit = async (data: ProfileUpdateFormData) => {
     if (!profile) return;
@@ -64,6 +83,16 @@ export default function CustomerProfile() {
     }
   };
 
+  const scrollToFirstError = () => {
+    setTimeout(() => {
+      const firstError = document.querySelector('.border-red-500, [aria-invalid="true"]');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (firstError as HTMLElement).focus?.();
+      }
+    }, 100);
+  };
+
   return (
     <CustomerLayout>
       <motion.div
@@ -73,8 +102,8 @@ export default function CustomerProfile() {
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-8">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Account Intelligence</h1>
-            <p className="text-slate-500 font-medium tracking-wide italic">Manage your driver profile and vehicle secure storage</p>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Account Details</h1>
+            <p className="text-slate-500 font-medium tracking-wide italic">Manage your profile</p>
           </div>
           <div className="flex items-center gap-3">
              <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[10px] font-black uppercase tracking-widest leading-none flex items-center gap-1.5 shadow-sm">
@@ -110,7 +139,7 @@ export default function CustomerProfile() {
                     <Smartphone className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-[9px] font-bold uppercase text-slate-400 leading-none mb-1">Authenticated Phone</p>
+                    <p className="text-[9px] font-bold uppercase text-slate-400 leading-none mb-1">Phone Number</p>
                     <p className="text-[11px] font-bold text-slate-700">{profile?.countryCode} {profile?.phone}</p>
                   </div>
                 </div>
@@ -144,18 +173,18 @@ export default function CustomerProfile() {
                 <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 shadow-sm">
                   <Smartphone className="w-4 h-4" />
                 </div>
-                <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase">Update Profile Intel</h3>
+                <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase">Update Profile Details</h3>
               </div>
 
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit, scrollToFirstError)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Authorized Full Name</Label>
+                    <Label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Full Name</Label>
                     <Input id="fullName" {...form.register("fullName")} className={`h-12 rounded-xl font-bold bg-slate-50 border-slate-100 ${form.formState.errors.fullName ? "border-red-500 bg-red-50" : "focus:bg-white focus:border-blue-500 transition-all"}`} />
                     {form.formState.errors.fullName && <p className="text-[9px] text-red-500 font-bold uppercase mt-1 ml-1">{form.formState.errors.fullName.message}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Dispatch Mobile Number</Label>
+                    <Label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Phone Number</Label>
                     <PhoneInputGroup
                       countryCode={form.watch("countryCode") || "+1"}
                       phone={form.watch("phone")}
@@ -196,10 +225,10 @@ export default function CustomerProfile() {
                   <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform">
                     <Trash2 className="w-4 h-4" />
                   </div>
-                  <h3 className="text-sm font-bold text-red-800 tracking-tight uppercase">Termination Protocol</h3>
+                  <h3 className="text-sm font-bold text-red-800 tracking-tight uppercase">Close Account</h3>
                 </div>
                 <p className="text-[10px] text-red-600/70 font-bold leading-relaxed uppercase tracking-widest max-w-sm">
-                  PERMANENTLY DELETE ALL ACCOUNT DATA AND SECURE GARAGE STORAGE. THIS ACTION IS FINAL.
+                  Permanently delete your account and remove all saved vehicles. This action cannot be undone.
                 </p>
               </div>
               <Button
@@ -207,7 +236,7 @@ export default function CustomerProfile() {
                 className="border-red-200 bg-white text-red-600 hover:bg-red-600 hover:text-white rounded-xl px-6 h-12 font-bold text-[10px] transition-all active:scale-95"
                 onClick={() => setShowDeleteDialog(true)}
               >
-                REQUEST TERMINATION
+                DELETE ACCOUNT
               </Button>
             </div>
           </div>
@@ -216,10 +245,9 @@ export default function CustomerProfile() {
         <ConfirmDialog
           open={showDeleteDialog}
           onOpenChange={setShowDeleteDialog}
-          title="Final Account Termination?"
+          title="Delete Your Account?"
           description={`You are about to irreversibly delete your ${appName} profile and vehicle garage. Are you absolutely certain you wish to proceed with account removal?`}
           confirmText="Yes, Delete My Account"
-
           onConfirm={handleDeleteAccount}
           isDestructive
         />

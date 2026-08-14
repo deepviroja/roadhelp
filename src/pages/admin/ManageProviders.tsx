@@ -169,7 +169,7 @@ export default function ManageProviders() {
                       </td>
                       <td className="px-4 py-4 text-center">
                          <div className="flex items-center justify-center gap-1">
-                            <span className="font-bold text-slate-900 text-xs">{p.rating ? p.rating.toFixed(1) : '5.0'}</span>
+                            <span className="font-bold text-slate-900 text-xs">{(p.totalJobs && p.totalJobs > 0 && p.rating) ? p.rating.toFixed(1) : 'N/A'}</span>
                             <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                          </div>
                       </td>

@@ -9,7 +9,7 @@ import {
   ChevronRight,
   Truck,
   PlusCircle,
-  Star,
+  Car,
   TrendingUp,
 } from "lucide-react";
 import {
@@ -97,15 +97,12 @@ export default function CustomerDashboard() {
         (d) => ({ id: d.id, ...d.data() }) as ServiceRequest,
       );
       const totalSpent = requests.reduce(
-        (sum, r) => sum + (r.totalPrice || r.finalPrice || r.estimatedPrice || 0) + (r.tipAmount || 0),
+        (sum, r) => sum + (r.finalPrice || r.totalPrice || r.estimatedPrice || 0),
         0,
       );
-      const ratings = requests.filter((r) => r.rating).map((r) => r.rating!);
-      const avgRating = ratings.length
-        ? ratings.reduce((a, b) => a + b, 0) / ratings.length
-        : 0;
+      const savedVehicles = profile?.vehicles?.length || 0;
 
-      setStats({ total: requests.length, totalSpent, avgRating });
+      setStats({ total: requests.length, totalSpent, avgRating: savedVehicles });
       setIsLoading(false);
     });
 
@@ -197,9 +194,9 @@ export default function CustomerDashboard() {
 
         {/* Stats Matrix */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
-          <StatCard label="Requests" value={stats.total} icon={History} color="blue" />
+          <StatCard label="Requests Completed" value={stats.total} icon={History} color="blue" />
           <StatCard label="Total Spent" value={formatCurrency(stats.totalSpent)} icon={TrendingUp} color="green" />
-          <StatCard label="Average Rating" value={stats.avgRating ? `${stats.avgRating.toFixed(1)}/5.0` : "N/A"} icon={Star} color="amber" />
+          <StatCard label="Saved Vehicles" value={stats.avgRating || 0} icon={Car} color="amber" />
         </div>
 
         {/* Operational Records */}

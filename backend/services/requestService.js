@@ -242,6 +242,7 @@ exports.saveRequest = async (data) => {
   const requestData = {
     ...data,
     customerId: guestSync?.customerId || data.customerId,
+    anonymousCustomerId: data.customerId || null,
     customerEmail: guestSync?.customerEmail || data.customerEmail,
     guestAccountCreated: guestSync?.guestAccountCreated || false,
     welcomeEmailSent: guestSync?.welcomeEmailSent || false,
@@ -252,6 +253,13 @@ exports.saveRequest = async (data) => {
     visibilityHours,
     expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + visibilityHours * 60 * 60 * 1000)),
   };
+
+  // Clean undefined properties to prevent Firestore insert crashes
+  Object.keys(requestData).forEach((key) => {
+    if (requestData[key] === undefined) {
+      delete requestData[key];
+    }
+  });
 
   const docRef = await db.collection('serviceRequests').add(requestData);
   return {
@@ -271,6 +279,7 @@ exports.getEligibleRequestsForProvider = async (providerUid) => {
 
   if (provider.role !== 'provider') throw new Error('User is not a service provider');
   if (provider.isVerified === false) return [];
+  if (provider.isOnline === false) return [];
 
   const sysConfig = await getSystemConfig();
   const defaultRadius = Number(sysConfig.defaultServiceRadiusKm || sysConfig.serviceRadiusKm) || 15;
@@ -311,6 +320,12 @@ exports.getEligibleRequestsForProvider = async (providerUid) => {
       .get();
     const hasProposal = !proposalSnap.empty;
     const proposalData = hasProposal ? proposalSnap.docs[0].data() : null;
+    const isDeclined = req.declinedProviders && req.declinedProviders.includes(providerUid);
+    const isDirectInvite = hasProposal && proposalData?.requestedByCustomer === true;
+
+    if ((isDeclined && !isDirectInvite) || (hasProposal && proposalData?.status === 'rejected')) {
+      continue;
+    }
 
     if (hasProposal || req.providerId === providerUid) {
       // Direct invite or pre-assigned request — bypass distance checks
@@ -350,6 +365,19 @@ exports.submitProposal = async (requestId, proposal, providerUser) => {
   const reqSnap = await requestRef.get();
   if (!reqSnap.exists) throw new Error('Request not found');
   const reqData = reqSnap.data();
+  const serviceBasePrice = Number(reqData.serviceBasePrice);
+  const serviceMaxPrice = Number(reqData.serviceMaxPrice);
+  const proposedPrice = Number(proposal.estimatedPrice);
+  const isDirectInvite = proposal.requestedByCustomer === true;
+
+  if (!isDirectInvite) {
+    if (serviceBasePrice && proposedPrice < serviceBasePrice) {
+      throw new Error(`Proposed price must be at least ${serviceBasePrice}`);
+    }
+    if (serviceMaxPrice && proposedPrice > serviceMaxPrice) {
+      throw new Error(`Proposed price cannot exceed ${serviceMaxPrice}`);
+    }
+  }
 
   // Verify provider actually offers the requested service type
   if (providerUser && providerUser.serviceTypes) {
@@ -370,6 +398,7 @@ exports.submitProposal = async (requestId, proposal, providerUser) => {
       estimatedPrice: proposal.estimatedPrice,
       estimatedTime: proposal.estimatedTime,
       message: proposal.message || '',
+      status: 'offered',
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     return existingDoc.id;
@@ -413,7 +442,8 @@ exports.selectProposal = async (requestId, proposalId, customerUid) => {
   if (!reqSnap.exists) throw new Error('Request not found');
   const reqData = reqSnap.data();
 
-  if (reqData.customerId !== customerUid) {
+  const isGuestCapable = reqData.isGuest === true && customerUid;
+  if (reqData.customerId !== customerUid && reqData.anonymousCustomerId !== customerUid && !isGuestCapable) {
     throw new Error('Unauthorized to select proposal for this request');
   }
 
@@ -433,6 +463,8 @@ exports.selectProposal = async (requestId, proposalId, customerUid) => {
     estimatedTime: proposal.estimatedTime || null,
     additionalFees: proposal.additionalFees || 0,
     totalPrice: (proposal.estimatedPrice || reqData.estimatedPrice || 0) + (proposal.additionalFees || 0),
+    basePrice: proposal.estimatedPrice ? Math.min(proposal.estimatedPrice, reqData.serviceBasePrice || 0) : (reqData.serviceBasePrice || 0),
+    maxPrice: proposal.estimatedPrice ? Math.max(proposal.estimatedPrice, reqData.serviceMaxPrice || 0) : (reqData.serviceMaxPrice || 0),
     acceptedAt: adminTimestamp,
     proposalDeadline: admin.firestore.FieldValue.delete(),
     proposalDeadlineMs: admin.firestore.FieldValue.delete(),
@@ -460,7 +492,8 @@ exports.rejectProposal = async (requestId, proposalId, customerUid) => {
   if (!reqSnap.exists) throw new Error('Request not found');
   const reqData = reqSnap.data();
 
-  if (reqData.customerId !== customerUid) {
+  const isGuestCapable = reqData.isGuest === true && customerUid;
+  if (reqData.customerId !== customerUid && reqData.anonymousCustomerId !== customerUid && !isGuestCapable) {
     throw new Error('Unauthorized');
   }
 
@@ -474,7 +507,8 @@ exports.autoAssignProposal = async (requestId, customerUid) => {
   const reqData = reqSnap.data();
 
   // Only auto-assign for the owner or open requests past deadline
-  if (customerUid && reqData.customerId !== customerUid) {
+  const isGuestCapable = reqData.isGuest === true && customerUid;
+  if (customerUid && reqData.customerId !== customerUid && reqData.anonymousCustomerId !== customerUid && !isGuestCapable) {
     throw new Error('Unauthorized');
   }
 
@@ -506,10 +540,13 @@ exports.autoAssignProposal = async (requestId, customerUid) => {
     providerId: winner.providerId,
     providerName: winner.providerName,
     providerPhone: winner.providerPhone || '',
+    providerVehicleNumber: winner.providerVehicleNumber || '',
     providerRating: winner.providerRating || 5,
     estimatedPrice: winner.estimatedPrice || reqData.estimatedPrice || 0,
     estimatedTime: winner.estimatedTime || null,
     totalPrice: winner.estimatedPrice || reqData.estimatedPrice || 0,
+    basePrice: winner.estimatedPrice ? Math.min(winner.estimatedPrice, reqData.serviceBasePrice || 0) : (reqData.serviceBasePrice || 0),
+    maxPrice: winner.estimatedPrice ? Math.max(winner.estimatedPrice, reqData.serviceMaxPrice || 0) : (reqData.serviceMaxPrice || 0),
     acceptedAt: adminTimestamp,
     autoAssigned: true,
     proposalDeadline: admin.firestore.FieldValue.delete(),
@@ -589,8 +626,17 @@ exports.declineRequest = async (requestId, providerUid) => {
   if (!reqSnap.exists) throw new Error('Request not found');
   const reqData = reqSnap.data();
 
+  const batch = db.batch();
+  let needsCommit = false;
+
+  // Track provider skips to avoid showing skipped requests again
+  batch.update(docRef, {
+    declinedProviders: admin.firestore.FieldValue.arrayUnion(providerUid)
+  });
+  needsCommit = true;
+
   if (reqData.providerId === providerUid) {
-    await docRef.update({
+    batch.update(docRef, {
       providerId: admin.firestore.FieldValue.delete(),
       providerName: admin.firestore.FieldValue.delete(),
       providerPhone: admin.firestore.FieldValue.delete(),
@@ -598,6 +644,21 @@ exports.declineRequest = async (requestId, providerUid) => {
       providerVehicleNumber: admin.firestore.FieldValue.delete(),
       status: 'searching_providers',
     });
+  }
+
+  // Also reject any active proposals from this provider for this request
+  const proposalsSnap = await docRef.collection('proposals')
+    .where('providerId', '==', providerUid)
+    .get();
+
+  if (!proposalsSnap.empty) {
+    proposalsSnap.docs.forEach((pDoc) => {
+      batch.update(pDoc.ref, { status: 'rejected' });
+    });
+  }
+
+  if (needsCommit) {
+    await batch.commit();
   }
 };
 
@@ -607,13 +668,12 @@ exports.completeRequest = async (requestId, finalPrice, additionalFees) => {
   const requestData = requestSnap.data();
 
   const serviceSnap = await db.collection('services').doc(requestData.serviceType).get();
-  if (serviceSnap.exists) {
-    const serviceConfig = serviceSnap.data();
-    if (serviceConfig.basePrice && serviceConfig.maxPrice) {
-      if (finalPrice < serviceConfig.basePrice || finalPrice > serviceConfig.maxPrice) {
-        throw new Error(`Service Base Amount must be between ${serviceConfig.basePrice} and ${serviceConfig.maxPrice}`);
-      }
-    }
+  const serviceConfig = serviceSnap.exists ? serviceSnap.data() : {};
+  const basePriceLimit = requestData.basePrice || serviceConfig.basePrice || 0;
+  const maxPriceLimit = requestData.maxPrice || serviceConfig.maxPrice || 10000;
+
+  if (finalPrice < basePriceLimit || finalPrice > maxPriceLimit) {
+    throw new Error(`Service Base Amount must be between ${basePriceLimit} and ${maxPriceLimit}`);
   }
 
   const totalPrice = finalPrice + (additionalFees || 0);
@@ -665,6 +725,10 @@ exports.proposeAdditionalCosts = async (requestId, proposedAdditionalFees, reaso
     throw new Error('Cannot propose additional costs in this state');
   }
 
+  if (requestData.additionalFees && requestData.additionalFees > 0) {
+    throw new Error('Additional charges have already been established for this request. You can only propose additional charges once.');
+  }
+
   await db.collection('serviceRequests').doc(requestId).update({
     preApprovalStatus: requestData.status,
     status: 'pendingUserApproval',
@@ -690,6 +754,23 @@ exports.approveAdditionalCosts = async (requestId) => {
     status: requestData.preApprovalStatus || 'accepted',
     additionalFees: newAdditionalFees,
     totalPrice: totalPrice,
+    proposedAdditionalFees: admin.firestore.FieldValue.delete(),
+    proposedAdditionalReason: admin.firestore.FieldValue.delete(),
+    preApprovalStatus: admin.firestore.FieldValue.delete(),
+  });
+};
+
+exports.rejectAdditionalCosts = async (requestId) => {
+  const requestSnap = await db.collection('serviceRequests').doc(requestId).get();
+  if (!requestSnap.exists) throw new Error('Request not found');
+  const requestData = requestSnap.data();
+
+  if (requestData.status !== 'pendingUserApproval') {
+    throw new Error('No proposed costs pending rejection');
+  }
+
+  await db.collection('serviceRequests').doc(requestId).update({
+    status: requestData.preApprovalStatus || 'accepted',
     proposedAdditionalFees: admin.firestore.FieldValue.delete(),
     proposedAdditionalReason: admin.firestore.FieldValue.delete(),
     preApprovalStatus: admin.firestore.FieldValue.delete(),

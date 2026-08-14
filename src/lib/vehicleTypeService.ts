@@ -17,15 +17,10 @@ export async function fetchVehicleTypes(): Promise<VehicleTypeConfig[]> {
     const q = query(collection(db, 'vehicleTypes'), orderBy('sortOrder', 'asc'));
     const snap = await getDocs(q);
     if (snap.empty) {
-      // Seed initial default vehicle types if collection is empty
-      for (const item of DEFAULT_VEHICLE_TYPES) {
-        await setDoc(doc(db, 'vehicleTypes', item.id), item);
-      }
       return DEFAULT_VEHICLE_TYPES;
     }
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as VehicleTypeConfig);
-  } catch (err) {
-    console.warn('[VehicleTypes] Load error, using defaults:', err);
+  } catch {
     return DEFAULT_VEHICLE_TYPES;
   }
 }

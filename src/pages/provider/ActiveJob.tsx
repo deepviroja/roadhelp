@@ -198,11 +198,13 @@ export default function ActiveJob() {
   useEffect(() => {
     if (!request) return;
     const service = services.find((s) => s.id === request.serviceType);
-    if (service && finalPrice !== '') {
+    const basePriceLimit = request.basePrice || service?.basePrice || 0;
+    const maxPriceLimit = request.maxPrice || service?.maxPrice || 10000;
+    if (finalPrice !== '') {
       if (finalPrice < 0) {
         setPriceError("Price cannot be negative");
-      } else if (finalPrice < service.basePrice || finalPrice > service.maxPrice) {
-        setPriceError(`Price must be between ${formatCurrency(service.basePrice)} and ${formatCurrency(service.maxPrice)}`);
+      } else if (finalPrice < basePriceLimit || finalPrice > maxPriceLimit) {
+        setPriceError(`Price must be between ${formatCurrency(basePriceLimit)} and ${formatCurrency(maxPriceLimit)}`);
       } else {
         setPriceError(null);
       }
@@ -341,38 +343,75 @@ export default function ActiveJob() {
 
             {/* Final Price - Editable by Provider */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-              <div className="space-y-1.5 font-medium mb-3">
-                <Label
-                  htmlFor="finalPrice"
-                  className="flex items-center gap-1.5 text-gray-700"
-                >
-                  <IndianRupee className="w-4 h-4 text-green-600" />
-                  Service Base Amount
-                </Label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">
-                    {currencySymbol}
-                  </div>
-                  <Input
-                    id="finalPrice"
-                    type="number"
-                    min={services.find((s) => s.id === request?.serviceType)?.basePrice}
-                    max={services.find((s) => s.id === request?.serviceType)?.maxPrice}
-                    value={finalPrice === '' ? '' : finalPrice}
-                    onChange={(e) => {
-                      finalPriceDirtyRef.current = true;
-                      setFinalPrice(e.target.value === '' ? '' : Number(e.target.value));
-                    }}
-                    className={`pl-7 text-2xl font-bold h-14 ${priceError ? "border-red-500 bg-red-50 text-red-900" : "text-slate-900"}`}
-                  />
+              {request.status === 'completed' || request.status === 'cancelled' ? (
+                <div className="space-y-1 mb-3">
+                  <Label className="flex items-center gap-1.5 text-gray-700">
+                    <IndianRupee className="w-4 h-4 text-green-600" />
+                    Service Base Amount
+                  </Label>
+                  <p className="text-3xl font-black text-slate-900">{formatCurrency(request.finalPrice || 0)}</p>
                 </div>
-                {priceError && <p className="text-red-600 text-xs font-bold mt-1">{priceError}</p>}
-              </div>
+              ) : (
+                <div className="space-y-1.5 font-medium mb-3">
+                  <Label
+                    htmlFor="finalPrice"
+                    className="flex items-center gap-1.5 text-gray-700"
+                  >
+                    <IndianRupee className="w-4 h-4 text-green-600" />
+                    Service Base Amount
+                  </Label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">
+                      {currencySymbol}
+                    </div>
+                    <Input
+                      id="finalPrice"
+                      type="number"
+                      min={services.find((s) => s.id === request?.serviceType)?.basePrice}
+                      max={services.find((s) => s.id === request?.serviceType)?.maxPrice}
+                      value={finalPrice === '' ? '' : finalPrice}
+                      onChange={(e) => {
+                        finalPriceDirtyRef.current = true;
+                        setFinalPrice(e.target.value === '' ? '' : Number(e.target.value));
+                      }}
+                      className={`pl-7 text-2xl font-bold h-14 ${priceError ? "border-red-500 bg-red-50 text-red-900" : "text-slate-900"}`}
+                    />
+                  </div>
+                  {priceError && <p className="text-red-600 text-xs font-bold mt-1">{priceError}</p>}
+                </div>
+              )}
 
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between font-black text-slate-900 mb-2">
-                 <span className="text-[10px] uppercase tracking-widest text-slate-400">Total Yield Expectation</span>
-                 <span className="text-xl">{formatCurrency(Number(finalPrice) + (request.additionalFees || 0))}</span>
+                 <span className="text-[10px] uppercase tracking-widest text-slate-400">Total Job Earnings</span>
+                 <span className="text-xl">{formatCurrency((request.status === 'completed' || request.status === 'cancelled' ? request.finalPrice || 0 : Number(finalPrice)) + (request.additionalFees || 0) + (request.tipAmount || 0))}</span>
               </div>
+
+              {((request.additionalFees && request.additionalFees > 0) || (request.tipAmount && request.tipAmount > 0)) && (
+                <div className="mt-4 p-4 bg-orange-50/80 border border-orange-200 rounded-2xl space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-bold uppercase tracking-wider">Base Service Price:</span>
+                    <span className="font-black text-slate-900">{formatCurrency((request.status === 'completed' || request.status === 'cancelled' ? request.finalPrice || 0 : Number(finalPrice)) || 0)}</span>
+                  </div>
+                  {request.additionalFees && request.additionalFees > 0 ? (
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-orange-700 font-bold uppercase tracking-wider">Additional Fees:</span>
+                      <span className="font-black text-orange-700">+{formatCurrency(request.additionalFees)}</span>
+                    </div>
+                  ) : null}
+                  {request.tipAmount && request.tipAmount > 0 ? (
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-pink-600 font-bold uppercase tracking-wider">Customer Tip:</span>
+                      <span className="font-black text-pink-600">+{formatCurrency(request.tipAmount)}</span>
+                    </div>
+                  ) : null}
+                  <div className="border-t border-orange-100 pt-2 flex justify-between items-center text-xs">
+                    <span className="text-slate-900 font-black uppercase tracking-wider">Total Price:</span>
+                    <span className="font-black text-blue-600 text-sm">
+                      {formatCurrency((request.status === 'completed' || request.status === 'cancelled' ? request.finalPrice || 0 : Number(finalPrice) || 0) + (request.additionalFees || 0) + (request.tipAmount || 0))}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {services.find((s) => s.id === request.serviceType) && (
                 <p className="text-xs text-gray-400 mb-4">
@@ -396,126 +435,164 @@ export default function ActiveJob() {
 
 
             {/* Status Action Buttons */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-3">
-              <h3 className="font-semibold text-gray-900">Update Status</h3>
-
-              {request.status === "pendingUserApproval" && (
-                <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-xl flex flex-col items-center justify-center text-center space-y-2">
-                  <ShieldAlert className="w-6 h-6 text-amber-500 animate-pulse" />
-                  <p className="font-black uppercase text-[10px] tracking-widest text-amber-600">Awaiting Customer Approval</p>
-                  <p className="text-xs text-amber-700 font-medium">
-                    You proposed <strong className="text-slate-900">{formatCurrency(request.proposedAdditionalFees || 0)}</strong> additional charges for: <em className="text-slate-800">"{request.proposedAdditionalReason}"</em>.
-                  </p>
-                  <p className="text-[10px] text-amber-500 font-semibold italic">Workflow is under waiting state until response.</p>
-                </div>
-              )}
-
-              {request.status === "accepted" && (
-                <>
-                  <Button
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2"
-                    onClick={() => handleStatusUpdate("arriving")}
-                    disabled={isUpdating}
-                  >
-                    <MapPin className="w-4 h-4" />
-                    {isUpdating ? "Updating..." : "I'm Arriving"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 gap-2"
-                    onClick={() => setShowProposeCosts(true)}
-                    disabled={isUpdating}
-                  >
-                    <BadgeDollarSign className="w-4 h-4" />
-                    Propose Additional Charges
-                  </Button>
-                </>
-              )}
-
-              {request.status === "arriving" && (
-                <div className="space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100">
-                  {!request.providerArrived ? (
-                    <div className="space-y-3">
-                      <p className="text-xs text-orange-700 font-bold leading-relaxed">
-                        You are en route. Click below or drive closer to register arrival and request OTP from customer.
+            {request.status === "completed" || request.status === "cancelled" ? (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-3">
+                {request.status === "completed" ? (
+                  request.isPaid ? (
+                    <div className="bg-green-50 border border-green-200 text-green-900 p-6 rounded-2xl flex flex-col items-center justify-center text-center space-y-2">
+                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-green-500/25 mb-1">
+                        ✓
+                      </div>
+                      <p className="font-black uppercase text-[10px] tracking-widest text-green-700">Job Done & Paid</p>
+                      <p className="text-xs text-green-800 font-bold">
+                        This job has been completed and payment has been settled successfully!
                       </p>
-                      <Button
-                        onClick={async () => {
-                          setIsUpdating(true);
-                          try {
-                            const ref = doc(db, "serviceRequests", request.id);
-                            await updateDoc(ref, { providerArrived: true });
-                            toast.success("Arrival registered! Verify customer's OTP to proceed.");
-                          } catch {
-                            toast.error("Failed to register arrival");
-                          } finally {
-                            setIsUpdating(false);
-                          }
-                        }}
-                        disabled={isUpdating}
-                        className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold h-12 rounded-xl"
-                      >
-                        I have Arrived
-                      </Button>
                     </div>
                   ) : (
-                    <>
-                      <Label htmlFor="arrivalOtp" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Enter Arrival Verification OTP</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="arrivalOtp"
-                          type="text"
-                          maxLength={4}
-                          placeholder="Enter 4-digit OTP"
-                          value={otpInput}
-                          onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                          className="font-bold text-center tracking-widest text-lg h-10 flex-1"
-                        />
+                    <div className="bg-blue-50 border border-blue-200 text-blue-900 p-6 rounded-2xl flex flex-col items-center justify-center text-center space-y-2">
+                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/25 mb-1 animate-pulse">
+                        ✓
+                      </div>
+                      <p className="font-black uppercase text-[10px] tracking-widest text-blue-700">Job Completed</p>
+                      <p className="text-xs text-blue-800 font-bold">
+                        Awaiting customer payment. We will notify you once settlement is complete.
+                      </p>
+                    </div>
+                  )
+                ) : (
+                  <div className="bg-red-50 border border-red-200 text-red-900 p-6 rounded-2xl flex flex-col items-center justify-center text-center space-y-2">
+                    <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-red-500/25 mb-1">
+                      ✕
+                    </div>
+                    <p className="font-black uppercase text-[10px] tracking-widest text-red-700">Job Cancelled</p>
+                    <p className="text-xs text-red-800 font-bold">
+                      This job has been cancelled.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-3">
+                <h3 className="font-semibold text-gray-900">Update Status</h3>
+
+                {request.status === "pendingUserApproval" && (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-xl flex flex-col items-center justify-center text-center space-y-2">
+                    <ShieldAlert className="w-6 h-6 text-amber-500 animate-pulse" />
+                    <p className="font-black uppercase text-[10px] tracking-widest text-amber-600">Awaiting Customer Approval</p>
+                    <p className="text-xs text-amber-700 font-medium">
+                      You proposed <strong className="text-slate-900">{formatCurrency(request.proposedAdditionalFees || 0)}</strong> additional charges for: <em className="text-slate-800">"{request.proposedAdditionalReason}"</em>.
+                    </p>
+                    <p className="text-[10px] text-amber-500 font-semibold italic">Workflow is under waiting state until response.</p>
+                  </div>
+                )}
+
+                {request.status === "accepted" && (
+                  <>
+                    <Button
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2"
+                      onClick={() => handleStatusUpdate("arriving")}
+                      disabled={isUpdating}
+                    >
+                      <MapPin className="w-4 h-4" />
+                      {isUpdating ? "Updating..." : "I'm Arriving"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 gap-2"
+                      onClick={() => setShowProposeCosts(true)}
+                      disabled={isUpdating}
+                    >
+                      <BadgeDollarSign className="w-4 h-4" />
+                      Propose Additional Charges
+                    </Button>
+                  </>
+                )}
+
+                {request.status === "arriving" && (
+                  <div className="space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100">
+                    {!request.providerArrived ? (
+                      <div className="space-y-3">
+                        <p className="text-xs text-orange-700 font-bold leading-relaxed">
+                          You are en route. Click below or drive closer to register arrival and request OTP from customer.
+                        </p>
                         <Button
-                          onClick={handleVerifyArrivalOtp}
-                          disabled={isUpdating || otpInput.length !== 4}
-                          className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-10 animate-pulse"
+                          onClick={async () => {
+                            setIsUpdating(true);
+                            try {
+                              const ref = doc(db, "serviceRequests", request.id);
+                              await updateDoc(ref, { providerArrived: true });
+                              toast.success("Arrival registered! Verify customer's OTP to proceed.");
+                            } catch {
+                              toast.error("Failed to register arrival");
+                            } finally {
+                              setIsUpdating(false);
+                            }
+                          }}
+                          disabled={isUpdating}
+                          className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold h-12 rounded-xl"
                         >
-                          Verify & Start
+                          I have Arrived
                         </Button>
                       </div>
-                      <p className="text-[10px] text-slate-400">Ask the customer for the 4-digit OTP shown on their screen.</p>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <Label htmlFor="arrivalOtp" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Enter Arrival Verification OTP</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="arrivalOtp"
+                            type="text"
+                            maxLength={4}
+                            placeholder="Enter 4-digit OTP"
+                            value={otpInput}
+                            onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                            className="font-bold text-center tracking-widest text-lg h-10 flex-1"
+                          />
+                          <Button
+                            onClick={handleVerifyArrivalOtp}
+                            disabled={isUpdating || otpInput.length !== 4}
+                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-10 animate-pulse"
+                          >
+                            Verify & Start
+                          </Button>
+                        </div>
+                        <p className="text-[10px] text-slate-400">Ask the customer for the 4-digit OTP shown on their screen.</p>
+                      </>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 gap-2 mt-2 h-10"
+                      onClick={() => setShowProposeCosts(true)}
+                      disabled={isUpdating}
+                    >
+                      <BadgeDollarSign className="w-4 h-4" />
+                      Propose Additional Charges
+                    </Button>
+                  </div>
+                )}
+
+                {request.status === "inProgress" && (
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700 text-white gap-2"
+                    onClick={handleComplete}
+                    disabled={isUpdating || !!priceError}
+                  >
+                    <Flag className="w-4 h-4" />
+                    {isUpdating ? "Completing..." : "Complete Job"}
+                  </Button>
+                )}
+
+                {request.status !== "pendingUserApproval" && (
                   <Button
                     variant="outline"
-                    className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 gap-2 mt-2 h-10"
-                    onClick={() => setShowProposeCosts(true)}
-                    disabled={isUpdating}
+                    className="w-full border-red-200 text-red-600 hover:bg-red-50 gap-2"
+                    onClick={() => setShowCancel(true)}
                   >
-                    <BadgeDollarSign className="w-4 h-4" />
-                    Propose Additional Charges
+                    <XCircle className="w-4 h-4" />
+                    Cancel Job
                   </Button>
-                </div>
-              )}
-
-              {request.status === "inProgress" && (
-                <Button
-                  className="w-full bg-green-600 hover:bg-green-700 text-white gap-2"
-                  onClick={handleComplete}
-                  disabled={isUpdating || !!priceError}
-                >
-                  <Flag className="w-4 h-4" />
-                  {isUpdating ? "Completing..." : "Complete Job"}
-                </Button>
-              )}
-
-              {request.status !== "pendingUserApproval" && (
-                <Button
-                  variant="outline"
-                  className="w-full border-red-200 text-red-600 hover:bg-red-50 gap-2"
-                  onClick={() => setShowCancel(true)}
-                >
-                  <XCircle className="w-4 h-4" />
-                  Cancel Job
-                </Button>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Map */}

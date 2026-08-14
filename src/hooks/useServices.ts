@@ -14,9 +14,20 @@ const OTHER_SERVICE: ServiceTypeConfig = {
 };
 
 export function useServices() {
-  const [services, setServices] = useState<ServiceTypeConfig[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const cacheKey = 'cached:services';
+  
+  const [services, setServices] = useState<ServiceTypeConfig[]>(() => {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  
+  const [isLoading, setIsLoading] = useState(services.length > 0 ? false : true);
   const [error, setError] = useState<string | null>(null);
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
   const normalizeServices = (fetchedServices: ServiceTypeConfig[]) => {
     const withoutLegacyOther = fetchedServices.filter((service) => service.id !== 'other');
@@ -49,20 +60,38 @@ export function useServices() {
       (snapshot) => {
         clearTimeout(timeoutTimer);
         setError(null);
+        let finalServices: ServiceTypeConfig[] = [];
         if (snapshot.empty) {
           seedOtherService();
-          setServices([OTHER_SERVICE]);
+          finalServices = [OTHER_SERVICE];
         } else {
           const fetchedServices = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as ServiceTypeConfig));
-          setServices(normalizeServices(fetchedServices));
+          finalServices = normalizeServices(fetchedServices);
         }
+        setServices(finalServices);
         setIsLoading(false);
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(finalServices));
+        } catch (err) {
+          console.error('Failed to write services cache:', err);
+        }
       },
       (err) => {
         clearTimeout(timeoutTimer);
         console.error('Services snapshot error:', err);
         setError(err?.message || 'Unable to load services. Check Firestore security rules.');
-        setServices([OTHER_SERVICE]);
+        
+        // Fallback to cache if present, otherwise fallback to other service
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            setServices(JSON.parse(cached));
+          } catch {
+            setServices([OTHER_SERVICE]);
+          }
+        } else {
+          setServices([OTHER_SERVICE]);
+        }
         setIsLoading(false);
       }
     );
@@ -71,7 +100,7 @@ export function useServices() {
       clearTimeout(timeoutTimer);
       unsubscribe();
     };
-  }, []);
+  }, [retryTrigger]);
 
 
   const updateService = async (service: ServiceTypeConfig) => {
@@ -99,5 +128,7 @@ export function useServices() {
     }
   };
 
-  return { services, updateService, deleteService, isLoading, error };
+  const retry = () => setRetryTrigger(prev => prev + 1);
+
+  return { services, updateService, deleteService, isLoading, error, retry };
 }

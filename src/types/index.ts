@@ -56,9 +56,10 @@ export interface Vehicle {
   id?: string;
   make: string;
   model: string;
-  year: string;
+  year?: string;
   plateNumber: string;
-  color: string;
+  color?: string;
+  type?: string;
 }
 
 export interface UserProfile {
@@ -84,6 +85,7 @@ export interface UserProfile {
   serviceRadiusKm?: number;
   serviceTypes?: ServiceType[];
   vehicleNumber?: string;
+  licenseNumber?: string;
   isVerified?: boolean;
   isOnline?: boolean;
   rating?: number;
@@ -158,6 +160,7 @@ export interface ServiceRequest {
   tipAmount?: number;
   payoutStatus?: 'pending' | 'scheduled' | 'paid';
   payoutAt?: Timestamp | Date;
+  paidAt?: Timestamp | Date | FieldValue;
   rating?: number;
   review?: string;
   createdAt: Timestamp | Date | FieldValue;
@@ -176,6 +179,8 @@ export interface ServiceRequest {
   directInvite?: boolean;
   proposalStatus?: string | null;
   proposalPrice?: number | null;
+  basePrice?: number;
+  maxPrice?: number;
 }
 
 export interface AppSettings {
