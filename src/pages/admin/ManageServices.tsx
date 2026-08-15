@@ -138,10 +138,10 @@ export default function ManageServices() {
 
   return (
     <AdminLayout>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto space-y-8 pb-16">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="container-app space-y-8 pb-16">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Services & Pricing Catalog</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Services & Pricing Catalog</h1>
             <p className="text-slate-500 font-medium text-xs mt-1">
               Configure roadside assistance services, custom Lucide icons, and pricing thresholds.
             </p>
@@ -179,14 +179,14 @@ export default function ManageServices() {
                         <IconRenderer name={service.icon} size={28} />
                       </div>
                       <Switch
-                        checked={service.isActive ?? true}
+                        checked={!!service.isActive}
                         onCheckedChange={() => toggleActive(service)}
                         className="data-[state=checked]:bg-green-500"
                       />
                     </div>
 
                     <div className="space-y-1.5 mb-4">
-                      <h4 className="text-2xl font-black text-slate-900 tracking-tight truncate">{service.name}</h4>
+                      <h4 className="text-2xl font-semibold tracking-tight text-slate-950 truncate">{service.name}</h4>
                       <div className="flex items-center gap-2">
                         <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${service.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                           {service.isActive ? 'Active' : 'Inactive'}
@@ -394,7 +394,7 @@ export default function ManageServices() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Max Price (₹) *</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Max Price *</Label>
                 <Input
                   type="number"
                   placeholder="e.g. 150"
@@ -429,7 +429,7 @@ export default function ManageServices() {
                 <p className="text-[10px] text-slate-500">Enable or disable service for customer booking</p>
               </div>
               <Switch
-                checked={editingService.isActive ?? true}
+                checked={!!editingService.isActive}
                 onCheckedChange={(c) => setEditingService({ ...editingService, isActive: c })}
               />
             </div>
@@ -439,3 +439,5 @@ export default function ManageServices() {
     </AdminLayout>
   );
 }
+
+

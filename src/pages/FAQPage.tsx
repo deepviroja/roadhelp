@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { ChevronDown, Search, HelpCircle } from 'lucide-react';
@@ -49,7 +49,7 @@ export default function FAQPage() {
           <span className="text-[11px] font-black uppercase tracking-[0.3em] text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full inline-block mb-4">
             Help & Knowledgebase
           </span>
-          <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight leading-none mb-6">
+          <h1 className="text-4xl sm:text-[2rem] sm:text-4xl font-black text-slate-900 tracking-tight leading-none mb-6">
             Frequently Asked Questions
           </h1>
           <p className="text-slate-500 font-medium text-base leading-relaxed">
@@ -98,4 +98,6 @@ export default function FAQPage() {
     </div>
   );
 }
+
+
 

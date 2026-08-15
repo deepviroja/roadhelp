@@ -105,10 +105,14 @@ export function useServices() {
 
   const updateService = async (service: ServiceTypeConfig) => {
     try {
-      await setDoc(doc(db, 'services', service.id), {
-        ...service,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true });
+      const sanitizedService = Object.fromEntries(
+        Object.entries({
+          ...service,
+          updatedAt: new Date().toISOString(),
+        }).map(([key, value]) => [key, value === undefined ? null : value])
+      );
+
+      await setDoc(doc(db, 'services', service.id), sanitizedService, { merge: true });
       return true;
     } catch (updateError) {
       console.error('Failed to update service:', updateError);

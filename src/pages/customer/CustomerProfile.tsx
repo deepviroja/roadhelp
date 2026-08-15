@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -102,7 +102,7 @@ export default function CustomerProfile() {
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-8">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Account Details</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Account Details</h1>
             <p className="text-slate-500 font-medium tracking-wide italic">Manage your profile</p>
           </div>
           <div className="flex items-center gap-3">
@@ -115,7 +115,7 @@ export default function CustomerProfile() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Summary Card */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 text-center group relative overflow-hidden">
+            <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6 text-center group relative overflow-hidden">
               <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-bl-3xl group-hover:scale-110 transition-transform" />
               <div className="w-20 h-20 mx-auto mb-4 relative z-10">
                 <ImageUrlInput
@@ -168,7 +168,7 @@ export default function CustomerProfile() {
 
           <div className="lg:col-span-2 space-y-6">
             {/* Edit Profile Form */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 md:p-8">
+            <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6 md:p-8">
               <div className="flex items-center gap-3 mb-8 border-b border-slate-50 pb-4">
                 <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 shadow-sm">
                   <Smartphone className="w-4 h-4" />
@@ -255,3 +255,4 @@ export default function CustomerProfile() {
     </CustomerLayout>
   );
 }
+

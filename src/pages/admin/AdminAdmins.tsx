@@ -12,6 +12,8 @@ import { collection, query, where, onSnapshot, doc, setDoc } from 'firebase/fire
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { logAdminAction } from '@/lib/auditLogger';
+import { PhoneInputGroup } from '@/components/ui/phone-input';
+import { isValidInternationalPhone } from '@/lib/validators';
 
 interface AdminAccount {
   id: string;
@@ -19,6 +21,7 @@ interface AdminAccount {
   email: string;
   password?: string;
   phone?: string;
+  countryCode?: string;
   role: 'admin';
   isSuperAdmin?: boolean;
   status: 'active' | 'inactive';
@@ -67,6 +70,7 @@ export default function AdminAdmins() {
       email: '',
       password: '',
       phone: '',
+      countryCode: '+91',
       role: 'admin',
       isSuperAdmin: false,
       status: 'active',
@@ -77,7 +81,16 @@ export default function AdminAdmins() {
 
   const handleOpenEdit = (admin: AdminAccount) => {
     setErrors({});
-    setEditingAdmin({ ...admin, password: '' });
+    let cc = '+91';
+    let phoneNum = admin.phone || '';
+    if (phoneNum.startsWith('+')) {
+      const match = phoneNum.match(/^(\+\d{1,4})(\d+)$/);
+      if (match) {
+        cc = match[1];
+        phoneNum = match[2];
+      }
+    }
+    setEditingAdmin({ ...admin, password: '', phone: phoneNum, countryCode: admin.countryCode || cc });
     setIsModalOpen(true);
   };
 
@@ -98,6 +111,13 @@ export default function AdminAdmins() {
         newErrors.password = 'Password is required';
       } else if (editingAdmin.password.length < 8) {
         newErrors.password = 'Password must be at least 8 characters';
+      }
+    }
+
+    if (editingAdmin?.phone?.trim()) {
+      const cc = editingAdmin.countryCode || '+91';
+      if (!isValidInternationalPhone(editingAdmin.phone, cc)) {
+        newErrors.phone = 'Invalid phone number for the selected country';
       }
     }
 
@@ -122,6 +142,7 @@ export default function AdminAdmins() {
             email: editingAdmin.email,
             password: editingAdmin.password,
             fullName: editingAdmin.fullName,
+            phone: editingAdmin.phone ? `${editingAdmin.countryCode || '+91'}${editingAdmin.phone}` : undefined,
             permissions: editingAdmin.permissions,
           })
         });
@@ -139,6 +160,7 @@ export default function AdminAdmins() {
           ...editingAdmin,
           id: docId,
           role: 'admin',
+          phone: editingAdmin.phone ? `${editingAdmin.countryCode || '+91'}${editingAdmin.phone}` : '',
           updatedAt: new Date().toISOString(),
         };
 
@@ -185,7 +207,7 @@ export default function AdminAdmins() {
               <span className="p-2 rounded-xl bg-blue-600/10 text-blue-600">
                 <Shield className="w-6 h-6" />
               </span>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Admins & Role Permissions</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Admins & Role Permissions</h1>
             </div>
             <p className="text-slate-500 text-xs font-medium mt-1">
               Manage system administrator accounts, assign passwords, and control access privileges.
@@ -198,7 +220,7 @@ export default function AdminAdmins() {
         </div>
 
         {/* Admins Table */}
-        <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl overflow-hidden">
+        <div className="rounded-[2rem] border border-slate-200/80 bg-white shadow-sm shadow-slate-900/5 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-base font-black text-slate-900 uppercase tracking-wider">Active Admin Users</h3>
             <span className="text-xs font-bold text-slate-500">{admins.length} Admins</span>
@@ -226,7 +248,7 @@ export default function AdminAdmins() {
                           {admin.status || 'Active'}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">{admin.email} {admin.phone ? `• ${admin.phone}` : ''}</p>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">{admin.email} {admin.phone ? `â€¢ ${admin.phone}` : ''}</p>
                     </div>
                   </div>
 
@@ -286,7 +308,14 @@ export default function AdminAdmins() {
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mobile Phone</Label>
-                <Input value={editingAdmin.phone || ''} onChange={(e) => setEditingAdmin({ ...editingAdmin, phone: e.target.value })} placeholder="+91 9876543210" className="h-12 rounded-2xl bg-slate-50 border-slate-200 font-semibold" />
+                <PhoneInputGroup
+                  countryCode={editingAdmin.countryCode || '+91'}
+                  phone={editingAdmin.phone || ''}
+                  onCountryCodeChange={(v) => setEditingAdmin({ ...editingAdmin, countryCode: v })}
+                  onPhoneChange={(v) => setEditingAdmin({ ...editingAdmin, phone: v })}
+                  error={!!errors.phone}
+                />
+                {errors.phone && <p className="text-[10px] text-rose-500 font-bold uppercase mt-1 tracking-wider">{errors.phone}</p>}
               </div>
 
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200">
@@ -340,3 +369,4 @@ export default function AdminAdmins() {
     </AdminLayout>
   );
 }
+

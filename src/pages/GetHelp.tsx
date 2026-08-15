@@ -41,6 +41,8 @@ import { GeoLocation, ServiceType, ServiceTypeConfig } from '@/types';
 import { ensureGuestAuth } from '@/lib/guestAuth';
 import { guestHelpSchema, GuestHelpFormData } from '@/lib/validators';
 import { getServiceBackgroundImage } from '@/lib/serviceImages';
+import { db } from '@/config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 type WizardStep = 1 | 2 | 3 | 4;
 
@@ -140,7 +142,7 @@ export default function GetHelp() {
   }, [routeLocation.search]);
 
   const activeServices = useMemo(() => {
-    let list = services.filter((s) => s.isActive ?? true);
+    let list = services.filter((s) => s.isActive ? true : false);
     if (directedProvider?.serviceTypes && Array.isArray(directedProvider.serviceTypes) && directedProvider.serviceTypes.length > 0) {
       list = list.filter((s) => directedProvider.serviceTypes.includes(s.id));
     }
@@ -155,8 +157,8 @@ export default function GetHelp() {
     );
   }, [activeServices, serviceSearch]);
 
-  const resolveServiceConfig = (serviceId?: string) =>
-    serviceId ? activeServices.find((service) => service.id === serviceId) ?? null : null;
+  const resolveServiceConfig = (serviceId?: string): ServiceTypeConfig | null =>
+    serviceId ? (activeServices.find((service) => service.id === serviceId) ?? null) : null;
 
   const form = useForm<GuestHelpFormData>({
     mode: 'onChange',
@@ -183,13 +185,13 @@ export default function GetHelp() {
 
   const watchedServiceType = form.watch('serviceType');
   const resolvedServiceType = watchedServiceType || selectedService?.id || '';
-  const selectedServiceConfig =
-    selectedService ??
-    (resolvedServiceType ? activeServices.find((service) => service.id === resolvedServiceType) ?? null : null);
+  const selectedServiceConfig: ServiceTypeConfig | null = selectedService
+    ? (activeServices.find((s) => s.id === selectedService.id) ?? null)
+    : null;
 
   const selectedServiceLabel =
     selectedServiceConfig
-      ? (selectedServiceConfig.id === 'otherService' ? (serviceLabelOverride || 'Other Service') : getServiceLabel(selectedServiceConfig.id))
+      ? (selectedServiceConfig.id === 'otherService' ? (serviceLabelOverride || 'Other Service') : (serviceLabelOverride || getServiceLabel(selectedServiceConfig.id)))
       : serviceLabelOverride || '';
 
   // Handle URL query parameter preselection & SessionStorage restoration
@@ -264,22 +266,30 @@ export default function GetHelp() {
 
   const handleNext = async () => {
     if (currentStep === 1) {
-      const isServiceValid = !!resolvedServiceType;
+      const isServiceValid = !!(resolvedServiceType || selectedServiceConfig);
       const vehicleTypeVal = form.getValues('vehicleType');
       const isVehicleTypeValid = !!vehicleTypeVal;
 
       const brandValid = await form.trigger('vehicleBrand');
       const descValid = await form.trigger('description');
 
+      if (!isServiceValid && !isVehicleTypeValid) {
+        toast.error('Please select a Service Type and Vehicle Type to continue');
+        scrollToFirstError();
+        return;
+      }
+
       if (!isServiceValid) {
-        toast.error('Select Service Type');
+        toast.error('Please select a Service Type before continuing');
+        return;
       }
 
       if (!isVehicleTypeValid) {
-        toast.error('Select Vehicle Type');
+        toast.error('Please select a Vehicle Type before continuing');
+        return;
       }
 
-      if (!isServiceValid || !isVehicleTypeValid || !brandValid || !descValid) {
+      if (!brandValid || !descValid) {
         scrollToFirstError();
         return;
       }
@@ -404,7 +414,7 @@ export default function GetHelp() {
             className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/85 backdrop-blur-md"
           >
             <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-6" />
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Submitting Request</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-950">Submitting Request</h2>
             <p className="text-slate-500 mt-2 font-medium">Notifying nearby verified service providers...</p>
           </motion.div>
         )}
@@ -421,7 +431,7 @@ export default function GetHelp() {
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-slate-950/90 to-slate-950" />
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="container-app relative z-10">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">
             {useSystemStore.getState().pageContent?.getHelpHeadline || 'Get Help in 4 Easy Steps'}
           </h1>
@@ -473,7 +483,7 @@ export default function GetHelp() {
 
 
 
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-24">
+    <div className="container-app py-8 md:py-12 pb-24">
       {!isOnline && (
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-center gap-3 text-xs font-bold uppercase tracking-wider mb-6">
           <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
@@ -494,7 +504,7 @@ export default function GetHelp() {
               className="space-y-8"
             >
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-950 flex items-center gap-3">
                   <Sparkles className="w-6 h-6 text-blue-600" />
                   Step 1: Choose Service & Vehicle
                 </h2>
@@ -707,7 +717,7 @@ export default function GetHelp() {
               className="space-y-8"
             >
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-950 flex items-center gap-3">
                   <User className="w-6 h-6 text-blue-600" />
                   Step 2: Customer Information
                 </h2>
@@ -783,7 +793,7 @@ export default function GetHelp() {
               className="space-y-8"
             >
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-950 flex items-center gap-3">
                   <MapPin className="w-6 h-6 text-blue-600" />
                   Step 3: Breakdown Location
                 </h2>
@@ -793,7 +803,7 @@ export default function GetHelp() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 {/* Map Column */}
                 <div className="lg:col-span-7 space-y-4">
-                  <LocationPicker onLocationSelect={setSelectedLocation} initialLocation={selectedLocation ?? undefined} />
+                  <LocationPicker onLocationSelect={setSelectedLocation} initialLocation={selectedLocation ? undefined : null} />
                 </div>
 
                 {/* Address Info & Landmark Column */}
@@ -828,7 +838,7 @@ export default function GetHelp() {
               className="space-y-8"
             >
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-950 flex items-center gap-3">
                   <ShieldCheck className="w-6 h-6 text-green-600" />
                   Step 4: Review & Confirm Request
                 </h2>
@@ -941,3 +951,6 @@ export default function GetHelp() {
   </div>
   );
 }
+
+
+

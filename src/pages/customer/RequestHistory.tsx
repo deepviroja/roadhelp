@@ -60,7 +60,7 @@ export default function RequestHistory() {
             }
           />
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="divide-y divide-gray-100">
               {filtered.map((req, idx) => (
                 <motion.div
@@ -103,3 +103,4 @@ export default function RequestHistory() {
     </CustomerLayout>
   );
 }
+

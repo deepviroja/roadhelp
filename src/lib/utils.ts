@@ -22,7 +22,7 @@ export function formatCurrency(amount: number, currency?: string): string {
       maximumFractionDigits: 0,
     }).format(amount);
   } catch {
-    return `â‚¹${amount}`;
+    return `₹${amount}`;
   }
 }
 
@@ -131,4 +131,6 @@ export function calculateDistance(
 export function generateId(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
+
+
 

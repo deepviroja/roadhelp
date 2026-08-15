@@ -90,15 +90,15 @@ export default function AdminDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto pb-20"
+        className="container-app pb-20"
       >
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
           <div>
-            <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight leading-none mb-2">Dashboard</h1>
+            <h1 className="text-3xl sm:text-4xl lg:text-[3rem] font-black text-[#1A1A2E] tracking-tight leading-none mb-2">Dashboard</h1>
             <p className="text-slate-500 font-medium text-xs mt-1">Manage your platform from here.</p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="px-6 py-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="px-5 py-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-2">Provider Online Status</p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-1 w-20 bg-slate-100 rounded-full overflow-hidden">
@@ -115,13 +115,13 @@ export default function AdminDashboard() {
         </div>
 
         {isLoading ? (
-          <div className="py-24 flex flex-col items-center">
-            <div className="w-10 h-10 border-4 border-blue-600/10 border-t-blue-600 rounded-xl animate-spin mb-4" />
+          <div className="py-20 flex flex-col items-center">
+            <div className="w-9 h-9 border-4 border-blue-600/10 border-t-blue-600 rounded-xl animate-spin mb-4" />
             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Loading...</p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-10">
               <StatCard
                 label="Total Customers"
                 value={stats.customers}
@@ -151,16 +151,16 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 gap-8 mb-16">
               {/* Health Monitor */}
               <div className="lg:col-span-4">
-                <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-xl h-full relative overflow-hidden group">
+                <div className="bg-slate-900 rounded-[2rem] p-6 sm:p-7 text-white shadow-xl h-full relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/20 rounded-full blur-2xl -mr-12 -mt-12 group-hover:scale-125 transition-all duration-700" />
-                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8 border-b border-white/10 pb-3 relative z-10">System Overview</h3>
-                  <div className="space-y-6 relative z-10">
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-white/10 pb-3 relative z-10">System Overview</h3>
+                  <div className="space-y-5 relative z-10">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Customers</p>
                         <p className="text-base font-bold tracking-tight">{stats.customers}</p>
                       </div>
-                      <div className="w-10 h-10 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center justify-center text-green-500">
+                      <div className="w-9 h-9 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center justify-center text-green-500">
                         <Users className="w-4 h-4" />
                       </div>
                     </div>
@@ -169,7 +169,7 @@ export default function AdminDashboard() {
                         <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Providers</p>
                         <p className="text-base font-bold tracking-tight">{stats.providers}</p>
                       </div>
-                      <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-500">
+                      <div className="w-9 h-9 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-500">
                         <Truck className="w-4 h-4" />
                       </div>
                     </div>
@@ -178,15 +178,15 @@ export default function AdminDashboard() {
                         <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Revenue</p>
                         <p className="text-base font-bold tracking-tight">{formatCurrency(stats.revenue)}</p>
                       </div>
-                      <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-amber-500">
+                      <div className="w-9 h-9 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-amber-500">
                         <IndianRupee className="w-4 h-4" />
                       </div>
                     </div>
                   </div>
-                  <div className="mt-8 pt-6 border-t border-white/10 relative z-10">
+                  <div className="mt-7 pt-5 border-t border-white/10 relative z-10">
                     <Button
                       onClick={handleRefresh}
-                      className="w-full h-12 rounded-xl bg-white text-slate-900 hover:bg-blue-600 hover:text-white font-bold text-[9px] uppercase tracking-widest transition-all"
+                      className="w-full h-11 rounded-xl bg-white text-slate-900 hover:bg-blue-600 hover:text-white font-bold text-[9px] uppercase tracking-widest transition-all"
                     >
                       Refresh Statistics
                     </Button>
@@ -195,26 +195,26 @@ export default function AdminDashboard() {
               </div>
               {/* Live Feed */}
               <div className="lg:col-span-8">
-                <div className="glass-card rounded-3xl overflow-hidden">
-                  <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between">
+                <div className="glass-card rounded-[2rem] overflow-hidden">
+                  <div className="p-5 md:p-6 border-b border-slate-100 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-600/30">
+                      <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-600/30">
                         <Activity className="w-5 h-5" />
                       </div>
-                      <h2 className="text-lg font-black tracking-tight uppercase">Recent Requests</h2>
+                      <h2 className="text-base font-black tracking-tight uppercase">Recent Requests</h2>
                     </div>
-                    <Button variant="ghost" asChild className="rounded-xl h-10 px-4 font-bold uppercase text-[9px] tracking-widest text-slate-500 hover:text-blue-600">
+                    <Button variant="ghost" asChild className="rounded-xl h-9 px-4 font-bold uppercase text-[9px] tracking-widest text-slate-500 hover:text-blue-600">
                       <Link to="/admin/requests">View all</Link>
                     </Button>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto scrollbar-hide">
                     <table className="w-full text-left">
                       <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-100">
-                          <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Request ID</th>
-                          <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Customer</th>
-                          <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Service</th>
-                          <th className="px-4 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
+                          <th className="px-5 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Request ID</th>
+                          <th className="px-3 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Customer</th>
+                          <th className="px-3 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Service</th>
+                          <th className="px-3 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
                           <th className="px-6 py-4 text-right text-[9px] font-bold text-slate-500 uppercase tracking-widest">Amount</th>
                         </tr>
                       </thead>
@@ -222,10 +222,10 @@ export default function AdminDashboard() {
                         {recentRequests.map((req) => (
                           <tr
                             key={req.id}
-                            className={`hover:bg-blue-50/50 transition-all group relative ${req.isEmergency ? 'bg-red-50/30 hover:bg-red-50/50 border-l-2 border-red-500' : ''
+                            className={`hover:bg-blue-50/50 transition-all group relative ${req.isEmergency ? 'bg-red-50/30 hover:bg-red-50/50 border-l-2 border-l-red-500' : ''
                               }`}
                           >
-                            <td className="px-6 py-4">
+                            <td className="px-5 py-4">
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">#{req.id.slice(-8).toUpperCase()}</span>
                                 {req.isEmergency && (
@@ -233,18 +233,18 @@ export default function AdminDashboard() {
                                 )}
                               </div>
                             </td>
-                            <td className="px-4 py-4">
+                            <td className="px-3 py-4">
                               <p className="font-bold text-slate-900 leading-none mb-1 text-xs">{req.customerName}</p>
                               <p className="text-[9px] font-semibold text-slate-500 uppercase">{formatDate(req.createdAt)}</p>
                             </td>
-                            <td className="px-4 py-4">
-                              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">{req.serviceName ?? getServiceLabel(req.serviceType)}</span>
+                            <td className="px-3 py-4">
+                              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">{req.serviceName ? getServiceLabel(req.serviceType) : "" }</span>
                             </td>
-                            <td className="px-4 py-4">
+                            <td className="px-3 py-4">
                               <StatusBadge status={req.status} className="scale-90 origin-left" />
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <span className="font-bold text-slate-900 text-sm">{req.finalPrice ? formatCurrency(req.finalPrice) : "—"}</span>
+                              <span className="font-bold text-slate-900 text-sm">{req.finalPrice ? formatCurrency(req.finalPrice) : "-"}</span>
                             </td>
                           </tr>
                         ))}
@@ -268,7 +268,7 @@ export default function AdminDashboard() {
                     key={req.id}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="p-6 glass-card rounded-3xl hover:shadow-lg transition-all group relative overflow-hidden"
+                    className="p-5 glass-card rounded-[1.75rem] hover:shadow-lg transition-all group relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/5 rounded-bl-3xl group-hover:scale-110 transition-transform" />
                     <div className="flex items-center justify-between mb-4">
@@ -298,7 +298,7 @@ export default function AdminDashboard() {
                 ))}
                 {recentRequests.filter(r => r.rating).length === 0 && (
                   <div className="col-span-full py-24 bg-white rounded-3xl border-2 border-dashed border-slate-100 flex flex-col items-center">
-                    <Star className="w-12 h-12 text-slate-200 mb-4" />
+                    <Star className="w-10 h-10 text-slate-200 mb-4" />
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No ratings yet</p>
                   </div>
                 )}
@@ -310,3 +310,4 @@ export default function AdminDashboard() {
     </AdminLayout>
   );
 }
+

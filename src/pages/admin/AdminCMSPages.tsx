@@ -83,7 +83,7 @@ export default function AdminCMSPages() {
               <span className="p-2 rounded-xl bg-blue-600/10 text-blue-600">
                 <FileText className="w-6 h-6" />
               </span>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Website Page & Homepage CMS</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Website Page & Homepage CMS</h1>
             </div>
             <p className="text-slate-500 text-xs font-medium mt-1">
               Manage website headings, CTA text, background images, and SEO settings without developer code edits.
@@ -254,3 +254,4 @@ export default function AdminCMSPages() {
     </AdminLayout>
   );
 }
+

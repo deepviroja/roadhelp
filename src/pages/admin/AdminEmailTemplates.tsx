@@ -235,7 +235,7 @@ export default function AdminEmailTemplates() {
               <span className="p-2 rounded-xl bg-purple-600/10 text-purple-600">
                 <Mail className="w-6 h-6" />
               </span>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Email Template Designer</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 uppercase">Email Template Designer</h1>
             </div>
             <p className="text-slate-500 text-xs font-medium mt-1">
               Design and customize HTML email templates sent to users for OTPs and notifications.
@@ -321,7 +321,7 @@ export default function AdminEmailTemplates() {
           </div>
 
           <div className="lg:col-span-3">
-            <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl overflow-hidden flex flex-col h-full min-h-[620px]">
+            <div className="rounded-[2rem] border border-slate-200/80 bg-white shadow-sm shadow-slate-900/5 overflow-hidden flex flex-col h-full min-h-[620px]">
               
               {/* Subject Input */}
               <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center gap-4">
@@ -378,3 +378,4 @@ export default function AdminEmailTemplates() {
     </AdminLayout>
   );
 }
+

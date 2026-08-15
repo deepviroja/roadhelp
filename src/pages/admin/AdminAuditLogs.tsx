@@ -242,7 +242,7 @@ export default function AdminAuditLogs() {
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-950 flex items-center gap-2">
               <History className="w-6 h-6 text-blue-600" />
               Audit Logs & Diagnostics
             </h1>
@@ -338,7 +338,7 @@ export default function AdminAuditLogs() {
             </div>
           ) : activeTab === 'audit' ? (
             /* Tab 1: Admin Activity Logs */
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-hide">
               {filteredAuditLogs.length === 0 ? (
                 <div className="py-20 text-center text-slate-400 font-medium">No activity history found.</div>
               ) : (
@@ -529,7 +529,7 @@ export default function AdminAuditLogs() {
                                 exit={{ height: 0, opacity: 0 }}
                                 className="overflow-hidden bg-slate-950 text-cyan-400 rounded-2xl border border-slate-900"
                               >
-                                <div className="p-4 overflow-x-auto text-[11px] font-mono space-y-3 leading-relaxed max-h-[300px]">
+                                <div className="p-4 overflow-x-auto scrollbar-hide text-[11px] font-mono space-y-3 leading-relaxed max-h-[300px]">
                                   <div className="flex items-center justify-between border-b border-white/5 pb-2 text-slate-400 text-[10px] uppercase font-black tracking-widest">
                                     <span>JavaScript Call Stack Trace</span>
                                     <button
@@ -585,3 +585,4 @@ export default function AdminAuditLogs() {
     </AdminLayout>
   );
 }
+

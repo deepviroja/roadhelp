@@ -34,10 +34,19 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
   const [message, setMessage] = useState<string>('');
 
 
+  const [priceError, setPriceError] = useState(false);
+  const [etaError, setEtaError] = useState(false);
+  const [prevRequestId, setPrevRequestId] = useState(request.id);
+
   useEffect(() => {
     setOfferSent(request.proposalStatus === 'offered' && !isDirectInvitePendingQuote);
-    setQuote(String(request.estimatedPrice || ''));
-  }, [request, isDirectInvitePendingQuote]);
+    if (request.id !== prevRequestId) {
+      setQuote(String(request.proposalPrice || request.estimatedPrice || ''));
+      setEta('');
+      setMessage('');
+      setPrevRequestId(request.id);
+    }
+  }, [request, isDirectInvitePendingQuote, prevRequestId]);
 
   const distance = profile?.location
     ? calculateDistance(
@@ -51,20 +60,26 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
   const estimatedEta = distance != null ? Math.ceil(distance * 3) : null;
 
   const handleSendOffer = async () => {
+    setPriceError(false);
+    setEtaError(false);
     const numQuote = Number(quote);
     if (!quote || isNaN(numQuote) || numQuote <= 0) {
+      setPriceError(true);
       toast.error('Please enter a valid price quote');
       return;
     }
     if (request.serviceBasePrice && numQuote < request.serviceBasePrice) {
+      setPriceError(true);
       toast.error(`Price quote must be at least ${formatCurrency(request.serviceBasePrice)}`);
       return;
     }
     if (request.serviceMaxPrice && numQuote > request.serviceMaxPrice) {
+      setPriceError(true);
       toast.error(`Price quote must be less than ${formatCurrency(request.serviceMaxPrice)}`);
       return;
     }
     if (!eta || Number(eta) <= 0) {
+      setEtaError(true);
       toast.error('Please enter estimated arrival time');
       return;
     }
@@ -107,9 +122,11 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
           ? 'border-red-500 shadow-red-500/10 shadow-lg' 
           : request.directInvite 
             ? 'border-purple-500 shadow-purple-500/5 shadow-md' 
-            : offerSent 
+             : offerSent 
               ? 'border-green-400' 
-              : 'border-orange-200'
+              : request.proposalStatus === 'rejected'
+                ? 'border-red-300 shadow-red-500/5'
+                : 'border-orange-200'
       }`}
     >
       {/* Header */}
@@ -198,6 +215,15 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
 
         <p className="text-sm text-gray-500 italic line-clamp-2">"{request.description}"</p>
 
+        {request.proposalStatus === 'rejected' && (
+          <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-3.5 text-xs font-semibold space-y-1">
+            <p className="font-bold flex items-center gap-1.5">❌ Offer Declined by Customer</p>
+            <p className="text-red-700 leading-relaxed font-medium">
+              Your previous offer of {formatCurrency(request.proposalPrice || 0)} was declined. You can submit a new offer with a different rate below.
+            </p>
+          </div>
+        )}
+
         {/* Offer Sent State */}
         {offerSent ? (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-2 text-center">
@@ -220,15 +246,14 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
                 onClick={async () => {
                   try {
                     const token = await (await import('firebase/auth')).getAuth().currentUser?.getIdToken(true);
-                    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/requests/${request.id}/decline`, {
-                      method: 'PUT',
+                    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/requests/${request.id}/proposals/cancel`, {
+                      method: 'DELETE',
                       headers: token ? { Authorization: `Bearer ${token}` } : {},
                     });
                     if (!res.ok) throw new Error();
                     setOfferSent(false);
                     setShowOfferForm(false);
                     toast.success('Offer cancelled successfully.');
-                    onDecline();
                   } catch {
                     toast.error('Could not cancel offer');
                   }
@@ -273,8 +298,13 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
                           min="0"
                           placeholder={String(request.estimatedPrice || '500')}
                           value={quote}
-                          onChange={(e) => setQuote(e.target.value)}
-                          className="h-10 rounded-xl font-bold text-slate-900 bg-white"
+                          onChange={(e) => {
+                            setQuote(e.target.value);
+                            setPriceError(false);
+                          }}
+                          className={`h-10 rounded-xl font-bold text-slate-900 bg-white transition-all ${
+                            priceError ? 'border-red-500 ring-2 ring-red-100 bg-red-50' : 'border-slate-200'
+                          }`}
                         />
                       </div>
                       <div className="space-y-1">
@@ -286,8 +316,13 @@ export function IncomingRequestCard({ request, onDecline, isAccepting }: Incomin
                           min="1"
                           placeholder={estimatedEta ? String(estimatedEta) : '15'}
                           value={eta}
-                          onChange={(e) => setEta(e.target.value)}
-                          className="h-10 rounded-xl font-bold text-slate-900 bg-white"
+                          onChange={(e) => {
+                            setEta(e.target.value);
+                            setEtaError(false);
+                          }}
+                          className={`h-10 rounded-xl font-bold text-slate-900 bg-white transition-all ${
+                            etaError ? 'border-red-500 ring-2 ring-red-100 bg-red-50' : 'border-slate-200'
+                          }`}
                         />
                       </div>
                     </div>

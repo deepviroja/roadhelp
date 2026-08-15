@@ -39,9 +39,12 @@ export default function ActiveJob() {
   
   // Custom verification and pricing proposal states
   const [otpInput, setOtpInput] = useState('');
+  const [otpError, setOtpError] = useState(false);
   const [showProposeCosts, setShowProposeCosts] = useState(false);
   const [proposedFees, setProposedFees] = useState<number | ''>('');
+  const [proposeFeesError, setProposeFeesError] = useState(false);
   const [proposeReason, setProposeReason] = useState('');
+  const [proposeReasonError, setProposeReasonError] = useState(false);
   const finalPriceDirtyRef = useRef(false);
   const wasActiveRef = useRef<boolean | null>(null);
 
@@ -59,7 +62,9 @@ export default function ActiveJob() {
     request?.status === "pendingUserApproval";
 
   const handleVerifyArrivalOtp = async () => {
+    setOtpError(false);
     if (otpInput.length !== 4) {
+      setOtpError(true);
       toast.error("Please enter a valid 4-digit OTP.");
       return;
     }
@@ -76,11 +81,15 @@ export default function ActiveJob() {
   };
 
   const handleProposeCosts = async () => {
+    setProposeFeesError(false);
+    setProposeReasonError(false);
     if (proposedFees === '' || Number(proposedFees) <= 0) {
+      setProposeFeesError(true);
       toast.error("Please enter a valid additional charge.");
       return;
     }
     if (!proposeReason.trim()) {
+      setProposeReasonError(true);
       toast.error("Please provide a reason for the additional cost.");
       return;
     }
@@ -266,7 +275,7 @@ export default function ActiveJob() {
     );
 
   const service = SERVICE_MAP[request.serviceType];
-  const serviceIcon = request.serviceIcon ?? service?.icon ?? "Wrench";
+  const serviceIcon = request.serviceIcon || service?.icon || "Wrench";
 
   return (
     <ProviderLayout>
@@ -288,14 +297,14 @@ export default function ActiveJob() {
           {/* Job Info */}
           <div className="space-y-4">
             {/* Service Info */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-blue-600">
                   <IconRenderer name={serviceIcon} size={24} />
                 </span>
                 <div>
                   <p className="font-semibold text-gray-900">
-                    {request.serviceName ??
+                    {request.serviceName ||
                       getServiceLabel(request.serviceType)}
                   </p>
                   <p className="text-sm text-gray-500">{request.description}</p>
@@ -342,7 +351,7 @@ export default function ActiveJob() {
             </div>
 
             {/* Final Price - Editable by Provider */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
               {request.status === 'completed' || request.status === 'cancelled' ? (
                 <div className="space-y-1 mb-3">
                   <Label className="flex items-center gap-1.5 text-gray-700">
@@ -436,7 +445,7 @@ export default function ActiveJob() {
 
             {/* Status Action Buttons */}
             {request.status === "completed" || request.status === "cancelled" ? (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-3">
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 space-y-3">
                 {request.status === "completed" ? (
                   request.isPaid ? (
                     <div className="bg-green-50 border border-green-200 text-green-900 p-6 rounded-2xl flex flex-col items-center justify-center text-center space-y-2">
@@ -472,7 +481,7 @@ export default function ActiveJob() {
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-3">
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 space-y-3">
                 <h3 className="font-semibold text-gray-900">Update Status</h3>
 
                 {request.status === "pendingUserApproval" && (
@@ -544,8 +553,13 @@ export default function ActiveJob() {
                             maxLength={4}
                             placeholder="Enter 4-digit OTP"
                             value={otpInput}
-                            onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                            className="font-bold text-center tracking-widest text-lg h-10 flex-1"
+                            onChange={(e) => {
+                              setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 4));
+                              setOtpError(false);
+                            }}
+                            className={`font-bold text-center tracking-widest text-lg h-10 flex-1 transition-all ${
+                              otpError ? 'border-red-500 ring-2 ring-red-100 bg-red-50 text-red-900' : ''
+                            }`}
                           />
                           <Button
                             onClick={handleVerifyArrivalOtp}
@@ -645,7 +659,7 @@ export default function ActiveJob() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 mt-6">
+             <div className="space-y-4 mt-6">
             <div className="space-y-1">
               <Label htmlFor="proposedFees" className="text-xs font-bold text-slate-600">Additional Charges ({currencySymbol})</Label>
               <Input
@@ -653,8 +667,13 @@ export default function ActiveJob() {
                 type="number"
                 placeholder="e.g. 50"
                 value={proposedFees}
-                onChange={(e) => setProposedFees(e.target.value === '' ? '' : Number(e.target.value))}
-                className="h-12 rounded-xl font-bold bg-slate-50 border-slate-200"
+                onChange={(e) => {
+                  setProposedFees(e.target.value === '' ? '' : Number(e.target.value));
+                  setProposeFeesError(false);
+                }}
+                className={`h-12 rounded-xl font-bold bg-slate-50 border-slate-200 transition-all ${
+                  proposeFeesError ? 'border-red-500 ring-2 ring-red-100 bg-red-50 text-red-900' : 'border-slate-200'
+                }`}
               />
             </div>
 
@@ -665,8 +684,13 @@ export default function ActiveJob() {
                 rows={3}
                 placeholder="Explain the inspection findings, parts needed, or extra labor..."
                 value={proposeReason}
-                onChange={(e) => setProposeReason(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 p-3 text-sm font-medium bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  setProposeReason(e.target.value);
+                  setProposeReasonError(false);
+                }}
+                className={`w-full rounded-xl border p-3 text-sm font-medium transition-all ${
+                  proposeReasonError ? 'border-red-500 ring-2 ring-red-100 bg-red-50 text-red-900 focus:bg-white focus:outline-none' : 'bg-slate-50 border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500'
+                }`}
               />
             </div>
 
@@ -692,3 +716,5 @@ export default function ActiveJob() {
     </ProviderLayout>
   );
 }
+
+

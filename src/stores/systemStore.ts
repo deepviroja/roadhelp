@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { dbLite as db } from '@/config/firebase-lite';
 
@@ -32,8 +32,8 @@ export const useSystemStore = create<SystemState>((set) => ({
   maintenanceMode: false,
   acceptingNewProviders: true,
   baseCommissionRate: 15,
-  currency: 'USD',
-  currencySymbol: '$',
+  currency: 'INR',
+  currencySymbol: '₹',
   trackingInterval: 5,
   requestVisibilityHours: 24,
   disableOtp: false,
@@ -44,14 +44,13 @@ export const useSystemStore = create<SystemState>((set) => ({
   initialize: () => {
     let cancelled = false;
 
-    // Load from cache instantly for zero-latency load
     try {
       const cachedConfig = localStorage.getItem('system:config');
       const cachedPages = localStorage.getItem('system:pages');
       if (cachedConfig) {
         const data = JSON.parse(cachedConfig);
         const newAppName = data.appName || 'RoadHelp';
-        const newCurrency = data.currency || 'USD';
+        const newCurrency = data.currency || 'INR';
         document.title = newAppName + ' - Roadside Assistance';
         (window as any).__systemCurrency = newCurrency;
         set({
@@ -63,7 +62,7 @@ export const useSystemStore = create<SystemState>((set) => ({
           acceptingNewProviders: data.acceptingNewProviders !== false,
           baseCommissionRate: data.baseCommissionRate || 15,
           currency: newCurrency,
-          currencySymbol: data.currencySymbol || '$',
+          currencySymbol: data.currencySymbol || '₹',
           trackingInterval: data.trackingInterval || 5,
           requestVisibilityHours: Number(data.requestVisibilityHours || 24),
           smtpFromEmail: data.smtpFromEmail || '',
@@ -86,8 +85,8 @@ export const useSystemStore = create<SystemState>((set) => ({
       const config = latestConfig || {};
       const pages = latestPages || {};
       const newAppName = config.appName || 'RoadHelp';
-      const newCurrency = config.currency || 'USD';
-      
+      const newCurrency = config.currency || 'INR';
+
       document.title = newAppName + ' - Roadside Assistance';
       (window as any).__systemCurrency = newCurrency;
 
@@ -100,7 +99,7 @@ export const useSystemStore = create<SystemState>((set) => ({
         acceptingNewProviders: config.acceptingNewProviders !== false,
         baseCommissionRate: config.baseCommissionRate || 15,
         currency: newCurrency,
-        currencySymbol: config.currencySymbol || '$',
+        currencySymbol: config.currencySymbol || '₹',
         trackingInterval: config.trackingInterval || 5,
         requestVisibilityHours: Number(config.requestVisibilityHours || 24),
         smtpFromEmail: config.smtpFromEmail || '',

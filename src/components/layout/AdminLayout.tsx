@@ -21,6 +21,7 @@ import {
   Shield,
   AlertTriangle,
   Mail,
+  Skull,
 } from "lucide-react";
 
 import { Logo } from "@/components/shared/Logo";
@@ -46,6 +47,7 @@ const ADMIN_LINKS = [
   { to: "/admin/admins", label: "Admins & Roles", icon: Shield },
   { to: "/admin/logs", label: "Audit Logs", icon: History },
   { to: "/admin/settings", label: "Settings", icon: Settings },
+  { to: "/admin/super-admin", label: "Danger Zone", icon: Skull, superAdminOnly: true },
 ];
 
 const ROUTE_PERMISSION_MAP: Record<string, string> = {
@@ -65,6 +67,7 @@ const ROUTE_PERMISSION_MAP: Record<string, string> = {
   "/admin/admins": "all",
   "/admin/logs": "settings",
   "/admin/settings": "settings",
+  "/admin/super-admin": "all",
 };
 
 interface AdminLayoutProps {
@@ -139,44 +142,50 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const isActive = (path: string) => location.pathname === path;
 
   const sidebar = (
-    <div className="fixed flex flex-col h-full w-[300px] bg-[#0F1117] text-white selection:bg-blue-500/30">
-      <div className="px-8 py-10 border-b border-white/5 bg-gradient-to-b from-blue-600/5 to-transparent">
+    <div className="fixed flex flex-col h-full w-[268px] bg-[#0F1117] text-white selection:bg-blue-500/30">
+      <div className="px-6 py-8 border-b border-white/5 bg-gradient-to-b from-blue-600/5 to-transparent">
         <Logo
           size="sm"
           className="text-white [&_span]:text-white [&_span_span]:text-blue-500"
         />
-        <div className=" px-2 my-1">
-           <p className="text-xs font-black text-white tracking-tight leading-none">{profile?.fullName}</p>
-            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Administrator</p>
+        <div className="px-2 my-1">
+           <p className="text-[11px] font-black text-white tracking-tight leading-none">{profile?.fullName}</p>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.24em]">Administrator</p>
         </div>
       </div>
 
-      <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto scrollbar-hide">
+      <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto scrollbar-hide">
         {ADMIN_LINKS.filter(link => {
-          const isSuper = profile?.isSuperAdmin || profile?.permissions?.includes('all');
+          const isSuper = profile?.isSuperAdmin || !profile?.permissions || profile?.permissions?.length === 0 || profile?.permissions?.includes('all');
+          if ((link as any).superAdminOnly) return isSuper;
           if (isSuper) return true;
           const req = ROUTE_PERMISSION_MAP[link.to];
           return req === 'all_admins' || profile?.permissions?.includes(req);
         }).map((link) => {
           const Icon = link.icon;
           const active = isActive(link.to);
+          const isDanger = (link as any).superAdminOnly;
           return (
             <Link
               key={link.to}
               to={link.to}
               onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all group relative ${
-                active
-                  ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20"
-                  : "text-slate-500 hover:text-white hover:bg-white/5"
+              className={`flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.14em] transition-all group relative ${
+                isDanger
+                  ? active
+                    ? 'bg-red-600/20 text-red-400 ring-1 ring-red-600/30'
+                    : 'text-red-600/60 hover:text-red-400 hover:bg-red-600/10 mt-2 border border-red-600/10'
+                  : active
+                    ? 'bg-white/10 text-white shadow-lg shadow-black/20 ring-1 ring-white/10'
+                    : 'text-slate-500 hover:text-white hover:bg-white/5'
               }`}
             >
-              <Icon className={`w-4 h-4 flex-shrink-0 transition-transform ${active ? 'scale-110' : 'group-hover:scale-110'}`} />
+              <Icon className={`w-4 h-4 flex-shrink-0 transition-transform ${active ? 'scale-105' : 'group-hover:scale-105'}`} />
               {link.label}
               {active && (
                 <motion.div 
                   layoutId="activeTab"
-                  className="absolute left-0 w-1 h-6 bg-white rounded-r-full"
+                  className={`absolute left-0 inset-y-3.5 w-1 rounded-r-full shadow-sm ${isDanger ? 'bg-red-500' : 'bg-blue-500'}`}
                 />
               )}
             </Link>
@@ -184,11 +193,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         })}
       </nav>
 
-      <div className="px-6 py-8 border-t border-white/5 bg-slate-900/50 backdrop-blur-xl">
+      <div className="px-4 py-6 border-t border-white/5 bg-slate-900/50 backdrop-blur-xl">
         
         <button
           onClick={handleLogout}
-          className="flex items-center justify-center gap-3 w-full h-14 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-red-400 hover:bg-red-400/5 border border-white/5 transition-all"
+          className="flex items-center justify-center gap-3 w-full h-12 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-red-400 hover:bg-red-400/5 border border-white/5 transition-all"
         >
           <LogOut className="w-4 h-4" />
           Log out
@@ -198,15 +207,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8F9FA] font-sans selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-screen flex flex-col bg-transparent font-sans selection:bg-blue-100 selection:text-blue-900">
       {activeSosAlerts.length > 0 && (
         <div className="bg-red-600 text-white p-4 flex flex-col sm:flex-row items-center justify-between gap-4 z-[9999] shadow-lg shrink-0">
           <div className="flex items-center gap-3">
-            <span className="text-xl">🚨</span>
+            <span className="text-xl">ðŸš¨</span>
             <div className="text-left">
               <p className="text-[10px] font-black uppercase tracking-[0.25em] leading-none mb-1.5 text-red-200">Active SOS Alert</p>
               <p className="text-sm font-bold leading-tight">
-                {activeSosAlerts[0].customerName}{activeSosAlerts[0].customerPhone ? ` · ${activeSosAlerts[0].customerPhone}` : ''}{activeSosAlerts[0].locationName ? ` · ${activeSosAlerts[0].locationName}` : ''}
+                {activeSosAlerts[0].customerName}{activeSosAlerts[0].customerPhone ? ` Â· ${activeSosAlerts[0].customerPhone}` : ''}{activeSosAlerts[0].locationName ? ` Â· ${activeSosAlerts[0].locationName}` : ''}
               </p>
             </div>
           </div>
@@ -240,7 +249,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       )}
       <div className="flex-1 flex min-h-0">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col w-72 flex-shrink-0 border-r border-white/10 shadow-2xl z-50 sticky top-0 h-screen">
+        <aside className="hidden lg:flex flex-col w-[268px] flex-shrink-0 border-r border-white/10 shadow-2xl z-50 sticky top-0 h-screen">
           {sidebar}
         </aside>
 
@@ -272,7 +281,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 animate={{ x: 0 }}
                 exit={{ x: -300 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="absolute left-0 top-0 bottom-0 w-72 overflow-hidden bg-[#0F1117] shadow-2xl"
+                className="absolute left-0 top-0 bottom-0 w-[268px] overflow-hidden bg-[#0F1117] shadow-2xl"
               >
                 <div className="h-full relative flex flex-col">
                   <button
@@ -298,3 +307,5 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
+
+

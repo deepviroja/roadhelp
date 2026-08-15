@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ShieldCheck } from 'lucide-react';
 import { useSystemStore } from '@/stores/systemStore';
@@ -11,10 +11,9 @@ interface LogoProps {
 export function Logo({ size = 'md', className = '' }: LogoProps) {
   const { appName, logoUrl, initialized } = useSystemStore();
   const sizes = {
-    sm: 'text-lg',
-    md: 'text-xl font-extrabold',
-    lg: 'text-3xl font-black',
-    
+    sm: 'text-base',
+    md: 'text-lg font-semibold',
+    lg: 'text-2xl font-bold',
   };
 
   const getStyledName = () => {
@@ -22,8 +21,8 @@ export function Logo({ size = 'md', className = '' }: LogoProps) {
     if (lowerName === 'roadhelp') {
       return (
         <span className="flex items-center">
-          <span className="text-gray-900">Road</span>
-          <span className="text-blue-600">Help</span>
+          <span className="text-slate-950">Road</span>
+          <span className="text-primary">Help</span>
         </span>
       );
     }
@@ -32,8 +31,8 @@ export function Logo({ size = 'md', className = '' }: LogoProps) {
       if (idx !== -1) {
         return (
           <span className="flex items-center">
-            <span className="text-gray-900">{appName.substring(0, idx)}</span>
-            <span className="text-blue-600">{appName.substring(idx)}</span>
+            <span className="text-slate-950">{appName.substring(0, idx)}</span>
+            <span className="text-primary">{appName.substring(idx)}</span>
           </span>
         );
       }
@@ -43,18 +42,18 @@ export function Logo({ size = 'md', className = '' }: LogoProps) {
       const splitIdx = match.index + 1;
       return (
         <span className="flex items-center">
-          <span className="text-gray-900">{appName.substring(0, splitIdx)}</span>
-          <span className="text-blue-600">{appName.substring(splitIdx)}</span>
+          <span className="text-slate-950">{appName.substring(0, splitIdx)}</span>
+          <span className="text-primary">{appName.substring(splitIdx)}</span>
         </span>
       );
     }
-    return <span className="text-gray-900">{appName}</span>;
+    return <span className="text-slate-950">{appName}</span>;
   };
 
   const iconSizes = {
-    sm: 'w-5 h-5',
-    md: 'w-6 h-6',
-    lg: 'w-9 h-9',
+    sm: 'h-8 w-8',
+    md: 'h-10 w-10',
+    lg: 'h-12 w-12',
   };
 
   return (
@@ -63,26 +62,25 @@ export function Logo({ size = 'md', className = '' }: LogoProps) {
         <img
           src={logoUrl}
           alt={appName}
-          className={`object-contain rounded-xl ${
-            size === 'sm' ? 'h-8' : size === 'md' ? 'h-10' : 'h-14'
-          }`}
+          className={`object-contain rounded-xl ${size === 'sm' ? 'h-8' : size === 'md' ? 'h-10' : 'h-12'}`}
         />
       ) : (
         <motion.div
-          whileHover={{ rotate: 10, scale: 1.05 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 10 }}
-          className={`flex items-center justify-center rounded-xl bg-blue-600 shadow-lg shadow-blue-600/20 text-white ${iconSizes[size]}`}
+          whileHover={{ rotate: 8, scale: 1.03 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 14 }}
+          className={`flex items-center justify-center rounded-2xl bg-primary text-white shadow-sm shadow-primary/20 ${iconSizes[size]}`}
         >
-          <ShieldCheck className="w-2/3 h-2/3" strokeWidth={3} />
+          <ShieldCheck className="h-2/3 w-2/3" strokeWidth={2.75} />
         </motion.div>
       )}
       <span className={`${sizes[size]} tracking-tight transition-colors`}>
         {initialized ? (
           getStyledName()
         ) : (
-          <span className="inline-block h-6 w-24 bg-slate-200 animate-pulse rounded-md" />
+          <span className="inline-block h-5 w-24 rounded-md bg-slate-200 animate-pulse" />
         )}
       </span>
     </Link>
   );
 }
+

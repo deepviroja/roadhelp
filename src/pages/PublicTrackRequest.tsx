@@ -79,6 +79,8 @@ export default function PublicTrackRequest() {
   const [isLoading, setIsLoading] = useState(true);
   const [showNearbyList, setShowNearbyList] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(true);
+  const [timelineExpanded, setTimelineExpanded] = useState(true);
+  const [detailsExpanded, setDetailsExpanded] = useState(true);
 
   const isAcceptedOrLater = request ? ['accepted', 'provider_en_route', 'arriving', 'inProgress', 'completed'].includes(request.status) : false;
 
@@ -163,7 +165,7 @@ export default function PublicTrackRequest() {
 
   return (
     <div className="flex-1 bg-[#F5F5F6] min-h-screen overflow-x-hidden">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10 md:py-16">
+      <div className="container-app py-10 md:py-16">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
           {/* Tracker Header */}
           <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -171,7 +173,7 @@ export default function PublicTrackRequest() {
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/10 border border-blue-500/30 rounded-full text-blue-600 font-bold text-[10px] tracking-widest mb-4 uppercase backdrop-blur-md">
                  LIVE TRACKING ACTIVE
               </div>
-              <h1 className="text-4xl md:text-5xl font-black text-[#1A1A2E] tracking-tight mb-2 leading-none">Track Request</h1>
+              <h1 className="text-4xl md:text-[2rem] sm:text-4xl font-black text-[#1A1A2E] tracking-tight mb-2 leading-none">Track Request</h1>
               <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Request ID: {request.id.slice(-8).toUpperCase()}</p>
             </div>
             <div className="flex items-center gap-6">
@@ -182,52 +184,94 @@ export default function PublicTrackRequest() {
           {/* Double Column Dashboard Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column: Info & Control Cards */}
-            <div className="space-y-6">
+            <div className="space-y-6 order-2 lg:order-1">
               {/* Status Timeline */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-6 border-b border-slate-100 pb-3">Status Timeline</h3>
-                {request.status === 'cancelled' ? (
-                  <div className="flex items-center gap-3 text-red-600 p-4 bg-red-50 rounded-2xl border border-red-200">
-                    <XCircle className="w-6 h-6" />
-                    <span className="font-bold uppercase text-xs tracking-widest">Request Cancelled</span>
+              <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6">
+                <button
+                  type="button"
+                  onClick={() => setTimelineExpanded(!timelineExpanded)}
+                  className="w-full flex items-center justify-between text-left focus:outline-none"
+                >
+                  <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">Status Timeline</h3>
+                  <div className="text-slate-500 hover:text-slate-700 bg-slate-50 p-1.5 rounded-lg border border-slate-100 transition-all">
+                    {timelineExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </div>
-                ) : (
-                  <StatusStepper status={request.status} />
-                )}
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {timelineExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden pt-4"
+                    >
+                      {request.status === 'cancelled' ? (
+                        <div className="flex items-center gap-3 text-red-600 p-4 bg-red-50 rounded-2xl border border-red-200">
+                          <XCircle className="w-6 h-6" />
+                          <span className="font-bold uppercase text-xs tracking-widest">Request Cancelled</span>
+                        </div>
+                      ) : (
+                        <StatusStepper status={request.status} />
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Service Details */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-6 border-b border-slate-100 pb-3">Service Details</h3>
-                <div className="flex items-center gap-4 mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-600/30">
-                    <IconRenderer name={serviceIcon} size={24} />
+              <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6">
+                <button
+                  type="button"
+                  onClick={() => setDetailsExpanded(!detailsExpanded)}
+                  className="w-full flex items-center justify-between text-left focus:outline-none"
+                >
+                  <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">Service Details</h3>
+                  <div className="text-slate-500 hover:text-slate-700 bg-slate-50 p-1.5 rounded-lg border border-slate-100 transition-all">
+                    {detailsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-slate-900 text-base leading-tight truncate">{serviceName}</p>
-                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">{formatCurrency(request.estimatedPrice)} Est.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-5 bg-slate-50/50 rounded-2xl border border-slate-100 mb-6">
-                  <MapPin className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm font-semibold text-slate-600 leading-relaxed">{request.customerLocation.address}</p>
-                </div>
-                {request.additionalFees && request.additionalFees > 0 ? (
-                  <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl space-y-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-500 font-bold uppercase tracking-wider">Base Service Price:</span>
-                      <span className="font-black text-slate-900">{formatCurrency(request.finalPrice || request.estimatedPrice || 0)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-orange-700 font-bold uppercase tracking-wider">Additional Fees:</span>
-                      <span className="font-black text-orange-700">+{formatCurrency(request.additionalFees)}</span>
-                    </div>
-                    <div className="border-t border-orange-100 pt-2 flex justify-between items-center text-xs">
-                      <span className="text-slate-900 font-black uppercase tracking-wider">Total Price:</span>
-                      <span className="font-black text-blue-600 text-sm">{formatCurrency((request.finalPrice || request.estimatedPrice || 0) + request.additionalFees)}</span>
-                    </div>
-                  </div>
-                ) : null}
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {detailsExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden pt-4 space-y-3"
+                    >
+                      <div className="flex items-center gap-4 mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-600/30">
+                          <IconRenderer name={serviceIcon} size={24} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-900 text-base leading-tight truncate">{serviceName}</p>
+                          <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">{formatCurrency(request.estimatedPrice)} Est.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 p-5 bg-slate-50/50 rounded-2xl border border-slate-100 mb-6">
+                        <MapPin className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm font-semibold text-slate-600 leading-relaxed">{request.customerLocation.address}</p>
+                      </div>
+                      {request.additionalFees && request.additionalFees > 0 ? (
+                        <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl space-y-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-slate-500 font-bold uppercase tracking-wider">Base Service Price:</span>
+                            <span className="font-black text-slate-900">{formatCurrency(request.finalPrice || request.estimatedPrice || 0)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-orange-700 font-bold uppercase tracking-wider">Additional Fees:</span>
+                            <span className="font-black text-orange-700">+{formatCurrency(request.additionalFees)}</span>
+                          </div>
+                          <div className="border-t border-orange-100 pt-2 flex justify-between items-center text-xs">
+                            <span className="text-slate-900 font-black uppercase tracking-wider">Total Price:</span>
+                            <span className="font-black text-blue-600 text-sm">{formatCurrency((request.finalPrice || request.estimatedPrice || 0) + request.additionalFees)}</span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Incoming Provider Offers */}
@@ -296,7 +340,7 @@ export default function PublicTrackRequest() {
 
               {/* Ask Nearby Providers collapsible card */}
               {['submitted', 'searching_providers', 'offers_received', 'bidding', 'pending'].includes(request.status) && (
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6 space-y-4">
                   <button
                     type="button"
                     onClick={() => setShowNearbyList(!showNearbyList)}
@@ -418,7 +462,7 @@ export default function PublicTrackRequest() {
                           </div>
 
                           <div className="bg-slate-50 border border-slate-100 rounded-2xl py-5 text-center shadow-inner">
-                            <div className="text-5xl font-black text-slate-900 tracking-[12px] pl-3 select-all cursor-pointer font-mono">
+                            <div className="text-[2rem] sm:text-4xl font-black text-slate-900 tracking-[12px] pl-3 select-all cursor-pointer font-mono">
                               {request.arrivalOtp}
                             </div>
                           </div>
@@ -546,7 +590,7 @@ export default function PublicTrackRequest() {
             </div>
 
             {/* Right Column: Live Map */}
-            <div>
+            <div className="order-1 lg:order-2">
               <LiveTrackingMap 
                 requestId={request.id} 
                 customerLocation={request.customerLocation}
@@ -598,3 +642,5 @@ export default function PublicTrackRequest() {
     </div>
   );
 }
+
+

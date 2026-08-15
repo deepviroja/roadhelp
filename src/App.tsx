@@ -60,6 +60,7 @@ const AdminContactMessages = lazy(() => import('./pages/admin/AdminContactMessag
 const AdminAdmins = lazy(() => import('./pages/admin/AdminAdmins'));
 const AdminSOS = lazy(() => import('./pages/admin/AdminSOS'));
 const AdminEmailTemplates = lazy(() => import('./pages/admin/AdminEmailTemplates'));
+const AdminSuperAdmin = lazy(() => import('./pages/admin/AdminSuperAdmin'));
 import { useDocumentTitle } from './hooks/useDocumentTitle';
 
 function ScrollToTop() {
@@ -115,7 +116,7 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F5F5F6]">
         <div className="relative">
-          <div className="w-24 h-24 border-8 border-blue-600/10 border-t-blue-600 rounded-[2rem] animate-spin" />
+          <div className="w-24 h-24 rounded-full border-8 border-blue-600/10 border-t-blue-600 rounded-[2rem] animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
           </div>
@@ -222,7 +223,7 @@ export default function App() {
           fallback={
             <div className="flex-1 min-h-[60vh] flex items-center justify-center px-6">
               <div className="text-center">
-                <div className="w-14 h-14 border-4 border-blue-600/10 border-t-blue-600 rounded-[1.25rem] animate-spin mx-auto" />
+                <div className="w-14 h-14 rounded-full border-4 border-blue-600/10 border-t-blue-600 rounded-[1.25rem] animate-spin mx-auto" />
                 <p className="mt-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.35em] italic">Loading module...</p>
               </div>
             </div>
@@ -416,6 +417,7 @@ export default function App() {
               <Route path="/admin/sos" element={<AdminSOS />} />
               <Route path="/admin/logs" element={<AdminAuditLogs />} />
               <Route path="/admin/contact-messages" element={<AdminContactMessages />} />
+              <Route path="/admin/super-admin" element={<AdminSuperAdmin />} />
             </Route>
 
 

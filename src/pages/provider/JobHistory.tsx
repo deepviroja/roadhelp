@@ -37,7 +37,7 @@ export default function JobHistory() {
         {isLoading ? <LoadingSpinner text="Loading jobs..." /> : jobs.length === 0 ? (
           <EmptyState title="No jobs yet" description="Completed jobs will appear here" />
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="divide-y divide-gray-100">
               {jobs.map((job, idx) => (
                 <motion.div
@@ -80,3 +80,4 @@ export default function JobHistory() {
     </ProviderLayout>
   );
 }
+

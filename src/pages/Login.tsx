@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Logo } from '@/components/shared/Logo';
@@ -43,9 +43,10 @@ export default function Login() {
         </div>
 
         <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.5em] mt-12">
-          © 2026 {appName.toUpperCase()} CORP. SECURE AUTHENTICATION.
+          Â© 2026 {appName.toUpperCase()} CORP. SECURE AUTHENTICATION.
         </p>
       </motion.div>
     </div>
   );
 }
+

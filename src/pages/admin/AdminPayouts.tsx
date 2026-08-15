@@ -50,7 +50,7 @@ function toJsDate(value: unknown): Date | null {
 }
 
 function toMillis(value: unknown): number {
-  return toJsDate(value)?.getTime() ?? 0;
+  return toJsDate(value)?.getTime() || 0;
 }
 
 export default function AdminPayouts() {
@@ -170,11 +170,11 @@ export default function AdminPayouts() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto pb-20"
+        className="container-app pb-20"
       >
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-12 gap-8">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
               Provider Payouts & Commission
             </h1>
             <p className="text-slate-500 font-medium text-xs mt-1">
@@ -210,7 +210,7 @@ export default function AdminPayouts() {
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-2">
               Pending Amount
             </p>
-            <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
+            <h3 className="text-3xl font-black text-slate-900 tracking-tighter">
               {formatCurrency(totalPending)}
             </h3>
             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mt-3">
@@ -226,7 +226,7 @@ export default function AdminPayouts() {
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-2">
               Paid Out
             </p>
-            <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
+            <h3 className="text-3xl font-black text-slate-900 tracking-tighter">
               {formatCurrency(totalPaid)}
             </h3>
             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mt-3 text-green-600 font-bold">
@@ -242,7 +242,7 @@ export default function AdminPayouts() {
             <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest leading-none mb-2">
               Commission Earned
             </p>
-            <h3 className="text-4xl font-black text-white tracking-tighter">
+            <h3 className="text-3xl font-black text-white tracking-tighter">
               {formatCurrency(totalCommission)}
             </h3>
             <p className="text-[9px] font-bold text-blue-400 uppercase tracking-tight mt-3">
@@ -270,7 +270,7 @@ export default function AdminPayouts() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-hide">
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50/50">
@@ -416,3 +416,4 @@ export default function AdminPayouts() {
     </AdminLayout>
   );
 }
+

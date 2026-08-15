@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -137,7 +137,7 @@ export default function ProviderProfile() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-8 pb-20">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-8">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Provider Profile</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 uppercase">Provider Profile</h1>
             <p className="text-slate-500 font-medium tracking-wide">Keep your business details, working hours and service list up to date.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -513,3 +513,4 @@ export default function ProviderProfile() {
     </ProviderLayout>
   );
 }
+

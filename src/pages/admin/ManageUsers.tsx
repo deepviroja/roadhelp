@@ -104,7 +104,7 @@ export default function ManageUsers() {
           <p className="text-gray-500 mt-1">View and manage all customer accounts</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="p-4 border-b border-gray-100">
             <div className="relative">
               <Search className="absolute left-3 top-5 w-4 h-4 text-gray-400" />
@@ -120,7 +120,7 @@ export default function ManageUsers() {
           {isLoading ? <div className="p-8"><LoadingSpinner /></div> : filtered.length === 0 ? (
             <EmptyState icon={<Users className="w-16 h-16 text-gray-300 mx-auto" />} title="No customers found" />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-hide">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
@@ -176,3 +176,4 @@ export default function ManageUsers() {
     </AdminLayout>
   );
 }
+

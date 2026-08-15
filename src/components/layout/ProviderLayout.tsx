@@ -49,9 +49,11 @@ function AvailabilityToggle() {
 
 export function ProviderLayout({ children }: ProviderLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-transparent">
       <Navbar links={PROVIDER_LINKS} extra={<AvailabilityToggle />} />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">{children}</main>
+      <main className="container-app py-5 sm:py-6 lg:py-8"><div className="min-w-0">{children}</div></main>
     </div>
   );
 }
+
+

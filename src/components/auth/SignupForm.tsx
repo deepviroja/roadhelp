@@ -46,6 +46,94 @@ export function SignupForm() {
   const { config: customerFormConfig } = useFormBuilder('customerSignup');
   const { config: providerFormConfig } = useFormBuilder('providerSignup');
 
+  const computedCustomerFields = useMemo(() => {
+    if (!customerFormConfig || !customerFormConfig.fields) return [];
+    const list = [...customerFormConfig.fields];
+    
+    const hasEmail = list.some((f) => f.id === 'email');
+    if (!hasEmail) {
+      const nameIdx = list.findIndex((f) => f.id === 'fullName');
+      const insertIdx = nameIdx !== -1 ? nameIdx + 1 : 1;
+      list.splice(insertIdx, 0, {
+        id: 'email',
+        type: 'email',
+        label: 'Email Address',
+        placeholder: 'you@example.com',
+        required: true,
+        options: [],
+      });
+    }
+
+    const hasPassword = list.some((f) => f.id === 'password');
+    if (!hasPassword) {
+      list.push({
+        id: 'password',
+        type: 'text',
+        label: 'Password',
+        placeholder: '••••••••',
+        required: true,
+        options: [],
+      });
+    }
+
+    const hasConfirmPassword = list.some((f) => f.id === 'confirmPassword');
+    if (!hasConfirmPassword) {
+      list.push({
+        id: 'confirmPassword',
+        type: 'text',
+        label: 'Confirm Password',
+        placeholder: '••••••••',
+        required: true,
+        options: [],
+      });
+    }
+    return list;
+  }, [customerFormConfig]);
+
+  const computedProviderFields = useMemo(() => {
+    if (!providerFormConfig || !providerFormConfig.fields) return [];
+    const list = [...providerFormConfig.fields];
+    
+    const hasEmail = list.some((f) => f.id === 'email');
+    if (!hasEmail) {
+      const nameIdx = list.findIndex((f) => f.id === 'fullName');
+      const insertIdx = nameIdx !== -1 ? nameIdx + 1 : 1;
+      list.splice(insertIdx, 0, {
+        id: 'email',
+        type: 'email',
+        label: 'Email Address',
+        placeholder: 'you@company.com',
+        required: true,
+        options: [],
+      });
+    }
+
+    const hasPassword = list.some((f) => f.id === 'password');
+    if (!hasPassword) {
+      list.push({
+        id: 'password',
+        type: 'text',
+        label: 'Password',
+        placeholder: '••••••••',
+        required: true,
+        options: [],
+      });
+    }
+
+    const hasConfirmPassword = list.some((f) => f.id === 'confirmPassword');
+    if (!hasConfirmPassword) {
+      list.push({
+        id: 'confirmPassword',
+        type: 'text',
+        label: 'Confirm Password',
+        placeholder: '••••••••',
+        required: true,
+        options: [],
+      });
+    }
+    return list;
+  }, [providerFormConfig]);
+
   // OTP Verification States
   const [showOtpDialog, setShowOtpDialog] = useState(false);
   const [isRequestingOtp, setIsRequestingOtp] = useState(false);
@@ -174,7 +262,7 @@ export function SignupForm() {
       email: cleanEmail,
       serviceRadiusKm: Number(data.serviceRadiusKm) || 25,
       latitude: lat ?? undefined,
-      longitude: lng ?? undefined
+      longitude: lng ?? undefined,
     };
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/signup-otp`, {
@@ -279,8 +367,8 @@ export function SignupForm() {
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">Create your account</h3>
               </div>
 
-              {customerFormConfig && customerFormConfig.fields && customerFormConfig.fields.length > 0 ? (
-                <DynamicFormFields fields={customerFormConfig.fields} form={customerForm} />
+              {computedCustomerFields.length > 0 ? (
+                <DynamicFormFields fields={computedCustomerFields} form={customerForm} />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1.5 px-0.5">
@@ -344,11 +432,15 @@ export function SignupForm() {
                 <Truck className="w-6 h-6 text-indigo-600" />
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">Business details</h3>
               </div>
-
-              {providerFormConfig && providerFormConfig.fields && providerFormConfig.fields.length > 0 ? (
+              {computedProviderFields.length > 0 ? (
                 <div className="space-y-6">
                   <DynamicFormFields
-                    fields={providerFormConfig.fields.filter((f) => !['password', 'confirmPassword'].includes(f.id))}
+                    fields={computedProviderFields.filter((f) => !['password', 'confirmPassword'].includes(f.id))}
+                    form={providerForm}
+                  />
+
+                  <DynamicFormFields
+                    fields={computedProviderFields.filter((f) => ['password', 'confirmPassword'].includes(f.id))}
                     form={providerForm}
                   />
 
@@ -408,11 +500,6 @@ export function SignupForm() {
                     </div>
                     {geoError && <p className="text-[10px] text-amber-600 font-bold uppercase mt-1 ml-1 tracking-wider">{geoError}</p>}
                   </div>
-
-                  <DynamicFormFields
-                    fields={providerFormConfig.fields.filter((f) => ['password', 'confirmPassword'].includes(f.id))}
-                    form={providerForm}
-                  />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -420,6 +507,11 @@ export function SignupForm() {
                     <Label htmlFor="fullName-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Owner name</Label>
                     <Input id="fullName-p" placeholder="John Doe" {...providerForm.register('fullName')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.fullName)}`} />
                     {providerForm.formState.errors.fullName && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.fullName.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="email-p-top" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email address <span className="text-red-500">*</span></Label>
+                    <Input id="email-p-top" type="email" placeholder="you@company.com" {...providerForm.register('email')} className={`h-12 w-full rounded-2xl font-bold ${errorClass(providerForm.formState.errors.email)}`} autoComplete="email" />
+                    {providerForm.formState.errors.email && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.email.message}</p>}
                   </div>
                   <div className="space-y-1.5 focus-within:z-10">
                     <Label htmlFor="companyName-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Shop name</Label>
@@ -473,6 +565,23 @@ export function SignupForm() {
                     />
                     {providerForm.formState.errors.phone && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.phone.message}</p>}
                   </div>
+
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="password-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Password</Label>
+                    <div className="relative">
+                      <Input id="password-p" type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...providerForm.register('password')} className={`h-12 rounded-2xl pr-14 font-bold ${errorClass(providerForm.formState.errors.password)}`} />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors">
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    {providerForm.formState.errors.password && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.password.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 focus-within:z-10">
+                    <Label htmlFor="confirmPassword-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Confirm password</Label>
+                    <Input id="confirmPassword-p" type="password" placeholder="••••••••" {...providerForm.register('confirmPassword')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.confirmPassword)}`} />
+                    {providerForm.formState.errors.confirmPassword && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.confirmPassword.message}</p>}
+                  </div>
+
                   <div className="space-y-1.5 focus-within:z-10 md:col-span-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Shop location *</Label>
                     <div className="space-y-3">
@@ -581,34 +690,9 @@ export function SignupForm() {
               )}
             </div>
 
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 space-y-6">
-              {!providerFormConfig || !providerFormConfig.fields || providerFormConfig.fields.length === 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1.5 focus-within:z-10">
-                    <Label htmlFor="email-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email address</Label>
-                    <Input id="email-p" type="email" placeholder="you@company.com" {...providerForm.register('email')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.email)}`} />
-                    {providerForm.formState.errors.email && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.email.message}</p>}
-                  </div>
-                  <div className="space-y-1.5 focus-within:z-10">
-                    <Label htmlFor="password-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Password</Label>
-                    <div className="relative">
-                      <Input id="password-p" type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...providerForm.register('password')} className={`h-12 rounded-2xl pr-14 font-bold ${errorClass(providerForm.formState.errors.password)}`} />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors">
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                    {providerForm.formState.errors.password && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.password.message}</p>}
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="confirmPassword-p" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Confirm password</Label>
-                    <Input id="confirmPassword-p" type="password" placeholder="••••••••" {...providerForm.register('confirmPassword')} className={`h-12 rounded-2xl font-bold ${errorClass(providerForm.formState.errors.confirmPassword)}`} />
-                    {providerForm.formState.errors.confirmPassword && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1 tracking-wider">{providerForm.formState.errors.confirmPassword.message}</p>}
-                  </div>
-                </div>
-              ) : null}
-            </div>
 
-            <Button type="submit" size="lg" className="w-full h-16 rounded-[1.5rem] bg-indigo-600 hover:bg-black text-white text-lg font-black shadow-2xl shadow-indigo-600/20 group transform active:scale-[0.98] transition-all" disabled={isRequestingOtp}>
+
+            <Button type="submit" size="lg" className="w-full h-14 sm:h-16 rounded-[1.25rem] bg-indigo-600 hover:bg-black text-white text-sm sm:text-base font-black shadow-2xl shadow-indigo-600/20 group transform active:scale-[0.98] transition-all" disabled={isRequestingOtp}>
               {isRequestingOtp ? (
                 <span className="flex items-center gap-3"><Loader2 className="w-5 h-5 animate-spin" />Loading...</span>
               ) : (

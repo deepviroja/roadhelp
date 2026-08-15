@@ -1,4 +1,4 @@
-import { Navbar } from './Navbar';
+﻿import { Navbar } from './Navbar';
 
 interface CustomerLayoutProps {
   children: React.ReactNode;
@@ -14,9 +14,11 @@ const CUSTOMER_LINKS = [
 
 export function CustomerLayout({ children }: CustomerLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-transparent">
       <Navbar links={CUSTOMER_LINKS} />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">{children}</main>
+      <main className="container-app py-5 sm:py-6 lg:py-8">{children}</main>
     </div>
   );
 }
+
+

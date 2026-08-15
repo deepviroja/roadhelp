@@ -28,7 +28,7 @@ export default function HowItWorksPage() {
     {
       num: '04',
       title: 'OTP Arrival & Job Completion',
-      desc: 'Verify the provider’s arrival via a 4-digit security code. Pay securely after the work is finished to your complete satisfaction.',
+      desc: "Verify the provider's arrival via a 4-digit security code. Pay securely after the work is finished to your complete satisfaction.",
       icon: CheckCircle,
     },
   ];
@@ -37,12 +37,12 @@ export default function HowItWorksPage() {
     <div className="min-h-screen bg-[#F5F5F6] flex flex-col font-sans">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 w-full">
+      <main className="flex-1 container-app py-12 md:py-20">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-[11px] font-black uppercase tracking-[0.3em] text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full inline-block mb-4">
             Simple & Transparent Process
           </span>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-none mb-6">
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-6">
             How RoadHelp Marketplace Works
           </h1>
           <p className="text-slate-500 font-medium text-base sm:text-lg leading-relaxed">
@@ -55,13 +55,13 @@ export default function HowItWorksPage() {
             const Icon = step.icon;
             return (
               <div key={step.num} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-xl shadow-slate-900/5 relative overflow-hidden group">
-                <span className="absolute top-6 right-8 text-6xl font-black text-slate-100 group-hover:text-blue-100 transition-colors">
+                <span className="absolute top-6 right-8 text-[2.25rem] sm:text-5xl font-black text-slate-100 group-hover:text-blue-100 transition-colors">
                   {step.num}
                 </span>
                 <div className="w-14 h-14 rounded-2xl bg-blue-600/10 text-blue-600 flex items-center justify-center mb-6 relative z-10">
                   <Icon className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-3 relative z-10">{step.title}</h3>
+                <h3 className="text-2xl font-semibold tracking-tight text-slate-950 mb-3 relative z-10">{step.title}</h3>
                 <p className="text-slate-500 text-sm leading-relaxed relative z-10">{step.desc}</p>
               </div>
             );
@@ -85,4 +85,6 @@ export default function HowItWorksPage() {
     </div>
   );
 }
+
+
 

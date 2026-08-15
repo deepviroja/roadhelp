@@ -109,7 +109,7 @@ export default function Landing() {
       ];
 
   const activeServices = useMemo(
-    () => services.filter((s: any) => (s.isActive ?? true) && s.id !== 'otherService'),
+    () => services.filter((s: any) => (s.isActive ? true : false) && s.id !== 'otherService'),
     [services],
   );
 
@@ -188,7 +188,7 @@ export default function Landing() {
           </motion.div>
         </AnimatePresence>
 
-        <div className="relative z-20 max-w-7xl mx-auto px-6 lg:px-8 pt-8 pb-16 min-h-[88vh] flex flex-col justify-center">
+        <div className="relative z-20 container-app pt-8 pb-16 min-h-[88vh] flex flex-col justify-center">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -200,8 +200,8 @@ export default function Landing() {
               {appName}, ready when your day changes course
             </div>
             <h1 className=" font-black tracking-tight leading-[0.95] mb-6 max-w-4xl">
-              <span className="text-4xl  block">{config?.heroHeadline || 'Roadside help'}</span>
-              <span className="text-4xl  block text-cyan-300">{config?.heroSubheadline || 'without the stress.'}</span>
+              <span className="text-3xl sm:text-4xl block">{config?.heroHeadline || 'Roadside help'}</span>
+              <span className="text-3xl sm:text-4xl block text-cyan-300">{config?.heroSubheadline || 'without the stress.'}</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-300 mb-10 font-medium leading-relaxed max-w-2xl">
               Choose the issue, share your location, and get matched with a verified provider in a few simple steps.
@@ -254,11 +254,11 @@ export default function Landing() {
       </section>
 
       <section id="services" className="py-16 md:py-24 bg-white relative">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="container-app">
           <div className="max-w-3xl mb-10">
             <p className="text-xs font-black text-blue-600 uppercase tracking-[0.3em] mb-4">Services</p>
-            <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">Choose a service, or tell us what you need.</h2>
-            <p className="text-base md:text-lg text-slate-500 mt-5 font-medium leading-relaxed">We keep the list short, clear, and focused on the most common roadside problems. If your issue is different, add a short note and we’ll handle it from there.</p>
+            <h2 className="text-3xl md:text-[2rem] sm:text-4xl font-black text-slate-900 tracking-tight">Choose a service, or tell us what you need.</h2>
+            <p className="text-base md:text-lg text-slate-500 mt-5 font-medium leading-relaxed">We keep the list short, clear, and focused on the most common roadside problems. If your issue is different, add a short note and we'll handle it from there.</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.9fr] gap-8 items-center">
@@ -312,7 +312,7 @@ export default function Landing() {
               <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-400/10 rounded-full -mr-20 -mt-20 blur-2xl" />
               <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-500 mb-3">Need something else?</p>
               <h3 className="text-2xl font-black tracking-tight mb-4">Tell us in a sentence.</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-6">If your problem is not on the list, write a short note and we’ll still route you to the right help.</p>
+              <p className="text-slate-400 text-sm leading-relaxed mb-6">If your problem is not on the list, write a short note and we'll still route you to the right help.</p>
               <Textarea
                 value={customIssue}
                 onChange={(e) => setCustomIssue(e.target.value)}
@@ -341,10 +341,10 @@ export default function Landing() {
 
       <section id="how-it-works" className="py-16 md:py-24 bg-slate-950 text-white overflow-hidden relative">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
+        <div className="container-app relative z-10">
           <div className="text-center mb-16">
             <p className="text-xs font-black text-cyan-300 uppercase tracking-[0.3em] mb-4">How it works</p>
-            <h3 className="text-3xl md:text-5xl font-black text-white tracking-tight text-center">A calmer way to get help</h3>
+            <h3 className="text-3xl md:text-[2rem] sm:text-4xl font-black text-white tracking-tight text-center">A calmer way to get help</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
@@ -376,10 +376,10 @@ export default function Landing() {
       </section>
 
       <section id="reviews" className="py-16 md:py-24 bg-white relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="container-app">
           <div className="text-center mb-16">
             <p className="text-xs font-black text-blue-600 uppercase tracking-[0.3em] mb-4">Customer stories</p>
-            <h3 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-8">Trusted by drivers who needed help fast</h3>
+            <h3 className="text-3xl md:text-[2rem] sm:text-4xl font-black text-slate-900 tracking-tight mb-8">Trusted by drivers who needed help fast</h3>
             <div className="flex items-center justify-center gap-1.5 text-amber-500">
               {[1, 2, 3, 4, 5].map((i) => <Star key={i} className="w-6 h-6 fill-current stroke-current" />)}
             </div>
@@ -415,6 +415,8 @@ export default function Landing() {
     </div>
   );
 }
+
+
 
 
 

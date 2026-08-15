@@ -77,6 +77,8 @@ export default function TrackRequest() {
   const [isLoading, setIsLoading] = useState(true);
   const [showNearbyList, setShowNearbyList] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(true);
+  const [timelineExpanded, setTimelineExpanded] = useState(true);
+  const [detailsExpanded, setDetailsExpanded] = useState(true);
 
   useEffect(() => {
     if (!id) return;
@@ -162,49 +164,92 @@ export default function TrackRequest() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Info Panel */}
-          <div className="space-y-4">
+          <div className="space-y-4 order-2 lg:order-1">
             {/* Status Timeline */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-              <h3 className="font-semibold text-gray-900 mb-4">Status Timeline</h3>
-              {request.status === 'cancelled' ? (
-                <div className="flex items-center gap-2 text-red-600">
-                  <XCircle className="w-5 h-5" />
-                  <span className="font-medium">Request Cancelled</span>
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+              <button
+                type="button"
+                onClick={() => setTimelineExpanded(!timelineExpanded)}
+                className="w-full flex items-center justify-between text-left font-semibold text-gray-900 focus:outline-none"
+              >
+                <span>Status Timeline</span>
+                <div className="text-slate-500 hover:text-slate-700 bg-slate-50 p-1.5 rounded-lg border border-slate-100 transition-all">
+                  {timelineExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </div>
-              ) : (
-                <StatusStepper status={request.status} />
-              )}
+              </button>
+
+              <AnimatePresence initial={false}>
+                {timelineExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden pt-4"
+                  >
+                    {request.status === 'cancelled' ? (
+                      <div className="flex items-center gap-2 text-red-600 p-2 bg-red-50 rounded-xl">
+                        <XCircle className="w-5 h-5" />
+                        <span className="font-medium">Request Cancelled</span>
+                      </div>
+                    ) : (
+                      <StatusStepper status={request.status} />
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Service Info */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-2xl text-blue-600"><IconRenderer name={serviceIcon} size={24} /></span>
-                <div>
-                  <p className="font-semibold text-gray-900">{serviceName}</p>
-                  <p className="text-sm text-gray-500">{formatCurrency(request.estimatedPrice)} estimated</p>
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+              <button
+                type="button"
+                onClick={() => setDetailsExpanded(!detailsExpanded)}
+                className="w-full flex items-center justify-between text-left font-semibold text-gray-900 focus:outline-none"
+              >
+                <span>Service Details</span>
+                <div className="text-slate-500 hover:text-slate-700 bg-slate-50 p-1.5 rounded-lg border border-slate-100 transition-all">
+                  {detailsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-gray-600">{request.customerLocation.address}</p>
-              </div>
-              {request.additionalFees && request.additionalFees > 0 ? (
-                <div className="mt-3 p-3 bg-orange-50 border border-orange-100 rounded-xl space-y-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-500 font-medium">Base Service Price:</span>
-                    <span className="font-semibold text-gray-900">{formatCurrency(request.finalPrice || request.estimatedPrice || 0)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-orange-700 font-medium">Additional Fees:</span>
-                    <span className="font-semibold text-orange-700">+{formatCurrency(request.additionalFees)}</span>
-                  </div>
-                  <div className="border-t border-orange-100 pt-1.5 flex justify-between items-center text-xs">
-                    <span className="text-gray-900 font-semibold">Total Price:</span>
-                    <span className="font-bold text-blue-600">{formatCurrency((request.finalPrice || request.estimatedPrice || 0) + request.additionalFees)}</span>
-                  </div>
-                </div>
-              ) : null}
+              </button>
+
+              <AnimatePresence initial={false}>
+                {detailsExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden pt-4 space-y-3"
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-2xl text-blue-600"><IconRenderer name={serviceIcon} size={24} /></span>
+                      <div>
+                        <p className="font-semibold text-gray-900">{serviceName}</p>
+                        <p className="text-sm text-gray-500">{formatCurrency(request.estimatedPrice)} estimated</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-gray-600">{request.customerLocation.address}</p>
+                    </div>
+                    {request.additionalFees && request.additionalFees > 0 ? (
+                      <div className="mt-3 p-3 bg-orange-50 border border-orange-100 rounded-xl space-y-1">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-500 font-medium">Base Service Price:</span>
+                          <span className="font-semibold text-gray-900">{formatCurrency(request.finalPrice || request.estimatedPrice || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-orange-700 font-medium">Additional Fees:</span>
+                          <span className="font-semibold text-orange-700">+{formatCurrency(request.additionalFees)}</span>
+                        </div>
+                        <div className="border-t border-orange-100 pt-1.5 flex justify-between items-center text-xs">
+                          <span className="text-gray-900 font-semibold">Total Price:</span>
+                          <span className="font-bold text-blue-600">{formatCurrency((request.finalPrice || request.estimatedPrice || 0) + request.additionalFees)}</span>
+                        </div>
+                      </div>
+                    ) : null}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Multi-Provider Offers / Bidding Comparison */}
@@ -388,7 +433,7 @@ export default function TrackRequest() {
                         </div>
 
                         <div className="bg-slate-50 border border-slate-100 rounded-2xl py-5 text-center shadow-inner">
-                          <div className="text-5xl font-black text-slate-900 tracking-[12px] pl-3 select-all cursor-pointer font-mono">
+                          <div className="text-[2rem] sm:text-4xl font-black text-slate-900 tracking-[12px] pl-3 select-all cursor-pointer font-mono">
                             {request.arrivalOtp}
                           </div>
                         </div>
@@ -511,13 +556,13 @@ export default function TrackRequest() {
                  className="w-full bg-green-600 hover:bg-green-700 text-white mt-4"
                  onClick={() => setShowCompletionConfirm(true)}
                >
-                 Complete Payment — {formatCurrency(displayBill)}
+                  Complete Payment — {formatCurrency(displayBill)}
                </Button>
              )}
           </div>
 
           {/* Map */}
-          <div>
+          <div className="order-1 lg:order-2">
             <LiveTrackingMap
               requestId={request.id}
               customerLocation={request.customerLocation}
@@ -574,3 +619,5 @@ export default function TrackRequest() {
     </CustomerLayout>
   );
 }
+
+

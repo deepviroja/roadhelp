@@ -10,19 +10,19 @@ import { motion } from 'framer-motion';
 
 export default function ServicesPage() {
   const { services, isLoading } = useServices();
-  const activeServices = services.filter((s) => s.isActive ?? true);
+  const activeServices = services.filter((s) => s.isActive ? true : false);
 
   return (
     <div className="min-h-screen bg-[#F5F5F6] flex flex-col font-sans">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 w-full">
+      <main className="flex-1 container-app py-12 md:py-20">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-[11px] font-black uppercase tracking-[0.3em] text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full inline-block mb-4">
             24/7 Roadside Coverage
           </span>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-none mb-6">
-            Comprehensive Roadside Assistance Services
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-6">
+            Roadside Assistance Services
           </h1>
           <p className="text-slate-500 font-medium text-base sm:text-lg leading-relaxed">
             From towing and tire changes to battery jumpstarts and fuel delivery, our verified network is ready to assist you anywhere, anytime.
@@ -47,7 +47,7 @@ export default function ServicesPage() {
                   <div className="w-16 h-16 rounded-2xl bg-blue-600/10 text-blue-600 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all">
                     <IconRenderer name={service.icon} size={32} />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-2">{service.name}</h3>
+                  <h3 className="text-2xl font-semibold tracking-tight text-slate-950 mb-2">{service.name}</h3>
                   <p className="text-slate-500 text-sm leading-relaxed mb-6">{service.description}</p>
                   
                   <div className="space-y-2 mb-8 pt-4 border-t border-slate-100">
@@ -88,4 +88,5 @@ export default function ServicesPage() {
     </div>
   );
 }
+
 

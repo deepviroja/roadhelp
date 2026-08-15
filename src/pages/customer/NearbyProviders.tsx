@@ -142,7 +142,7 @@ export default function NearbyProviders() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md hover:border-blue-200 transition-all"
+                className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 hover:shadow-md hover:border-blue-200 transition-all"
               >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-3">
@@ -260,6 +260,7 @@ export default function NearbyProviders() {
     </CustomerLayout>
   );
 }
+
 
 
 

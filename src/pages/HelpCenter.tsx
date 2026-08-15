@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { HelpCircle, Search, MessageSquare, Phone, Mail, ChevronRight, Zap, Shield, CreditCard } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -131,3 +131,4 @@ export default function HelpCenter() {
     </div>
   );
 }
+

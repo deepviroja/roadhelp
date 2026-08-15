@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Button } from './button';
@@ -24,6 +24,23 @@ export function Modal({
   footer,
   maxWidth = 'lg',
 }: ModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarGap = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = 'hidden';
+    if (scrollbarGap > 0) {
+      document.body.style.paddingRight = `${scrollbarGap}px`;
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const maxWidthClass = {
@@ -36,16 +53,20 @@ export function Modal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[300] h-full bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div 
+        className="fixed inset-0 z-[300] h-full w-full bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+        onClick={onClose}
+      >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          className={`bg-white rounded-[2.5rem] w-full ${maxWidthClass} shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto`}
+          onClick={(e) => e.stopPropagation()}
+          className={`bg-white rounded-[2.5rem] w-full ${maxWidthClass} shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto max-h-[calc(100vh-2rem)] sm:max-h-[90vh]`}
         >
           {/* Header Row */}
-          <div className="px-6 py-5 sm:px-8 sm:py-6 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/50">
+          <div className="px-6 py-5 sm:px-8 sm:py-6 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/50 shrink-0">
             <div className="flex items-center gap-3">
               {icon && <div className="p-2.5 rounded-2xl bg-blue-600/10 text-blue-600 shrink-0">{icon}</div>}
               <div>
@@ -65,7 +86,7 @@ export function Modal({
           </div>
 
           {/* Modal Body */}
-          <div className="p-6 sm:p-8 space-y-5 overflow-y-auto max-h-[75vh] scrollbar-hide">{children}</div>
+          <div className="p-6 sm:p-8 space-y-5 overflow-y-auto flex-1">{children}</div>
 
           {/* Footer Row */}
           {footer && (

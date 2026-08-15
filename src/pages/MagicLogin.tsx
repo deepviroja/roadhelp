@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { signInWithCustomToken } from 'firebase/auth';
 import { auth } from '@/config/firebase';
@@ -66,7 +66,7 @@ export default function MagicLogin() {
               <div className="flex justify-center">
                 <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
               </div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Verifying Credentials</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">Verifying Credentials</h2>
               <p className="text-slate-500 text-sm font-medium">Please wait while we establish your secure session...</p>
             </div>
           )}
@@ -75,3 +75,4 @@ export default function MagicLogin() {
     </div>
   );
 }
+

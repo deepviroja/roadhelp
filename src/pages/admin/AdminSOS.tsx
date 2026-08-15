@@ -152,7 +152,7 @@ export default function AdminSOS() {
               <span className="p-2 rounded-xl bg-red-600/10 text-red-600">
                 <AlertTriangle className="w-6 h-6" />
               </span>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">SOS & Emergency Alerts</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">SOS & Emergency Alerts</h1>
               {activeCount > 0 && (
                 <span className="px-2.5 py-1 rounded-full bg-red-600 text-white text-xs font-black animate-pulse">
                   {activeCount} active
@@ -223,7 +223,7 @@ export default function AdminSOS() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-hide">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">
@@ -286,7 +286,7 @@ export default function AdminSOS() {
                                   rel="noopener noreferrer"
                                   className="text-[9px] text-blue-500 hover:underline font-bold"
                                 >
-                                  View on map →
+                                  View on map
                                 </a>
                               )}
                             </div>
@@ -402,3 +402,4 @@ export default function AdminSOS() {
     </AdminLayout>
   );
 }
+

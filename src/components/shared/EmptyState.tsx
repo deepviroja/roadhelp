@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { Inbox } from 'lucide-react';
 
 interface EmptyStateProps {
@@ -11,16 +11,18 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center justify-center py-16 px-4 text-center"
+      className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-14 text-center shadow-sm"
     >
-      <div className="mb-4 text-gray-400">
-        {icon || <Inbox className="w-16 h-16 text-gray-300 mx-auto" />}
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 text-slate-400">
+        {icon || <Inbox className="h-8 w-8" />}
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-      {description && <p className="text-gray-500 text-sm max-w-sm">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+      <h3 className="text-lg font-semibold tracking-tight text-slate-950">{title}</h3>
+      {description && <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">{description}</p>}
+      {action && <div className="mt-5">{action}</div>}
     </motion.div>
   );
 }
+
+

@@ -75,6 +75,17 @@ exports.rejectProposal = async (req, res) => {
   }
 };
 
+exports.cancelProposal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const providerUid = req.userProfile?.uid || req.user?.uid;
+    await requestService.cancelProposal(id, providerUid);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.autoAssignProposal = async (req, res) => {
   try {
     const { id } = req.params;
@@ -237,6 +248,20 @@ exports.rejectAdditionalCosts = async (req, res) => {
     res.status(200).json({ success: true, message: 'Additional costs rejected successfully' });
   } catch (error) {
     console.error('Reject Additional Costs Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.resetDeclinedRequests = async (req, res) => {
+  try {
+    const providerUid = req.userProfile?.uid || req.user?.uid;
+    if (!providerUid) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    await requestService.resetDeclinedRequests(providerUid);
+    res.status(200).json({ success: true, message: 'Skipped requests reset successfully' });
+  } catch (error) {
+    console.error('Reset Declined Requests Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

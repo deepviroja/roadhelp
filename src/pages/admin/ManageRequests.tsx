@@ -5,7 +5,7 @@ import { Search, ClipboardList, Zap, Eye, Star, AlertTriangle } from 'lucide-rea
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { db } from '@/config/firebase';
@@ -106,11 +106,11 @@ export default function ManageRequests() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }} 
-        className="max-w-7xl mx-auto pb-20 space-y-8"
+        className="container-app pb-20 space-y-8"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Service Requests Management</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Service Requests Management</h1>
             <p className="text-slate-500 font-medium text-xs mt-1">Real-time oversight of customer assistance requests and assigned providers.</p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
@@ -150,7 +150,7 @@ export default function ManageRequests() {
 
         <div>
            <Tabs value={tab} onValueChange={setTab} className="w-full">
-              <TabsList className="h-12 bg-white p-1 rounded-2xl border border-slate-200/80 shadow-sm gap-1">
+              <TabsList className="h-12 bg-white p-1  rounded-2xl border border-slate-200/80 shadow-sm gap-1">
                 {TABS.map((t) => (
                   <TabsTrigger 
                     key={t.value} 
@@ -164,7 +164,7 @@ export default function ManageRequests() {
             </Tabs>
         </div>
 
-        <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl overflow-hidden">
+        <div className="rounded-[2rem] border border-slate-200/80 bg-white shadow-sm shadow-slate-900/5 overflow-hidden">
           {isLoading ? (
             <div className="py-24 flex flex-col items-center">
                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
@@ -177,7 +177,7 @@ export default function ManageRequests() {
                <p className="text-slate-500 text-xs max-w-sm">No roadside requests matched your search criteria.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-hide">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">
@@ -210,7 +210,7 @@ export default function ManageRequests() {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <span className="font-black text-slate-900 text-sm">{req.serviceName ?? getServiceLabel(req.serviceType)}</span>
+                        <span className="font-black text-slate-900 text-sm">{req.serviceName ? getServiceLabel(req.serviceType):"-"}</span>
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex flex-col">
@@ -264,9 +264,13 @@ export default function ManageRequests() {
       </motion.div>
 
       <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
-        <DialogContent className="sm:max-w-2xl rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-2xl rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden">
           {selectedRequest && (
             <div className="flex flex-col max-h-[85vh]">
+              <DialogHeader className="sr-only">
+                <DialogTitle>Request details</DialogTitle>
+                <DialogDescription>Review the request summary, location, and financial breakdown.</DialogDescription>
+              </DialogHeader>
               <div className="bg-slate-900 p-8 text-white">
                  <div className="flex items-center justify-between mb-4">
                    <span className="px-3 py-1 bg-blue-600/30 text-blue-400 rounded-full font-bold text-[10px] uppercase">
@@ -284,7 +288,7 @@ export default function ManageRequests() {
                  </p>
               </div>
 
-              <div className="p-8 space-y-6 overflow-y-auto">
+              <div className="p-8 space-y-6 overflow-y-auto scrollbar-hide">
                  {selectedRequest.isEmergency && (
                    <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 flex items-center gap-2">
                      <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -400,3 +404,4 @@ export default function ManageRequests() {
     </AdminLayout>
   );
 }
+

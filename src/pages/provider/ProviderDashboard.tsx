@@ -11,6 +11,7 @@ import {
   Zap,
   Activity,
   TrendingUp,
+  RotateCcw,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -60,7 +61,16 @@ export default function ProviderDashboard() {
       });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
-        setPendingRequests(json.data);
+        setPendingRequests((prev) => {
+          // Detect if any offer was newly rejected
+          json.data.forEach((newReq: ServiceRequest) => {
+            const oldReq = prev.find((r) => r.id === newReq.id);
+            if (oldReq && oldReq.proposalStatus === 'offered' && newReq.proposalStatus === 'rejected') {
+              toast.error(`Your offer for ${newReq.customerName}'s request was declined by the customer.`);
+            }
+          });
+          return json.data;
+        });
       } else {
         setPendingRequests([]);
       }
@@ -104,16 +114,22 @@ export default function ProviderDashboard() {
       where("status", "in", ["accepted", "arriving", "inProgress"]),
       limit(1),
     );
+    let isFirstActiveJob = true;
     const unsubActive = onSnapshot(activeQ,
       (snap) => {
         if (!snap.empty) {
-          setActiveJob({
+          const job = {
             id: snap.docs[0].id,
             ...snap.docs[0].data(),
-          } as ServiceRequest);
+          } as ServiceRequest;
+          setActiveJob(job);
+          if (!isFirstActiveJob) {
+            toast.success(`🎉 Your offer was accepted! Proceeding to help ${job.customerName}.`);
+          }
         } else {
           setActiveJob(null);
         }
+        isFirstActiveJob = false;
       },
       (err) => { console.error('Active job snapshot error:', err); }
     );
@@ -189,12 +205,35 @@ export default function ProviderDashboard() {
     setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
   };
 
+  const handleResetSkipped = async () => {
+    try {
+      const token = await (await import('firebase/auth')).getAuth().currentUser?.getIdToken(true);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/requests/eligible/reset-declines`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success('Skipped requests restored successfully!');
+        setIsLoading(true);
+        fetchEligible();
+      } else {
+        throw new Error(json.message);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Could not restore skipped requests');
+    }
+  };
+
+  const ratingVal = calculatedRating ?? profile?.rating;
+  const displayRating = ratingVal ? `${Number(ratingVal).toFixed(1)} / 5.0 ⭐` : "New Provider";
+
   return (
     <ProviderLayout>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto pb-20"
+        className="container-app pb-20"
       >
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
           <div>
@@ -252,7 +291,7 @@ export default function ProviderDashboard() {
           />
           <StatCard
             label="Trust Score"
-            value={(calculatedRating ?? profile?.rating) ? `${(calculatedRating ?? profile?.rating ?? 0).toFixed(1)} / 5.0 ⭐` : "New Provider"}
+            value={displayRating}
             icon={Star}
             color="amber"
           />
@@ -304,10 +343,21 @@ export default function ProviderDashboard() {
                         <Activity className="w-6 h-6 text-blue-600" />
                         <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">Incoming Requests</h2>
                       </div>
-                      <div className="px-4 py-1.5 bg-slate-900 rounded-full">
-                        <span className="text-[9px] font-bold uppercase text-blue-400 tracking-widest animate-pulse">
-                          Scanning Nearby...
-                        </span>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleResetSkipped}
+                          className="h-8 text-xs font-bold text-slate-500 hover:text-blue-600 hover:bg-slate-50 gap-1.5 rounded-lg border border-slate-200/50 cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Reset Skipped
+                        </Button>
+                        <div className="px-4 py-1.5 bg-slate-900 rounded-full">
+                          <span className="text-[9px] font-bold uppercase text-blue-400 tracking-widest animate-pulse">
+                            Scanning Nearby...
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -347,7 +397,7 @@ export default function ProviderDashboard() {
                     <div className="w-24 h-24 bg-white rounded-2xl shadow-sm flex items-center justify-center text-slate-300 mb-6 group-hover:rotate-6 group-hover:scale-105 transition-all duration-500">
                       <WifiOff className="w-10 h-10" />
                     </div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4">Unavailable to Take Requests</h2>
+                    <h2 className="text-2xl font-semibold tracking-tight text-slate-950 mb-4">Unavailable to Take Requests</h2>
                     <p className="text-slate-500 font-semibold text-xs max-w-xs leading-relaxed italic">
                       Turn on the switch to start receiving customer requests
                     </p>
@@ -388,7 +438,7 @@ export default function ProviderDashboard() {
                        <div className="flex items-center justify-between">
                           <div>
                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Provider Rating</p>
-                             <p className="text-xl font-black tracking-tight">{(calculatedRating ?? profile?.rating) ? `${(calculatedRating ?? profile?.rating ?? 0).toFixed(1)} / 5.0 ⭐` : "New Provider"}</p>
+                             <p className="text-xl font-black tracking-tight">{displayRating}</p>
                           </div>
                           <Star className="w-6 h-6 text-amber-500" />
                        </div>
@@ -409,5 +459,6 @@ export default function ProviderDashboard() {
     </ProviderLayout>
   );
 }
+
 
 

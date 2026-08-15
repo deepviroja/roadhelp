@@ -127,7 +127,7 @@ export default function NewRequest() {
   }, []);
 
   const activeServices = useMemo(() => {
-    let list = services.filter((s) => s.isActive ?? true);
+    let list = services.filter((s) => !!s.isActive);
     if (directedProvider?.serviceTypes && Array.isArray(directedProvider.serviceTypes) && directedProvider.serviceTypes.length > 0) {
       list = list.filter((s) => directedProvider.serviceTypes.includes(s.id));
     }
@@ -143,7 +143,7 @@ export default function NewRequest() {
   }, [activeServices, serviceSearch]);
 
   const resolveServiceConfig = (serviceId?: string) =>
-    serviceId ? activeServices.find((service) => service.id === serviceId) ?? null : null;
+    serviceId ? (activeServices.find((service) => service.id === serviceId) ?? null) : null;
 
   const form = useForm<GuestHelpFormData>({
     mode: 'onChange',
@@ -171,8 +171,9 @@ export default function NewRequest() {
   const watchedServiceType = form.watch('serviceType');
   const resolvedServiceType = watchedServiceType || selectedService?.id || '';
   const selectedServiceConfig =
-    selectedService ??
-    (resolvedServiceType ? activeServices.find((service) => service.id === resolvedServiceType) ?? null : null);
+    selectedService
+      ? (activeServices.find((service) => service.id === (resolvedServiceType || selectedService.id)) ?? null)
+      : null;
 
   const selectedServiceLabel =
     selectedServiceConfig
@@ -418,7 +419,7 @@ export default function NewRequest() {
               className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/85 backdrop-blur-md"
             >
               <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-6" />
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Submitting Request</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">Submitting Request</h2>
               <p className="text-slate-500 mt-2 font-medium">Notifying nearby verified service providers...</p>
             </motion.div>
           )}
@@ -435,7 +436,7 @@ export default function NewRequest() {
             <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-slate-950/90 to-slate-950" />
           </div>
 
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="container-app relative z-10">
             {directedProvider && (
               <div className="bg-blue-600/30 border border-blue-400/40 rounded-2xl p-4 flex items-center gap-3 mb-6 w-fit">
                 <UserCheck className="w-5 h-5 text-blue-400" />
@@ -490,7 +491,7 @@ export default function NewRequest() {
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-24">
+        <div className="container-app py-8 md:py-12 pb-24">
           {!isOnline && (
             <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-center gap-3 text-xs font-bold uppercase tracking-wider mb-6">
               <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
@@ -511,7 +512,7 @@ export default function NewRequest() {
                   className="space-y-8"
                 >
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                    <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-950 flex items-center gap-3">
                       <Sparkles className="w-6 h-6 text-blue-600" />
                       Step 1: Choose Service & Vehicle
                     </h2>
@@ -764,7 +765,7 @@ export default function NewRequest() {
                   className="space-y-8"
                 >
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                    <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-950 flex items-center gap-3">
                       <User className="w-6 h-6 text-blue-600" />
                       Step 2: Customer Contact Information
                     </h2>
@@ -838,7 +839,7 @@ export default function NewRequest() {
                   className="space-y-8"
                 >
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                    <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-950 flex items-center gap-3">
                       <MapPin className="w-6 h-6 text-blue-600" />
                       Step 3: Breakdown Location
                     </h2>
@@ -883,7 +884,7 @@ export default function NewRequest() {
                   className="space-y-8"
                 >
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                    <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-950 flex items-center gap-3">
                       <ShieldCheck className="w-6 h-6 text-green-600" />
                       Step 4: Review & Confirm Request
                     </h2>
@@ -1000,3 +1001,4 @@ export default function NewRequest() {
     </CustomerLayout>
   );
 }
+

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import { useSystemStore } from '@/stores/systemStore';
 
 export default function Privacy() {
@@ -6,7 +6,7 @@ export default function Privacy() {
   return (
     <div className="bg-white min-h-screen">
       <div className="max-w-3xl mx-auto px-4 py-16 md:py-24">
-        <h1 className="text-4xl md:text-5xl font-black mb-8 text-slate-900 tracking-tight">Privacy Policy</h1>
+        <h1 className="text-4xl md:text-[2rem] sm:text-4xl font-black mb-8 text-slate-900 tracking-tight">Privacy Policy</h1>
         <div className="prose prose-lg prose-blue max-w-none text-slate-600">
           <p className="mb-6 font-semibold text-slate-400">Last Updated: March 2026</p>
           <h2 className="text-2xl font-bold mt-10 mb-4 text-slate-900">1. Information We Collect</h2>
@@ -28,3 +28,5 @@ export default function Privacy() {
     </div>
   );
 }
+
+

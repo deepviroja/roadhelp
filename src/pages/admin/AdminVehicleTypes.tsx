@@ -103,7 +103,7 @@ export default function AdminVehicleTypes() {
               <span className="p-2 rounded-xl bg-blue-600/10 text-blue-600">
                 <Car className="w-6 h-6" />
               </span>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Vehicle Types</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Vehicle Types</h1>
             </div>
             <p className="text-slate-500 text-xs font-medium mt-1">
               Configure vehicle categories available to customers during roadside assistance requests.
@@ -162,14 +162,14 @@ export default function AdminVehicleTypes() {
                   <p className="text-xs font-black text-slate-900">Active Status</p>
                   <p className="text-[10px] text-slate-500">Enable or disable this vehicle type for customers</p>
                 </div>
-                <Switch checked={editingType.isActive ?? true} onCheckedChange={(checked) => setEditingType({ ...editingType, isActive: checked })} />
+                <Switch checked={editingType.isActive ? true : false} onCheckedChange={(checked) => setEditingType({ ...editingType, isActive: checked })} />
               </div>
             </div>
           )}
         </Modal>
 
         {/* Vehicle Types List */}
-        <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl overflow-hidden">
+        <div className="rounded-[2rem] border border-slate-200/80 bg-white shadow-sm shadow-slate-900/5 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-base font-black text-slate-900 uppercase tracking-wider">Configured Vehicle Categories</h3>
             <span className="text-xs font-bold text-slate-500">{vehicleTypes.length} Total</span>
@@ -213,3 +213,4 @@ export default function AdminVehicleTypes() {
     </AdminLayout>
   );
 }
+

@@ -71,17 +71,18 @@ export default function AdminFormBuilder() {
       ],
       providerSignup: [
         { formId: 'providerSignup', label: 'Owner Name', nameKey: 'fullName', fieldType: 'text', placeholder: 'John Doe', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 1 },
-        { formId: 'providerSignup', label: 'Shop Name', nameKey: 'companyName', fieldType: 'text', placeholder: 'QuickTow Services', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 2 },
-        { formId: 'providerSignup', label: 'Business Address', nameKey: 'businessAddress', fieldType: 'text', placeholder: '123 Main Street', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 3 },
-        { formId: 'providerSignup', label: 'City', nameKey: 'city', fieldType: 'text', placeholder: 'Mumbai', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 4 },
-        { formId: 'providerSignup', label: 'State', nameKey: 'state', fieldType: 'text', placeholder: 'Maharashtra', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 5 },
-        { formId: 'providerSignup', label: 'PIN Code', nameKey: 'pin', fieldType: 'text', placeholder: '400001', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 6 },
-        { formId: 'providerSignup', label: 'Business Hours', nameKey: 'businessHours', fieldType: 'text', placeholder: 'Mon - Sat, 9:00 AM - 8:00 PM', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 7 },
-        { formId: 'providerSignup', label: 'Service Radius (km)', nameKey: 'serviceRadiusKm', fieldType: 'number', placeholder: '25', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 8 },
-        { formId: 'providerSignup', label: 'Shop License Number', nameKey: 'licenseNumber', fieldType: 'text', placeholder: 'SHOP-LIC-2026', isRequired: false, isVisible: true, isSystemRequired: true, sortOrder: 9 },
-        { formId: 'providerSignup', label: 'Contact Number', nameKey: 'phone', fieldType: 'phone', placeholder: 'Enter contact number', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 10 },
-        { formId: 'providerSignup', label: 'Password', nameKey: 'password', fieldType: 'text', placeholder: '••••••••', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 11 },
-        { formId: 'providerSignup', label: 'Confirm Password', nameKey: 'confirmPassword', fieldType: 'text', placeholder: '••••••••', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 12 },
+        { formId: 'providerSignup', label: 'Email Address', nameKey: 'email', fieldType: 'email', placeholder: 'you@company.com', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 2 },
+        { formId: 'providerSignup', label: 'Shop Name', nameKey: 'companyName', fieldType: 'text', placeholder: 'QuickTow Services', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 3 },
+        { formId: 'providerSignup', label: 'Business Address', nameKey: 'businessAddress', fieldType: 'text', placeholder: '123 Main Street', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 4 },
+        { formId: 'providerSignup', label: 'City', nameKey: 'city', fieldType: 'text', placeholder: 'Mumbai', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 5 },
+        { formId: 'providerSignup', label: 'State', nameKey: 'state', fieldType: 'text', placeholder: 'Maharashtra', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 6 },
+        { formId: 'providerSignup', label: 'PIN Code', nameKey: 'pin', fieldType: 'text', placeholder: '400001', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 7 },
+        { formId: 'providerSignup', label: 'Business Hours', nameKey: 'businessHours', fieldType: 'text', placeholder: 'Mon - Sat, 9:00 AM - 8:00 PM', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 8 },
+        { formId: 'providerSignup', label: 'Service Radius (km)', nameKey: 'serviceRadiusKm', fieldType: 'number', placeholder: '25', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 9 },
+        { formId: 'providerSignup', label: 'Shop License Number', nameKey: 'licenseNumber', fieldType: 'text', placeholder: 'SHOP-LIC-2026', isRequired: false, isVisible: true, isSystemRequired: true, sortOrder: 10 },
+        { formId: 'providerSignup', label: 'Contact Number', nameKey: 'phone', fieldType: 'phone', placeholder: 'Enter contact number', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 11 },
+        { formId: 'providerSignup', label: 'Password', nameKey: 'password', fieldType: 'text', placeholder: '••••••••', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 12 },
+        { formId: 'providerSignup', label: 'Confirm Password', nameKey: 'confirmPassword', fieldType: 'text', placeholder: '••••••••', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 13 },
       ],
       getHelp: [
         { formId: 'getHelp', label: 'Full Name', nameKey: 'fullName', fieldType: 'text', placeholder: 'Alex Johnson', isRequired: true, isVisible: true, isSystemRequired: true, sortOrder: 1 },
@@ -215,7 +216,7 @@ export default function AdminFormBuilder() {
               <span className="p-2 rounded-xl bg-blue-600/10 text-blue-600">
                 <FormInput className="w-6 h-6" />
               </span>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Dynamic Form Builder</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Dynamic Form Builder</h1>
             </div>
             <p className="text-slate-500 text-xs font-medium mt-1">
               Configure fields, labels, placeholders, and required validations for website forms dynamically.
@@ -228,7 +229,7 @@ export default function AdminFormBuilder() {
         </div>
 
         {/* Form Selection Tabs */}
-        <div className="flex gap-3 border-b border-slate-200 pb-4 overflow-x-auto">
+        <div className="flex gap-3 border-b border-slate-200 pb-4 overflow-x-auto scrollbar-hide">
           {FORM_TYPES.map((ft) => (
             <button
               key={ft.id}
@@ -304,7 +305,7 @@ export default function AdminFormBuilder() {
                   <p className="text-xs font-black text-slate-900">Required Field?</p>
                   <p className="text-[10px] text-slate-500">Block submission if empty</p>
                 </div>
-                <Switch checked={editingField.isRequired ?? false} onCheckedChange={(c) => setEditingField({ ...editingField, isRequired: c })} />
+                <Switch checked={editingField.isRequired ? false : true} onCheckedChange={(c) => setEditingField({ ...editingField, isRequired: c })} />
               </div>
 
               <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200">
@@ -312,14 +313,14 @@ export default function AdminFormBuilder() {
                   <p className="text-xs font-black text-slate-900">Visible on Form?</p>
                   <p className="text-[10px] text-slate-500">Display field to user</p>
                 </div>
-                <Switch checked={editingField.isVisible ?? true} onCheckedChange={(c) => setEditingField({ ...editingField, isVisible: c })} />
+                <Switch checked={editingField.isVisible ? true : false} onCheckedChange={(c) => setEditingField({ ...editingField, isVisible: c })} />
               </div>
             </div>
           )}
         </Modal>
 
         {/* Fields Table */}
-        <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl overflow-hidden">
+        <div className="rounded-[2rem] border border-slate-200/80 bg-white shadow-sm shadow-slate-900/5 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-base font-black text-slate-900 uppercase tracking-wider">Active Fields ({selectedForm})</h3>
             <span className="text-xs font-bold text-slate-500">{currentFormFields.length} Fields</span>
@@ -388,3 +389,4 @@ export default function AdminFormBuilder() {
     </AdminLayout>
   );
 }
+

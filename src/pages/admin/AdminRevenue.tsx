@@ -107,7 +107,7 @@ export default function AdminRevenue() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto pb-20"
+        className="container-app pb-20"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
           <div>
@@ -186,7 +186,7 @@ export default function AdminRevenue() {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto scrollbar-hide">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-slate-50/50">
@@ -236,10 +236,10 @@ export default function AdminRevenue() {
                             </td>
                             <td className="px-6 py-6">
                               <span className="font-black text-slate-900 group-hover:translate-x-1 inline-block transition-transform">
-                                {req.serviceName ??
+                                {req.serviceName ?
                                   req.serviceType
                                     .replace(/([A-Z])/g, " $1")
-                                    .trim()}
+                                    .trim() : '-'}
                               </span>
                               {req.additionalFees && req.additionalFees > 0 ? (
                                 <span className="block text-[9px] font-bold text-green-600">
@@ -306,3 +306,4 @@ export default function AdminRevenue() {
     </AdminLayout>
   );
 }
+

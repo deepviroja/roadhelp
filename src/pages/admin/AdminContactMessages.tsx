@@ -157,7 +157,7 @@ export default function AdminContactMessages() {
               <span className="p-2 rounded-xl bg-blue-600/10 text-blue-600">
                 <MessageSquare className="w-6 h-6" />
               </span>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Contact Messages & Inquiries</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Contact Messages & Inquiries</h1>
             </div>
             <p className="text-slate-500 text-xs font-medium mt-1">
               Review messages submitted via the Contact page and send email replies directly within the dashboard.
@@ -193,7 +193,7 @@ export default function AdminContactMessages() {
           isOpen={!!selectedMessage}
           onClose={() => setSelectedMessage(null)}
           title={`Reply to ${selectedMessage?.name || 'Customer'}`}
-          subtitle={`${selectedMessage?.email || ''} ${selectedMessage?.phone ? `• ${selectedMessage?.phone}` : ''}`}
+          subtitle={`${selectedMessage?.email || ''} ${selectedMessage?.phone ? `â€¢ ${selectedMessage?.phone}` : ''}`}
           icon={<MessageSquare className="w-6 h-6" />}
           footer={
             <>
@@ -222,7 +222,7 @@ export default function AdminContactMessages() {
         </Modal>
 
         {/* Messages List */}
-        <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl overflow-hidden">
+        <div className="rounded-[2rem] border border-slate-200/80 bg-white shadow-sm shadow-slate-900/5 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-base font-black text-slate-900 uppercase tracking-wider">Submitted Inquiries</h3>
             <span className="text-xs font-bold text-slate-500">{filteredMessages.length} Messages</span>
@@ -246,7 +246,7 @@ export default function AdminContactMessages() {
                           <h4 className="text-base font-black text-slate-900">{msg.name}</h4>
                           <span className="text-xs text-slate-500 font-medium">({msg.email})</span>
                         </div>
-                        <p className="text-xs text-slate-400 font-semibold">{msg.phone ? `Phone: ${msg.phone} • ` : ''}Subject: {msg.subject || 'General Inquiry'}</p>
+                        <p className="text-xs text-slate-400 font-semibold">{msg.phone ? `Phone: ${msg.phone} â€¢ ` : ''}Subject: {msg.subject || 'General Inquiry'}</p>
                       </div>
                     </div>
 
@@ -282,3 +282,4 @@ export default function AdminContactMessages() {
     </AdminLayout>
   );
 }
+

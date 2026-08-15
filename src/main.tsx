@@ -22,6 +22,22 @@ toast.error = (message: any, options?: any) => {
 
   const msg = String(message?.message || message || '');
 
+  // Allow user-friendly sentences (capitalized, at least 2 words, no raw code exceptions) to bypass masking
+  const isUserFriendly = 
+    /^[A-Z]/.test(msg) && 
+    msg.split(' ').length >= 2 && 
+    !msg.includes('FirebaseError') && 
+    !msg.includes('TypeError') && 
+    !msg.includes('ReferenceError') &&
+    !msg.includes('Firestore') &&
+    !msg.includes('assertion') &&
+    !msg.includes('stack') &&
+    !msg.includes('Error:');
+
+  if (isUserFriendly) {
+    return originalToastError(msg, options);
+  }
+
   // Handle specific scenarios with clean, human-friendly wording
   if (msg.includes('auth/') || msg.includes('invalid-credential') || msg.includes('user-not-found') || msg.includes('wrong-password')) {
     return originalToastError('Invalid credentials. Please try again.', options);

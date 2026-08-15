@@ -105,7 +105,7 @@ export default function Earnings() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto pb-20"
+        className="container-app pb-20"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
           <div>
@@ -261,7 +261,7 @@ export default function Earnings() {
                               </div>
                               <div className="relative">
                                 <p className="font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase text-sm tracking-tight">
-                                  {job.serviceName ??
+                                   {job.serviceName ||
                                     getServiceLabel(job.serviceType)}
                                 </p>
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
@@ -292,7 +292,7 @@ export default function Earnings() {
                           </td>
                            <td className="px-10 py-8 text-right">
                              <div className="flex flex-col items-end">
-                               <span className="text-2xl font-black text-slate-900 tracking-tighter leading-none">
+                               <span className="text-2xl font-semibold tracking-tight text-slate-950er leading-none">
                                  {formatCurrency(net)}
                                </span>
                                {job.payoutStatus === 'paid' ? (
@@ -319,3 +319,4 @@ export default function Earnings() {
     </ProviderLayout>
   );
 }
+

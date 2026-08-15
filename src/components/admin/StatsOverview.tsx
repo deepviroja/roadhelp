@@ -24,11 +24,11 @@ export function StatCard({ label, value, icon: Icon, color = 'blue', change, cha
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -5 }}
-      className="glass-card rounded-[2.5rem] p-8 shadow-premium transition-all"
+      className="glass-card rounded-[2rem] p-6 sm:p-7 shadow-premium transition-all"
     >
       <div className="flex items-center justify-between mb-8">
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${colorClasses[color] || colorClasses.blue}`}>
-          <Icon className="w-6 h-6" />
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${colorClasses[color] || colorClasses.blue}`}>
+          <Icon className="w-5 h-5" />
         </div>
         {change && (
           <span className={`text-[10px] font-black uppercase tracking-widest ${
@@ -40,8 +40,8 @@ export function StatCard({ label, value, icon: Icon, color = 'blue', change, cha
           </span>
         )}
       </div>
-      <p className="text-3xl font-black text-slate-900 tracking-tighter mb-1 leading-none">{value}</p>
-      <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{label}</p>
+      <p className="text-2xl sm:text-[2rem] font-black text-slate-900 tracking-tighter mb-1 leading-none">{value}</p>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.18em]">{label}</p>
     </motion.div>
   );
 }

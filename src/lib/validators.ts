@@ -15,7 +15,7 @@ const phoneSchema = z
 /** Validates a phone number using libphonenumber-js (Google's database).
  *  `countryCode` should be a dial code string like "+91" or "+1".
  */
-function isValidInternationalPhone(phone: string, countryCode: string): boolean {
+export function isValidInternationalPhone(phone: string, countryCode: string): boolean {
   try {
     const cleanCountry = countryCode.trim();
     if (cleanCountry === '+91' || cleanCountry === '91') {

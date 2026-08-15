@@ -124,7 +124,7 @@ export default function CustomerDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto pb-20"
+        className="container-app pb-20"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-8">
           <div>
@@ -290,3 +290,4 @@ export default function CustomerDashboard() {
     </CustomerLayout>
   );
 }
+

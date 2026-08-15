@@ -86,11 +86,11 @@ export default function ManageProviders() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto pb-20 space-y-8"
+        className="container-app pb-20 space-y-8"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Providers Management</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Providers Management</h1>
             <p className="text-slate-500 font-medium text-xs mt-1">Review, verify, and monitor roadside service provider accounts.</p>
           </div>
           <div className="w-full md:w-80 relative">
@@ -115,7 +115,7 @@ export default function ManageProviders() {
             </Tabs>
         </div>
 
-        <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl overflow-hidden">
+        <div className="rounded-[2rem] border border-slate-200/80 bg-white shadow-sm shadow-slate-900/5 overflow-hidden">
           {isLoading ? (
             <div className="py-24 flex flex-col items-center">
                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
@@ -128,7 +128,7 @@ export default function ManageProviders() {
                <p className="text-slate-500 text-xs max-w-sm">No service providers matched your search criteria.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-hide">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">
@@ -217,3 +217,4 @@ export default function ManageProviders() {
     </AdminLayout>
   );
 }
+

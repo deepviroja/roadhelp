@@ -132,6 +132,8 @@ export default function AdminSettings() {
   // Platform settings state
   const [platformConfig, setPlatformConfig] = useState({
     appName: "RoadHelp",
+    supportPhone: "+91 1800 123 4567",
+    supportEmail: "help@roadhelp.com",
     logoUrl: "",
     smtpFromEmail: "noreply@roadhelp.com",
     smtpFromName: "RoadHelp Team",
@@ -194,6 +196,8 @@ export default function AdminSettings() {
         const data = docSnap.data();
         const config = {
           appName: data.appName || "RoadHelp",
+          supportPhone: data.supportPhone || "+91 1800 123 4567",
+          supportEmail: data.supportEmail || "help@roadhelp.com",
           logoUrl: data.logoUrl || "",
           smtpFromEmail: data.smtpFromEmail || "noreply@roadhelp.com",
           smtpFromName: data.smtpFromName || "RoadHelp Team",
@@ -412,7 +416,7 @@ export default function AdminSettings() {
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
               Platform Settings & CMS
             </h1>
             <p className="text-slate-500 font-medium text-xs mt-1">
@@ -477,21 +481,52 @@ export default function AdminSettings() {
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-10 space-y-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div className="space-y-4">
-                  <div className="space-y-2">
                     <Label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
                       Platform Brand Identity
                     </Label>
-                    <Input
-                      value={platformConfig.appName}
-                      onChange={(e) =>
-                        setPlatformConfig({
-                          ...platformConfig,
-                          appName: e.target.value,
-                        })
-                      }
-                      className="h-14 text-xl font-black rounded-2xl bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 transition-all"
-                    />
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">App Name</Label>
+                        <Input
+                          value={platformConfig.appName}
+                          onChange={(e) =>
+                            setPlatformConfig({
+                              ...platformConfig,
+                              appName: e.target.value,
+                            })
+                          }
+                          className="h-14 font-black rounded-2xl bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Support Phone</Label>
+                        <Input
+                          value={(platformConfig as any).supportPhone || ''}
+                          onChange={(e) =>
+                            setPlatformConfig({
+                              ...platformConfig,
+                              supportPhone: e.target.value,
+                            } as any)
+                          }
+                          placeholder="+91 1800 123 4567"
+                          className="h-14 font-black rounded-2xl bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Support Email</Label>
+                        <Input
+                          value={(platformConfig as any).supportEmail || ''}
+                          onChange={(e) =>
+                            setPlatformConfig({
+                              ...platformConfig,
+                              supportEmail: e.target.value,
+                            } as any)
+                          }
+                          placeholder="help@roadhelp.com"
+                          className="h-14 font-black rounded-2xl bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 transition-all"
+                        />
+                      </div>
+                    </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="ml-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Landing hero headline</Label>
@@ -825,7 +860,7 @@ export default function AdminSettings() {
                     className="p-10 rounded-[3rem] border-2 border-slate-50 bg-slate-50/30 flex flex-col md:flex-row gap-10 relative group hover:bg-white hover:border-indigo-100 transition-all shadow-hover"
                   >
                     <div className="flex items-center gap-6 md:flex-col md:justify-center md:w-24">
-                      <span className="text-6xl font-black text-slate-200 group-hover:text-indigo-100 transition-colors leading-none">
+                      <span className="text-[2.25rem] sm:text-5xl font-black text-slate-200 group-hover:text-indigo-100 transition-colors leading-none">
                         {step.idx}
                       </span>
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1047,7 +1082,7 @@ export default function AdminSettings() {
                   <Label className="ml-1 text-[10px] font-black uppercase text-slate-400 tracking-widest">
                     Incoming Feedback Stream
                   </Label>
-                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-6 scrollbar-thin scrollbar-thumb-slate-200">
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto scrollbar-hide pr-6 scrollbar-hide">
                     {recentReviews.map((req) => (
                       <div
                         key={req.id}
@@ -1111,7 +1146,7 @@ export default function AdminSettings() {
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-10 max-w-2xl">
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">Request Visibility Window</h2>
+                  <h2 className="text-2xl font-semibold tracking-tight text-slate-950">Request Visibility Window</h2>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Controls how long a request remains visible to providers before it auto-closes.</p>
                 </div>
                 <div className="flex items-center gap-6 pt-2">
@@ -1124,7 +1159,7 @@ export default function AdminSettings() {
                     className="h-20 w-40 text-4xl font-black rounded-3xl bg-slate-50 border-slate-100 text-center focus:bg-white focus:border-blue-500 transition-all"
                   />
                   <div>
-                    <span className="text-2xl font-black text-slate-900 tracking-tighter block">HOURS</span>
+                    <span className="text-2xl font-semibold tracking-tight text-slate-950er block">HOURS</span>
                     <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Provider feed TTL</span>
                   </div>
                 </div>
@@ -1141,7 +1176,7 @@ export default function AdminSettings() {
                   <Key className="w-8 h-8" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tighter">
+                  <h2 className="text-2xl font-semibold tracking-tight text-slate-950er">
                     Monetization Engine
                   </h2>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
@@ -1174,7 +1209,7 @@ export default function AdminSettings() {
                       className="h-20 w-40 text-4xl font-black rounded-3xl bg-slate-50 border-slate-100 text-center focus:bg-white focus:border-green-500 transition-all"
                     />
                     <div>
-                      <span className="text-2xl font-black text-slate-900 tracking-tighter block">
+                      <span className="text-2xl font-semibold tracking-tight text-slate-950er block">
                         DAYS
                       </span>
                       <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">
@@ -1210,7 +1245,7 @@ export default function AdminSettings() {
                       className="h-20 w-40 text-4xl font-black rounded-3xl bg-slate-50 border-slate-100 text-center focus:bg-white focus:border-blue-500 transition-all"
                     />
                     <div>
-                      <span className="text-2xl font-black text-slate-900 tracking-tighter block">
+                      <span className="text-2xl font-semibold tracking-tight text-slate-950er block">
                         PERCENT
                       </span>
                       <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
@@ -1328,6 +1363,8 @@ export default function AdminSettings() {
     </AdminLayout>
   );
 }
+
+
 
 
 

@@ -323,7 +323,7 @@ exports.getEligibleRequestsForProvider = async (providerUid) => {
     const isDeclined = req.declinedProviders && req.declinedProviders.includes(providerUid);
     const isDirectInvite = hasProposal && proposalData?.requestedByCustomer === true;
 
-    if ((isDeclined && !isDirectInvite) || (hasProposal && proposalData?.status === 'rejected')) {
+    if (isDeclined && !isDirectInvite) {
       continue;
     }
 
@@ -498,6 +498,40 @@ exports.rejectProposal = async (requestId, proposalId, customerUid) => {
   }
 
   await requestRef.collection('proposals').doc(proposalId).update({ status: 'rejected' });
+};
+
+exports.cancelProposal = async (requestId, providerUid) => {
+  const requestRef = db.collection('serviceRequests').doc(requestId);
+  const reqSnap = await requestRef.get();
+  if (!reqSnap.exists) throw new Error('Request not found');
+  const reqData = reqSnap.data();
+
+  const proposalsSnap = await requestRef.collection('proposals')
+    .where('providerId', '==', providerUid)
+    .get();
+
+  if (proposalsSnap.empty) {
+    throw new Error('No active proposal found for this provider');
+  }
+
+  const batch = db.batch();
+  proposalsSnap.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+
+  await batch.commit();
+
+  // If there are no other proposals, reset status of the request
+  const remainingProposals = await requestRef.collection('proposals').get();
+  if (remainingProposals.empty) {
+    if (reqData.status === 'offers_received') {
+      await requestRef.update({
+        status: 'searching_providers',
+        proposalDeadline: admin.firestore.FieldValue.delete(),
+        proposalDeadlineMs: admin.firestore.FieldValue.delete(),
+      });
+    }
+  }
 };
 
 exports.autoAssignProposal = async (requestId, customerUid) => {
@@ -844,5 +878,23 @@ exports.getRequestById = async (requestId, requestingUser) => {
   const snap = await db.collection('serviceRequests').doc(requestId).get();
   if (!snap.exists) return null;
   return sanitizeForUser(serializeDoc(snap), requestingUser);
+};
+
+exports.resetDeclinedRequests = async (providerUid) => {
+  const openStatuses = ['pending', 'submitted', 'searching_providers', 'offers_received', 'bidding'];
+  const snap = await db.collection('serviceRequests')
+    .where('status', 'in', openStatuses)
+    .where('declinedProviders', 'array-contains', providerUid)
+    .get();
+
+  if (snap.empty) return;
+
+  const batch = db.batch();
+  snap.docs.forEach((doc) => {
+    batch.update(doc.ref, {
+      declinedProviders: admin.firestore.FieldValue.arrayRemove(providerUid)
+    });
+  });
+  await batch.commit();
 };
 

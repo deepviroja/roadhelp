@@ -119,8 +119,8 @@ export function SOSButton() {
         customerEmail: profile?.email || null,
         customerPhone: profile?.phone ? `${profile.countryCode || ''}${profile.phone}` : null,
         locationName: areaName,
-        latitude: lat ?? null,
-        longitude: lng ?? null,
+        latitude: lat,
+        longitude: lng,
         status: 'active',
         createdAt: serverTimestamp(),
       });

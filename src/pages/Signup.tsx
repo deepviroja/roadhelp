@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Logo } from '@/components/shared/Logo';
 import { SignupForm } from '@/components/auth/SignupForm';
@@ -20,7 +20,7 @@ export default function Signup() {
         <div className="glass-card rounded-[3.5rem] p-10 sm:p-16">
           <div className="text-center mb-14">
             <Logo size="lg" className="justify-center mb-10" />
-            <h1 className="text-fluid-3xl font-black text-[#1A1A2E] tracking-tighter leading-none mb-4">Create your account</h1>
+            <h1 className="text-3xl sm:text-4xl font-black text-[#1A1A2E] tracking-tighter leading-none mb-4">Create your account</h1>
             <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.35em] italic">
               {pageContent?.authSignupText || `Join ${appName} for faster help and a smoother booking flow`}
             </p>
@@ -36,9 +36,11 @@ export default function Signup() {
           </div>
         </div>
         <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.5em] mt-12">
-          © 2026 {appName.toUpperCase()} CORP. SECURE ONBOARDING.
+          Â© 2026 {appName.toUpperCase()} CORP. SECURE ONBOARDING.
         </p>
       </motion.div>
     </div>
   );
 }
+
+

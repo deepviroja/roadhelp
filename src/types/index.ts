@@ -1,4 +1,4 @@
-import { Timestamp, FieldValue } from 'firebase/firestore';
+﻿import { Timestamp, FieldValue } from 'firebase/firestore';
 
 export type UserRole = 'customer' | 'provider' | 'admin';
 
@@ -150,6 +150,9 @@ export interface ServiceRequest {
   status: RequestStatus;
   estimatedPrice: number;
   additionalFees?: number;
+  additionalFeeReason?: string;
+  proposedAdditionalFees?: number;
+  proposedAdditionalReason?: string;
   totalPrice?: number;
   adminCommission?: number;
   providerEarnings?: number;
@@ -170,8 +173,7 @@ export interface ServiceRequest {
   completedAt?: Timestamp | Date;
   cancelledAt?: Timestamp | Date;
   arrivalOtp?: string;
-  proposedAdditionalFees?: number;
-  proposedAdditionalReason?: string;
+  proposedadditionalFees?: number;
   preApprovalStatus?: RequestStatus;
   providerArrived?: boolean;
   phone?: string;
@@ -290,5 +292,9 @@ export interface EarningsEntry {
   commission: number;
   netEarnings: number;
 }
+
+
+
+
 
 

@@ -9,6 +9,7 @@ router.post('/', requestController.createRequest);
 // Protected endpoints requiring authenticated session token
 router.get('/pending', authMiddleware, requestController.getPendingRequests);
 router.get('/eligible/mine', authMiddleware, requestController.getEligibleRequests);
+router.post('/eligible/reset-declines', authMiddleware, requestController.resetDeclinedRequests);
 router.get('/eligible/:providerId', authMiddleware, requestController.getEligibleRequests);
 router.get('/customer/:customerId', authMiddleware, requestController.getCustomerRequests);
 router.get('/provider/:providerId', authMiddleware, requestController.getProviderRequests);
@@ -17,6 +18,7 @@ router.get('/:id', requestController.getRequestById);
 router.post('/:id/proposals', authMiddleware, requestController.submitProposal);
 router.put('/:id/proposals/select', authMiddleware, requestController.selectProposal);
 router.delete('/:id/proposals/:proposalId', authMiddleware, requestController.rejectProposal);
+router.delete('/:id/proposals/cancel', authMiddleware, requestController.cancelProposal);
 router.post('/:id/proposals/auto-assign', authMiddleware, requestController.autoAssignProposal);
 router.put('/:id/status', authMiddleware, requestController.updateStatus);
 router.put('/:id/accept', authMiddleware, requestController.acceptRequest);
