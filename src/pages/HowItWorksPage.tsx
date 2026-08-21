@@ -2,7 +2,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, MapPin, DollarSign, Navigation, Phone, CheckCircle, ArrowRight } from 'lucide-react';
+import { ShieldCheck, MapPin, IndianRupee, Navigation, Phone, CheckCircle, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function HowItWorksPage() {
@@ -17,7 +17,7 @@ export default function HowItWorksPage() {
       num: '02',
       title: 'Receive Provider Bids & Offers',
       desc: 'Verified service providers within your radius receive instant telemetry. Compare real-time price quotes, ratings, and arrival ETAs.',
-      icon: DollarSign,
+      icon: IndianRupee,
     },
     {
       num: '03',

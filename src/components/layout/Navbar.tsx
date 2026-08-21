@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, Menu, ChevronRight, ChevronDown, User } from 'lucide-react';
 
@@ -99,7 +99,7 @@ export function Navbar({ links = [], extra }: NavbarProps) {
         </button>
 
         {moreOpen && (
-          <div className="absolute left-0 top-full z-50 mt-2 w-52 rounded-2xl border border-border bg-white p-2 shadow-xl shadow-slate-900/10">
+          <div className="absolute left-0 top-full z-50 mt-0.5 w-52 rounded-2xl border border-border bg-white p-2 shadow-xl shadow-slate-900/10 before:absolute before:-top-2 before:left-0 before:right-0 before:h-2 before:content-['']">
             {secondaryNavItems.map((sub) => (
               <Link
                 key={sub.label}
@@ -154,7 +154,7 @@ export function Navbar({ links = [], extra }: NavbarProps) {
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-2xl border border-border bg-white p-2 shadow-xl shadow-slate-900/10">
+                  <div className="absolute right-0 top-full z-50 mt-0.5 w-48 rounded-2xl border border-border bg-white p-2 shadow-xl shadow-slate-900/10 before:absolute before:-top-2 before:left-0 before:right-0 before:h-2 before:content-['']">
                     <Link
                       to={profilePath}
                       onClick={() => setProfileOpen(false)}
@@ -197,7 +197,7 @@ export function Navbar({ links = [], extra }: NavbarProps) {
                 <SheetTitle>Navigation Menu</SheetTitle>
                 <SheetDescription>Navigation links for mobile screens</SheetDescription>
               </SheetHeader>
-              <div className="flex h-full flex-col overflow-y-auto p-6 sm:p-8">
+              <div className="flex h-full flex-col overflow-y-auto p-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:p-8 sm:pb-[calc(4rem+env(safe-area-inset-bottom))]">
                 <div className="mb-8 flex items-center justify-between">
                   <Logo size="lg" />
                 </div>
@@ -252,7 +252,7 @@ export function Navbar({ links = [], extra }: NavbarProps) {
                       </Button>
                     </>
                   )}
-                  <p className="pt-2 text-center text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">
+                  <p className="pt-4 text-center text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">
                     © 2026 {appName.toUpperCase()} CORP.
                   </p>
                 </div>

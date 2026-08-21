@@ -373,7 +373,13 @@ export default function TrackRequest() {
                   </div>
                   {request.providerPhone && isAcceptedOrLater ? (
                     <Button variant="outline" asChild className="border-blue-200 text-blue-600 hover:bg-blue-50 min-h-[48px]">
-                      <a href={`tel:${request.providerPhone}`}>
+                      <a
+                        href={`tel:${request.providerPhone}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `tel:${request.providerPhone}`;
+                        }}
+                      >
                         <Phone className="w-4 h-4 mr-1.5" />
                         Call Helper
                       </a>

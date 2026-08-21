@@ -1,8 +1,8 @@
-﻿import { Navbar } from '@/components/layout/Navbar';
+import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { Truck, DollarSign, MapPin, Zap, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Truck, IndianRupee, MapPin, Zap, ArrowRight, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function ForProvidersPage() {
@@ -33,7 +33,7 @@ export default function ForProvidersPage() {
             {
               title: 'Flexible Custom Pricing',
               desc: 'Submit your own custom price quotes and arrival ETAs for every incoming request.',
-              icon: DollarSign,
+              icon: IndianRupee,
             },
             {
               title: 'Instant Satellite Telemetry',

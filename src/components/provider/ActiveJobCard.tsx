@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { MapPin, Phone, ChevronRight, Navigation } from 'lucide-react';
+import { MapPin, ChevronRight, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ServiceRequest } from '@/types';
@@ -39,10 +39,6 @@ export function ActiveJobCard({ request }: ActiveJobCardProps) {
         <div className="p-3 bg-gray-50 rounded-lg mb-3">
           <p className="text-xs text-gray-500">Customer</p>
           <p className="font-medium text-gray-900">{request.customerName}</p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <Phone className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-sm text-gray-600">{request.customerPhone}</span>
-          </div>
         </div>
 
         <div className="flex items-center justify-between mb-3">

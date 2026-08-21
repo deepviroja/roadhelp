@@ -81,55 +81,57 @@ export function SOSButton() {
 
   /** Called when user presses any emergency call button.
    *  Re-fetches location, logs the call to Firestore, then dials. */
-  const handleCall = async (callType: 'police' | 'ambulance' | 'helpline' | 'team', number: string) => {
-    // Re-fetch location silently before logging
-    let lat = coordsRef.current?.lat;
-    let lng = coordsRef.current?.lng;
-    let areaName = locationName || 'unknown location';
-
-    if (navigator.geolocation) {
-      await new Promise<void>((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          async (pos) => {
-            lat = pos.coords.latitude;
-            lng = pos.coords.longitude;
-            coordsRef.current = { lat, lng };
-            const freshName = await getAreaName(lat, lng);
-            if (freshName) {
-              areaName = freshName;
-              setLocationName(freshName);
-            }
-            resolve();
-          },
-          () => resolve(),
-          { enableHighAccuracy: false, timeout: 3000, maximumAge: 60000 }
-        );
-      });
-    }
-
-    // Log SOS call to Firestore
-    try {
-      const alertId = `SOS-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-      await setDoc(doc(db, 'sosAlerts', alertId), {
-        id: alertId,
-        callType,
-        calledNumber: number,
-        customerId: profile?.uid || 'guest',
-        customerName: profile?.fullName || 'Guest',
-        customerEmail: profile?.email || null,
-        customerPhone: profile?.phone ? `${profile.countryCode || ''}${profile.phone}` : null,
-        locationName: areaName,
-        latitude: lat,
-        longitude: lng,
-        status: 'active',
-        createdAt: serverTimestamp(),
-      });
-    } catch (err) {
-      console.warn('[SOS] Failed to log call:', err);
-    }
-
-    // Dial the number
+  const handleCall = (callType: 'police' | 'ambulance' | 'helpline' | 'team', number: string) => {
+    // 1. Dial the number IMMEDIATELY for responsive emergency UX
     window.location.href = `tel:${number}`;
+
+    // 2. Perform location lookup and logging asynchronously in the background
+    (async () => {
+      let lat = coordsRef.current?.lat;
+      let lng = coordsRef.current?.lng;
+      let areaName = locationName || 'unknown location';
+
+      if (navigator.geolocation) {
+        await new Promise<void>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+              lat = pos.coords.latitude;
+              lng = pos.coords.longitude;
+              coordsRef.current = { lat, lng };
+              const freshName = await getAreaName(lat, lng);
+              if (freshName) {
+                areaName = freshName;
+                setLocationName(freshName);
+              }
+              resolve();
+            },
+            () => resolve(),
+            { enableHighAccuracy: false, timeout: 3000, maximumAge: 60000 }
+          );
+        });
+      }
+
+      // Log SOS call to Firestore
+      try {
+        const alertId = `SOS-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+        await setDoc(doc(db, 'sosAlerts', alertId), {
+          id: alertId,
+          callType,
+          calledNumber: number,
+          customerId: profile?.uid || 'guest',
+          customerName: profile?.fullName || 'Guest',
+          customerEmail: profile?.email || null,
+          customerPhone: profile?.phone ? `${profile.countryCode || ''}${profile.phone}` : null,
+          locationName: areaName,
+          latitude: lat || null,
+          longitude: lng || null,
+          status: 'active',
+          createdAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn('[SOS] Failed to log call:', err);
+      }
+    })();
   };
 
   return (

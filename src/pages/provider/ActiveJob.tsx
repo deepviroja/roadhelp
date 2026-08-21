@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Phone, MapPin, Play, Flag, IndianRupee, XCircle, ShieldAlert, BadgeDollarSign } from "lucide-react";
+import { MapPin, Play, Flag, IndianRupee, XCircle, ShieldAlert } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -49,7 +49,7 @@ export default function ActiveJob() {
   const wasActiveRef = useRef<boolean | null>(null);
 
   const { services } = useServices();
-  const currencySymbol = useSystemStore((s) => s.currencySymbol) || "$";
+  const currencySymbol = useSystemStore((s) => s.currencySymbol) || "₹";
   const [showCancel, setShowCancel] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -338,16 +338,6 @@ export default function ActiveJob() {
                   — {request.vehicleInfo.plateNumber}
                 </p>
               )}
-              <Button
-                variant="outline"
-                asChild
-                className="mt-3 border-blue-200 text-blue-600"
-              >
-                <a href={`tel:${request.customerPhone}`}>
-                  <Phone className="w-4 h-4 mr-1.5" />
-                  Call {request.customerName}
-                </a>
-              </Button>
             </div>
 
             {/* Final Price - Editable by Provider */}
@@ -511,7 +501,7 @@ export default function ActiveJob() {
                       onClick={() => setShowProposeCosts(true)}
                       disabled={isUpdating}
                     >
-                      <BadgeDollarSign className="w-4 h-4" />
+                      <IndianRupee className="w-4 h-4" />
                       Propose Additional Charges
                     </Button>
                   </>
@@ -578,7 +568,7 @@ export default function ActiveJob() {
                       onClick={() => setShowProposeCosts(true)}
                       disabled={isUpdating}
                     >
-                      <BadgeDollarSign className="w-4 h-4" />
+                      <IndianRupee className="w-4 h-4" />
                       Propose Additional Charges
                     </Button>
                   </div>
@@ -651,7 +641,7 @@ export default function ActiveJob() {
         <DialogContent className="max-w-md rounded-[2.5rem] border-none shadow-2xl p-8 bg-white">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <BadgeDollarSign className="w-6 h-6 text-blue-600" />
+              <IndianRupee className="w-6 h-6 text-blue-600" />
               Propose Additional Costs
             </DialogTitle>
             <DialogDescription className="text-slate-500 text-xs font-semibold uppercase tracking-wider">

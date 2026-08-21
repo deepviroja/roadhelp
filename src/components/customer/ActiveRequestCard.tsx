@@ -63,7 +63,13 @@ export function ActiveRequestCard({ request, onCancel }: ActiveRequestCardProps)
           </Button>
           {request.providerPhone && (
             <Button variant="outline" size="icon" asChild>
-              <a href={`tel:${request.providerPhone}`}>
+              <a
+                href={`tel:${request.providerPhone}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = `tel:${request.providerPhone}`;
+                }}
+              >
                 <Phone className="w-4 h-4 text-green-600" />
               </a>
             </Button>

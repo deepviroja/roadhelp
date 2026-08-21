@@ -399,7 +399,13 @@ export default function PublicTrackRequest() {
                     </div>
                     {request.providerPhone && isAcceptedOrLater ? (
                       <Button variant="outline" asChild className="h-12 w-12 rounded-xl bg-slate-50 border-slate-200 hover:bg-blue-600 hover:text-white p-0 shadow-sm transition-all">
-                        <a href={`tel:${request.providerPhone}`}>
+                        <a
+                          href={`tel:${request.providerPhone}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.location.href = `tel:${request.providerPhone}`;
+                          }}
+                        >
                           <Phone className="w-5 h-5 text-slate-600 hover:text-white" />
                         </a>
                       </Button>
